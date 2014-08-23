@@ -13,3 +13,6 @@ def test_global_scope():
     ''')
 
     scope = create_scope(source)
+    assert set(scope.names) == {'foo', 'boo'}
+    assert set(scope.names_at(p1)) == {'foo'}
+    assert set(scope.names_at(p2)) == {'foo', 'boo'}

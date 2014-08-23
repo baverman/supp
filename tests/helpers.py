@@ -8,9 +8,12 @@ def sp(source):
     cursors = []
     parts = source.split(type(source)('|'))
     pos = 0
+    source = ''
     for p in parts[:-1]:
         pos += len(p)
-        cursors.append(pos)
+        source += p
+        line = source.count('\n') + 1
+        column = pos - source.rfind('\n') - 1
+        cursors.append((line, column))
 
     return [type(source)('').join(parts)] + cursors
-
