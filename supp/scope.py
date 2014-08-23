@@ -1,8 +1,16 @@
-from bisect import bisect, insort
+from bisect import bisect_left as bisect, insort_left as insort
 from ast import parse
 
 from .astwalk import Extractor
 from .util import cached_property
+
+
+class Loc(object):
+    def __init__(self, declared_at):
+        self.declared_at = declared_at
+
+    def __lt__(self, other):
+        return self.declared_at < other.declared_at
 
 
 def create_scope(source, filename=None):
@@ -27,12 +35,11 @@ class Scope(object):
         self.last_flow.add_name(name)
 
     def add_flow(self, flow):
-        loc = flow.declared_at
         flows = self.flows
-        if flows and loc > flows[-1][0]:
-            flows.append((loc, flow))
+        if flows and flows[-1] < flow:
+            flows.append(flow)
         else:
-            insort(flows, (loc, flow))
+            insort(flows, flow)
 
         return flow
 
@@ -41,8 +48,8 @@ class Scope(object):
         return self.last_flow.names
 
     def names_at(self, loc):
-        idx = bisect(self.flows, (loc, None)) - 1
-        return self.flows[idx][1].names_at(loc)
+        idx = bisect(self.flows, Loc(loc)) - 1
+        return self.flows[idx].names_at(loc)
 
 
 class Flow(object):
@@ -52,13 +59,15 @@ class Flow(object):
         self.prev = prev
         self._names = []
 
+    def __lt__(self, other):
+        return self.declared_at < other.declared_at
+
     def add_name(self, name):
-        loc = name.declared_at
         names = self._names
-        if names and loc > names[-1][0]:
-            names.append((loc, name))
+        if names and names[-1] < name:
+            names.append(name)
         else:
-            insort(names, (loc, name))
+            insort(names, name)
 
     @cached_property
     def names(self):
@@ -67,7 +76,7 @@ class Flow(object):
         else:
             names = {}
 
-        names.update((name.name, name) for _, name in self._names)
+        names.update((name.name, name) for name in self._names)
         return names
 
     def names_at(self, loc):
@@ -76,6 +85,6 @@ class Flow(object):
         else:
             names = {}
 
-        idx = bisect(self._names, (loc, None))
-        names.update((name.name, name) for _, name in self._names[:idx])
+        idx = bisect(self._names, Loc(loc))
+        names.update((name.name, name) for name in self._names[:idx])
         return names

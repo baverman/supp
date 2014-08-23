@@ -66,6 +66,12 @@ class Name(object):
         self.name = name
         self.declared_at = declared_at
 
+    def __lt__(self, other):
+        return self.declared_at < other.declared_at
+
+    def __repr__(self):
+        return '{}({}, {})'.format(self.__class__.__name__, self.name, self.declared_at)
+
 
 class AssignedName(Name):
     def __init__(self, name, declared_at, value_node):
