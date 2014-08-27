@@ -9,3 +9,12 @@ class cached_property(object):
 
         value = obj.__dict__[self.func.__name__] = self.func(obj)
         return value
+
+
+class Loc(object):
+    def __init__(self, declared_at):
+        self.declared_at = declared_at
+
+    def __lt__(self, other):
+        return self.declared_at < other.declared_at
+

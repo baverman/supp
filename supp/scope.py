@@ -1,64 +1,68 @@
-from bisect import bisect_left as bisect, insort_left as insort
 from ast import parse
+from bisect import bisect_left, insort_left, bisect
+from collections import defaultdict
 
-from .astwalk import Extractor
-from .util import cached_property
+from .astwalk import Extractor, MultiName, UndefinedName
+from .util import cached_property, Loc
 
 
 def create_scope(source, filename=None):
     filename = filename or '<string>'
-    tree = parse(source, filename)
-    scope = Scope()
-    Extractor(scope, tree).process()
-    return scope
+    return ModuleScope(source, filename)
 
 
 def insert_loc(locations, loc):
     if locations and locations[-1] < loc:
         locations.append(loc)
-    elseloc
-        insort(locations, loc)
+    else:
+        insort_left(locations, loc)
 
 
-class Loc(object):
-    def __init__(self, declared_at):
-        self.declared_at = declared_at
-
-    def __lt__(self, other):
-        return self.declared_at < other.declared_at
-
-
-class Scope(object):
-    def __init__(self, parent=None):
+class ModuleScope(object):
+    def __init__(self, source, filename):
         self.parent = None
-        self.flows = []
-        self.last_flow = None
+        self.lines = source.splitlines() or ['']
+        self.flows = defaultdict(list)
 
-    def add_name(self, name):
-        if not self.last_flow:
-            self.last_flow = self.add_flow(
-                Flow(self, name.declared_at))
+        flow = self.add_flow((1, 0))
+        tree = parse(source, filename)
+        Extractor(self, flow, tree).process()
 
-        self.last_flow.add_name(name)
+    def get_level(self, loc):
+        l, c = loc
+        line = self.lines[l - 1][:c]
+        sline = line.lstrip()
+        return len(line) - len(sline)
 
-    def add_flow(self, flow):
-        insert_loc(self.flows, flow)
+    def get_level_flows(self, level):
+        try:
+            return self.flows[level]
+        except KeyError:
+            pass
+
+        levels = sorted(self.flows)
+        return self.flows[levels[bisect(levels, level) - 1]]
+
+    def add_flow(self, declared_at, parents=None):
+        flow = Flow(self, declared_at, parents)
+        insert_loc(self.flows[self.get_level(declared_at)], flow)
         return flow
 
     @property
     def names(self):
-        return self.last_flow.names
+        return self.flows[0][-1].names
 
     def names_at(self, loc):
-        idx = bisect(self.flows, Loc(loc)) - 1
-        return self.flows[idx].names_at(loc)
+        flows = self.get_level_flows(self.get_level(loc))
+        idx = bisect_left(flows, Loc(loc)) - 1
+        return flows[idx].names_at(loc)
 
 
 class Flow(Loc):
-    def __init__(self, scope, declared_at, prev=None):
+    def __init__(self, scope, declared_at, parents=None):
         self.scope = scope
         self.declared_at = declared_at
-        self.prev = prev
+        self.parents = parents or []
         self._names = []
 
     def add_name(self, name):
@@ -66,18 +70,35 @@ class Flow(Loc):
 
     @cached_property
     def names(self):
-        names = self.get_prev_names()
+        names = self.parent_names.copy()
         names.update((name.name, name) for name in self._names)
         return names
 
-    def get_prev_names(self):
-        if self.prev:
-            return self.prev.names.copy()
+    @cached_property
+    def parent_names(self):
+        parents = self.parents
+        if len(parents) == 1:
+            return parents[0].names
+        elif len(parents) > 1:
+            names = {}
+
+            nameset = set()
+            for p in parents:
+                nameset.update(p.names)
+
+            for n in nameset:
+                nrow = set(p.names.get(n, UndefinedName(n)) for p in parents)
+                if len(nrow) == 1:
+                    names[n] = list(nrow)[0]
+                else:
+                    names[n] = MultiName(list(nrow))
+
+            return names
         else:
             return {}
 
     def names_at(self, loc):
-        names = self.get_prev_names()
-        idx = bisect(self._names, Loc(loc))
+        names = self.parent_names.copy()
+        idx = bisect_left(self._names, Loc(loc))
         names.update((name.name, name) for name in self._names[:idx])
         return names
