@@ -3,7 +3,7 @@ from bisect import bisect_left, insort_left, bisect
 from collections import defaultdict
 
 from .astwalk import Extractor, MultiName, UndefinedName
-from .util import cached_property, Loc
+from .util import cached_property, Location
 
 
 def create_scope(source, filename=None):
@@ -43,9 +43,9 @@ class ModuleScope(object):
         levels = sorted(self.flows)
         return self.flows[levels[bisect(levels, level) - 1]]
 
-    def add_flow(self, declared_at, parents=None):
-        flow = Flow(self, declared_at, parents)
-        insert_loc(self.flows[self.get_level(declared_at)], flow)
+    def add_flow(self, location, parents=None):
+        flow = Flow(self, location, parents)
+        insert_loc(self.flows[self.get_level(location)], flow)
         return flow
 
     @property
@@ -54,14 +54,14 @@ class ModuleScope(object):
 
     def names_at(self, loc):
         flows = self.get_level_flows(self.get_level(loc))
-        idx = bisect_left(flows, Loc(loc)) - 1
+        idx = bisect_left(flows, Location(loc)) - 1
         return flows[idx].names_at(loc)
 
 
-class Flow(Loc):
-    def __init__(self, scope, declared_at, parents=None):
+class Flow(Location):
+    def __init__(self, scope, location, parents=None):
         self.scope = scope
-        self.declared_at = declared_at
+        self.location = location
         self.parents = parents or []
         self._names = []
 
@@ -99,6 +99,6 @@ class Flow(Loc):
 
     def names_at(self, loc):
         names = self.parent_names.copy()
-        idx = bisect_left(self._names, Loc(loc))
+        idx = bisect_left(self._names, Location(loc))
         names.update((name.name, name) for name in self._names[:idx])
         return names

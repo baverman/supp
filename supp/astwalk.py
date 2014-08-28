@@ -4,7 +4,7 @@ from ast import NodeVisitor, iter_child_nodes, iter_fields, Store
 from contextlib import contextmanager
 
 from .compat import iteritems, string_types
-from .util import Loc
+from .util import Location
 
 LW = '   '
 
@@ -64,19 +64,20 @@ def np(node):
     return node.lineno, node.col_offset
 
 
-class Name(Loc):
-    def __init__(self, name, declared_at):
+class Name(Location):
+    def __init__(self, name, declared_at, location=None):
         self.name = name
         self.declared_at = declared_at
+        self.location = location or declared_at
 
     def __repr__(self):
-        return '{}({}, {})'.format(
-            self.__class__.__name__, self.name, self.declared_at)
+        return '{}({}, {}, {})'.format(self.__class__.__name__,
+            self.name, self.declared_at, self.location)
 
 
 class AssignedName(Name):
-    def __init__(self, name, declared_at, value_node):
-        Name.__init__(self, name, declared_at)
+    def __init__(self, name, declared_at, location, value_node):
+        Name.__init__(self, name, declared_at, location)
         self.value_node = value_node
 
 
@@ -107,37 +108,34 @@ class Extractor(NodeVisitor):
             self.visit(node)
 
     @contextmanager
-    def fork(self):
-        f = Fork(self.scope, self.flow)
+    def fork(self, node):
+        f = Fork(self)
         yield f
-        loc = f.last_line + 1, f.parent.declared_at[1]
+        last_line = self.get_expr_end(node)[0]
+        loc = last_line + 1, f.parent.location[1]
         self.flow = self.scope.add_flow(loc, f.forks)
 
     def visit_Assign(self, node):
         nn = node.targets[0]
-        self.flow.add_name(AssignedName(nn.id, np(nn), node.value))
+        self.flow.add_name(AssignedName(nn.id, np(nn),
+            self.get_expr_end(node.value), node.value))
 
     def visit_If(self, node):
         self.visit(node.test)
-        with self.fork() as fork:
-            self.flow = fork.add_flow(np(node.body[0]))
-            for r in node.body:
-                self.visit(r)
-            fork.forks.append(self.flow)
-
-            self.flow = fork.add_flow(np(node.orelse[0]))
-            for r in node.orelse:
-                self.visit(r)
-            fork.forks.append(self.flow)
-
-            fork.last_line = self.get_expr_end(node)[0]
+        with self.fork(node) as fork:
+            fork.do(node.body)
+            fork.do(node.orelse)
 
 
 class Fork(object):
-    def __init__(self, scope, parent):
-        self.scope = scope
-        self.parent = parent
+    def __init__(self, extractor):
+        self.extractor = extractor
+        self.scope = extractor.scope
+        self.parent = extractor.flow
         self.forks = []
 
-    def add_flow(self, declared_at):
-        return self.scope.add_flow(declared_at, [self.parent])
+    def do(self, nodes):
+        e = self.extractor
+        e.flow = self.scope.add_flow(np(nodes[0]), [self.parent])
+        for n in nodes: e.visit(n)
+        self.forks.append(e.flow)

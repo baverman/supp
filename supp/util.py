@@ -11,10 +11,10 @@ class cached_property(object):
         return value
 
 
-class Loc(object):
-    def __init__(self, declared_at):
-        self.declared_at = declared_at
+class Location(object):
+    def __init__(self, location):
+        self.location = location
 
     def __lt__(self, other):
-        return self.declared_at < other.declared_at
+        return self.location < other.location
 
