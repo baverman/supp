@@ -1,5 +1,5 @@
 from ast import parse
-from bisect import bisect_left, insort, bisect
+from bisect import insort, bisect
 from collections import defaultdict
 
 from .astwalk import Extractor, MultiName, UndefinedName
@@ -76,7 +76,7 @@ class Flow(Location):
 
     @cached_property
     def parent_names(self):
-        parents = self.parents
+        parents = self.parents[:]
         if len(parents) == 1:
             return parents[0].names
         elif len(parents) > 1:
@@ -105,3 +105,16 @@ class Flow(Location):
 
     def __repr__(self):
         return '<Flow({})>'.format(self.location)
+
+    def loop(self):
+        self.parents.append(LoopFlow(self))
+
+
+class LoopFlow(object):
+    def __init__(self, parent):
+        self._names = parent._names
+
+    @cached_property
+    def names(self):
+        return {n.name: n for n in self._names}
+

@@ -94,7 +94,7 @@ def test_for_without_break():
     ''')
 
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p1)) == {'a': listitem, 'b': 10}
+    assert nvalues(scope.names_at(p1)) == {'a': listitem, 'b': {10, 20}}
     assert nvalues(scope.names_at(p2)) == {'a': listitem, 'b': 20}
     assert nvalues(scope.names_at(p3)) == {'a': {listitem, undefined}, 'b': {10, 20}, 'c': 10}
     assert nvalues(scope.names_at(p4)) == {'a': {listitem, undefined}, 'b': {10, 20}, 'c': 10}

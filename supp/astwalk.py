@@ -129,7 +129,7 @@ class Extractor(NodeVisitor):
     def visit_For(self, node):
         with self.fork(node) as fork:
             fork.empty()
-            fork.do(node.body)
+            fork.do(node.body).loop()
             nn = node.target
             self.flow.add_name(AssignedName(nn.id, np(nn), np(node.body[0]), node.iter))
 
@@ -148,12 +148,12 @@ class Fork(object):
         self.parent = extractor.flow
         self.forks = []
 
-    def do(self, nodes):
+    def do(self, nodes, loop=False):
         e = self.extractor
         e.flow = self.scope.add_flow(np(nodes[0]), [self.parent])
         for n in nodes: e.visit(n)
         self.forks.append(e.flow)
+        return e.flow
 
     def empty(self):
-        self.extractor.flow = self.scope.add_flow((0, 0), [self.parent])
-        self.forks.append(self.extractor.flow)
+        self.forks.append(self.parent)
