@@ -111,12 +111,18 @@ class Extractor(NodeVisitor):
     def fork(self, node):
         f = Fork(self)
         yield f
-        self.flow = self.join(node, f.parent, f.forks)
+        self.join(node, f.parent, f.forks)
 
     def join(self, node, parent, forks):
         last_line = self.get_expr_end(node)[0]
         loc = last_line + 1, parent.location[1]
-        return self.scope.add_flow(loc, forks)
+        self.flow = self.scope.add_flow(loc, forks)
+
+    def shift(self, node, nodes):
+        flow = self.flow
+        self.flow = self.scope.add_flow(np(nodes[0]), [flow])
+        for n in nodes: self.visit(n)
+        self.join(node, flow, [self.flow])
 
     def visit_Assign(self, node):
         nn = node.targets[0]
@@ -140,10 +146,16 @@ class Extractor(NodeVisitor):
             self.flow.add_name(AssignedName(nn.id, np(nn), np(node.body[0]), node.iter))
 
         if node.orelse:
-            flow = self.flow
-            self.flow = self.scope.add_flow(np(node.orelse[0]), [flow])
-            for n in node.orelse: self.visit(n)
-            self.flow = self.join(node, flow, [self.flow])
+            self.shift(node, node.orelse)
+
+    def visit_While(self, node):
+        self.visit(node.test)
+        with self.fork(node) as fork:
+            fork.empty()
+            fork.do(node.body).loop()
+
+        if node.orelse:
+            self.shift(node, node.orelse)
 
 
 class Fork(object):

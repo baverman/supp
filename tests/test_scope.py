@@ -112,3 +112,22 @@ def test_for_without_break():
     assert nvalues(scope.names_at(p2)) == {'a': listitem, 'b': 20}
     assert nvalues(scope.names_at(p3)) == {'a': {listitem, undefined}, 'b': {10, 20}, 'c': 10}
     assert nvalues(scope.names_at(p4)) == {'a': {listitem, undefined}, 'b': {10, 20}, 'c': 10}
+
+
+def test_while_without_break():
+    source, p1, p2, p3, p4 = sp('''\
+        b = 10
+        while True:
+            |b = 20
+            |
+        else:
+            c = 10
+            |
+        |
+    ''')
+
+    scope = create_scope(source)
+    assert nvalues(scope.names_at(p1)) == {'b': {10, 20}}
+    assert nvalues(scope.names_at(p2)) == {'b': 20}
+    assert nvalues(scope.names_at(p3)) == {'b': {10, 20}, 'c': 10}
+    assert nvalues(scope.names_at(p4)) == {'b': {10, 20}, 'c': 10}
