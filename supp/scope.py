@@ -1,5 +1,5 @@
 from ast import parse
-from bisect import bisect_left, insort_left, bisect
+from bisect import bisect_left, insort, bisect
 from collections import defaultdict
 
 from .astwalk import Extractor, MultiName, UndefinedName
@@ -15,7 +15,7 @@ def insert_loc(locations, loc):
     if locations and locations[-1] < loc:
         locations.append(loc)
     else:
-        insort_left(locations, loc)
+        insort(locations, loc)
 
 
 class ModuleScope(object):
@@ -54,7 +54,7 @@ class ModuleScope(object):
 
     def names_at(self, loc):
         flows = self.get_level_flows(self.get_level(loc))
-        idx = bisect_left(flows, Location(loc)) - 1
+        idx = bisect(flows, Location(loc)) - 1
         return flows[idx].names_at(loc)
 
 
@@ -99,6 +99,9 @@ class Flow(Location):
 
     def names_at(self, loc):
         names = self.parent_names.copy()
-        idx = bisect_left(self._names, Location(loc))
+        idx = bisect(self._names, Location(loc))
         names.update((name.name, name) for name in self._names[:idx])
         return names
+
+    def __repr__(self):
+        return '<Flow({})>'.format(self.location)

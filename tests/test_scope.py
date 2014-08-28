@@ -7,10 +7,13 @@ from supp.astwalk import AssignedName, UndefinedName, MultiName
 from .helpers import sp
 
 undefined = object()
+listitem = object()
 
 
 def get_value(name):
     if isinstance(name, AssignedName):
+        if hasattr(name.value_node, 'elts'):
+            return listitem
         return name.value_node.n
     elif isinstance(name, UndefinedName):
         return undefined
@@ -78,20 +81,20 @@ def test_if():
     }
 
 
-def _test_for():
-    source, p1, p2, p3, p4, p5 = sp('''\
+def test_for_without_break():
+    source, p1, p2, p3, p4 = sp('''\
         b = 10
         for a in [1, 2, 3]:
-            b = 20
+            |b = 20
             |
         else:
             c = 10
+            |
         |
     ''')
 
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p1)) == {'a': 10, 'b': 10}
-    assert nvalues(scope.names_at(p2)) == {'a': 10, 'b': 10, 'c': 10}
-    assert nvalues(scope.names_at(p3)) == {'a': 30}
-    assert nvalues(scope.names_at(p4)) == {'a': 30, 'b': 20}
-    assert nvalues(scope.names_at(p5)) == {'a': {10, 30}, 'b': {10, 20, undefined}, 'c': {10, 20, undefined}}
+    assert nvalues(scope.names_at(p1)) == {'a': listitem, 'b': 10}
+    assert nvalues(scope.names_at(p2)) == {'a': listitem, 'b': 20}
+    assert nvalues(scope.names_at(p3)) == {'a': {listitem, undefined}, 'b': {10, 20}, 'c': 10}
+    assert nvalues(scope.names_at(p4)) == {'a': {listitem, undefined}, 'b': {10, 20}, 'c': 10}
