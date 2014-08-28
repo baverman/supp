@@ -6,8 +6,8 @@ from supp.astwalk import AssignedName, UndefinedName, MultiName
 
 from .helpers import sp
 
-undefined = object()
-listitem = object()
+undefined = 'undefined'
+listitem = 'listitem'
 
 
 def get_value(name):
