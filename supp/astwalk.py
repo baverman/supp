@@ -124,7 +124,10 @@ class Extractor(NodeVisitor):
         self.visit(node.test)
         with self.fork(node) as fork:
             fork.do(node.body)
-            fork.do(node.orelse)
+            if node.orelse:
+                fork.do(node.orelse)
+            else:
+                fork.empty()
 
     def visit_For(self, node):
         with self.fork(node) as fork:
@@ -133,12 +136,13 @@ class Extractor(NodeVisitor):
             nn = node.target
             self.flow.add_name(AssignedName(nn.id, np(nn), np(node.body[0]), node.iter))
 
-        flow = self.flow
-        self.flow = self.scope.add_flow(np(node.orelse[0]), [flow])
-        for n in node.orelse: self.visit(n)
-        last_line = self.get_expr_end(node)[0]
-        loc = last_line + 1, flow.location[1]
-        self.flow = self.scope.add_flow(loc, [self.flow])
+        if node.orelse:
+            flow = self.flow
+            self.flow = self.scope.add_flow(np(node.orelse[0]), [flow])
+            for n in node.orelse: self.visit(n)
+            last_line = self.get_expr_end(node)[0]
+            loc = last_line + 1, flow.location[1]
+            self.flow = self.scope.add_flow(loc, [self.flow])
 
 
 class Fork(object):

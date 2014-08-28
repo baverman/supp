@@ -53,6 +53,20 @@ def test_value_override():
     assert nvalues(scope.names_at(p2)) == {'foo': 20}
 
 
+def test_simple_if():
+    source, p1, p2 = sp('''\
+        a = 10
+        if True:
+            b = 10
+            |
+        |
+    ''')
+
+    scope = create_scope(source)
+    assert nvalues(scope.names_at(p1)) == {'a': 10, 'b': 10}
+    assert nvalues(scope.names_at(p2)) == {'a': 10, 'b': {10, undefined}}
+
+
 def test_if():
     source, p1, p2, p3, p4, p5 = sp('''\
         a = 10
