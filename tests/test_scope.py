@@ -2,12 +2,13 @@ from __future__ import print_function
 
 from supp.compat import iteritems
 from supp.scope import create_scope
-from supp.astwalk import AssignedName, UndefinedName, MultiName
+from supp.astwalk import AssignedName, UndefinedName, MultiName, ImportedName
 
 from .helpers import sp
 
 undefined = 'undefined'
 listitem = 'listitem'
+iname = 'iname'
 
 
 def get_value(name):
@@ -19,6 +20,8 @@ def get_value(name):
         return undefined
     elif isinstance(name, MultiName):
         return set(get_value(r) for r in name.names)
+    elif isinstance(name, ImportedName):
+        return iname
     else:
         raise Exception('Unknown name type', name)
 
@@ -131,3 +134,51 @@ def test_while_without_break():
     assert nvalues(scope.names_at(p2)) == {'b': 20}
     assert nvalues(scope.names_at(p3)) == {'b': {10, 20}, 'c': 10}
     assert nvalues(scope.names_at(p4)) == {'b': {10, 20}, 'c': 10}
+
+
+def test_imports():
+    source, = sp('''\
+        import os
+        import os as so
+        import os.path as ospath
+        from os import path
+        from os import path as opath
+        from . import boo
+        from .. import foo
+        from .boo import bar, tar
+    ''')
+
+    scope = create_scope(source)
+    names = scope.names
+
+    assert set(names) == {
+        'os', 'so', 'path', 'opath', 'ospath',
+        'boo', 'foo', 'bar', 'tar'
+    }
+
+    assert names['os'].module == 'os'
+    assert names['so'].module == 'os'
+    assert names['ospath'].module == 'os.path'
+    assert names['path'].module == 'os'
+    assert names['path'].mname == 'path'
+    assert names['opath'].module == 'os'
+    assert names['opath'].mname == 'path'
+    assert names['boo'].module == '.'
+    assert names['boo'].mname == 'boo'
+    assert names['foo'].module == '..'
+    assert names['foo'].mname == 'foo'
+    assert names['bar'].module == '.boo'
+    assert names['bar'].mname == 'bar'
+    assert names['tar'].module == '.boo'
+    assert names['tar'].mname == 'tar'
+
+
+def test_oneliners():
+    source, p1, p2 = sp('''\
+        import traceback;|
+        a = 10;|
+    ''')
+
+    scope = create_scope(source)
+    assert nvalues(scope.names_at(p1)) == {'traceback': iname}
+    assert nvalues(scope.names_at(p2)) == {'traceback': iname, 'a': 10}

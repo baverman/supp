@@ -53,7 +53,10 @@ class GetExprEnd(NodeVisitor):
 
     def __getattr__(self, name):
         def inner(node):
-            self.last_loc = node.lineno, node.col_offset + 1
+            try:
+                self.last_loc = node.lineno, node.col_offset + 1
+            except AttributeError:
+                pass
             self.generic_visit(node)
 
         setattr(self, name, inner)
@@ -65,20 +68,36 @@ def np(node):
 
 
 class Name(Location):
-    def __init__(self, name, declared_at, location=None):
+    def __init__(self, name, location=None):
         self.name = name
-        self.declared_at = declared_at
         self.location = location or declared_at
 
     def __repr__(self):
-        return '{}({}, {}, {})'.format(self.__class__.__name__,
-            self.name, self.declared_at, self.location)
+        return '{}({}, {})'.format(self.__class__.__name__,
+            self.name, self.location)
 
 
 class AssignedName(Name):
-    def __init__(self, name, declared_at, location, value_node):
-        Name.__init__(self, name, declared_at, location)
+    def __init__(self, name, location, declared_at, value_node):
+        Name.__init__(self, name, location)
+        self.declared_at = declared_at
         self.value_node = value_node
+
+    def __repr__(self):
+        return 'AssignedName({}, {}, {})'.format(
+            self.name, self.location, self.declared_at)
+
+
+class ImportedName(Name):
+    def __init__(self, name, location, declared_at, module, mname=None):
+        Name.__init__(self, name, location)
+        self.declared_at = declared_at
+        self.module = module
+        self.mname = mname
+
+    def __repr__(self):
+        return 'ImportedName({}, {}, {}, {}, {})'.format(
+            self.name, self.location, self.declared_at, self.module, self.mname)
 
 
 class UndefinedName(str): pass
@@ -98,6 +117,7 @@ class MultiName(object):
 class Extractor(NodeVisitor):
     def __init__(self, scope, flow, tree):
         self.scope = scope
+        self.lines = scope.lines
         self.flow = flow
         self.tree = tree
         self.get_expr_end = GetExprEnd()
@@ -126,8 +146,8 @@ class Extractor(NodeVisitor):
 
     def visit_Assign(self, node):
         nn = node.targets[0]
-        self.flow.add_name(AssignedName(nn.id, np(nn),
-            self.get_expr_end(node.value), node.value))
+        self.flow.add_name(AssignedName(nn.id, self.get_expr_end(node.value),
+            np(nn), node.value))
 
     def visit_If(self, node):
         self.visit(node.test)
@@ -143,7 +163,8 @@ class Extractor(NodeVisitor):
             fork.empty()
             fork.do(node.body).loop()
             nn = node.target
-            self.flow.add_name(AssignedName(nn.id, np(nn), np(node.body[0]), node.iter))
+            self.flow.add_name(
+                AssignedName(nn.id, np(node.body[0]), np(nn), node.iter))
 
         if node.orelse:
             self.shift(node, node.orelse)
@@ -156,6 +177,19 @@ class Extractor(NodeVisitor):
 
         if node.orelse:
             self.shift(node, node.orelse)
+
+    def visit_Import(self, node):
+        loc = self.get_expr_end(node)
+        for a in node.names:
+            name = a.asname or a.name.partition('.')[0]
+            self.flow.add_name(ImportedName(name, loc, np(node), a.name, None))
+
+    def visit_ImportFrom(self, node):
+        loc = self.get_expr_end(node)
+        for a in node.names:
+            name = a.asname or a.name
+            module = '.' * node.level + (node.module or '')
+            self.flow.add_name(ImportedName(name, loc, np(node), module, a.name))
 
 
 class Fork(object):
