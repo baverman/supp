@@ -103,11 +103,16 @@ class Flow(Location):
         names.update((name.name, name) for name in self._names[:idx])
         return names
 
-    def __repr__(self):
-        return '<Flow({})>'.format(self.location)
-
     def loop(self):
         self.parents.append(LoopFlow(self))
+        return self
+
+    def linkto(self, flow):
+        self.parents.append(flow)
+        return self
+
+    def __repr__(self):
+        return '<Flow({})>'.format(self.location)
 
 
 class LoopFlow(object):

@@ -15,6 +15,8 @@ def get_value(name):
     if isinstance(name, AssignedName):
         if hasattr(name.value_node, 'elts'):
             return listitem
+        if hasattr(name.value_node, 'id'):
+            return name.value_node.id
         return name.value_node.n
     elif isinstance(name, UndefinedName):
         return undefined
@@ -182,3 +184,47 @@ def test_oneliners():
     scope = create_scope(source)
     assert nvalues(scope.names_at(p1)) == {'traceback': iname}
     assert nvalues(scope.names_at(p2)) == {'traceback': iname, 'a': 10}
+
+
+def test_simple_try_except():
+    source, p1, p2 = sp('''\
+        try:
+            a = 10
+        except:
+            |a = 20
+        |
+    ''')
+
+    scope = create_scope(source)
+    assert nvalues(scope.names_at(p1)) == {}
+    assert nvalues(scope.names_at(p2)) == {'a': {10, 20}}
+
+
+def test_try_except():
+    source, p1, p2, p3, p4, p5 = sp('''\
+        try:
+            a = 10
+        except ValueError as e:
+            |a = 20
+            |
+        except Exception as ee:
+            b = 10
+            |
+        else:
+            c = 10
+            |
+        |
+    ''')
+
+    scope = create_scope(source)
+    assert nvalues(scope.names_at(p1)) == {'e': 'ValueError'}
+    assert nvalues(scope.names_at(p2)) == {'a': 20, 'e': 'ValueError'}
+    assert nvalues(scope.names_at(p3)) == {'b': 10, 'ee': 'Exception'}
+    assert nvalues(scope.names_at(p4)) == {'a': 10, 'c': 10}
+    assert nvalues(scope.names_at(p5)) == {
+        'a': {10, 20, undefined},
+        'c': {10, undefined},
+        'b': {10, undefined},
+        'e': {'ValueError', undefined},
+        'ee': {'Exception', undefined},
+    }

@@ -191,6 +191,25 @@ class Extractor(NodeVisitor):
             module = '.' * node.level + (node.module or '')
             self.flow.add_name(ImportedName(name, loc, np(node), module, a.name))
 
+    def visit_TryExcept(self, node):
+        with self.fork(node) as fork:
+            fork.do(node.body, node.orelse)
+            for h in node.handlers:
+                fork.do(h.body)
+                if h.name:
+                    nn = h.name
+                    self.flow.add_name(
+                        AssignedName(nn.id, np(h.body[0]), np(nn), h.type))
+
+    def visit_Try(self, node):
+        with self.fork(node) as fork:
+            fork.do(node.body, node.orelse)
+            for h in node.handlers:
+                fork.do(h.body)
+                if h.name:
+                    self.flow.add_name(
+                        AssignedName(h.name, np(h.body[0]), np(h), h.type))
+
 
 class Fork(object):
     def __init__(self, extractor):
@@ -199,10 +218,15 @@ class Fork(object):
         self.parent = extractor.flow
         self.forks = []
 
-    def do(self, nodes, loop=False):
+    def do(self, *blocks):
         e = self.extractor
-        e.flow = self.scope.add_flow(np(nodes[0]), [self.parent])
-        for n in nodes: e.visit(n)
+        p = self.parent
+        for nodes in blocks:
+            if nodes:
+                e.flow = self.scope.add_flow(np(nodes[0]), [p])
+                for n in nodes: e.visit(n)
+                p = e.flow
+
         self.forks.append(e.flow)
         return e.flow
 
