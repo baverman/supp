@@ -1,80 +1,31 @@
-from __future__ import print_function
-
-from ast import NodeVisitor, iter_child_nodes, iter_fields, Store
+from bisect import bisect
+from collections import defaultdict
 from contextlib import contextmanager
+from ast import NodeVisitor
 
-from .compat import iteritems, string_types
-from .util import Location
-
-LW = '   '
-
-
-def dumptree(node, result, level):
-    fields = [(k, v) for k, v in iter_fields(node)
-        if (hasattr(v, '_fields') and not isinstance(v, Store))
-            or (isinstance(v, list) and v and hasattr(v[0], '_fields'))]
-    field_names = set(k for k, v in fields)
-
-    result.append('{} {} {}'.format(LW * level, type(node).__name__,
-        ', '.join('{}: {}'.format(k, v) for k, v in sorted(iteritems(vars(node)))
-            if k not in field_names)))
-
-    for k, v in fields:
-        if isinstance(v, list):
-            result.append('{} {}:'.format(LW * (level + 1), k))
-            for child in v:
-                dumptree(child, result, level + 2)
-        else:
-            result.append('{} {}:'.format(LW * (level + 1), k))
-            dumptree(v, result, level + 2)
-
-    return result
-
-
-def dump(node):
-    return '\n'.join(dumptree(node, [], 0))
-
-
-def print_dump(node):
-    print(dump(node))
-
-
-class GetExprEnd(NodeVisitor):
-    def __call__(self, node):
-        self.last_loc = node.lineno, node.col_offset + 1
-        self.visit(node)
-        return self.last_loc
-
-    def visit_Store(self, node):
-        pass
-
-    def visit_Load(self, node):
-        pass
-
-    def __getattr__(self, name):
-        def inner(node):
-            try:
-                self.last_loc = node.lineno, node.col_offset + 1
-            except AttributeError:
-                pass
-            self.generic_visit(node)
-
-        setattr(self, name, inner)
-        return inner
-
-
-def np(node):
-    return node.lineno, node.col_offset
+from .util import Location, np, GetExprEnd, insert_loc, cached_property
+from .compat import PY2
 
 
 class Name(Location):
     def __init__(self, name, location=None):
         self.name = name
-        self.location = location or declared_at
+        self.location = location
 
     def __repr__(self):
         return '{}({}, {})'.format(self.__class__.__name__,
             self.name, self.location)
+
+
+class ArgumentName(Name):
+    def __init__(self, name, location, declared_at, func):
+        Name.__init__(self, name, location)
+        self.declared_at = declared_at
+        self.func = func
+
+    def __repr__(self):
+        return 'ArgumentName({}, {}, {})'.format(
+            self.name, self.location, self.declared_at)
 
 
 class AssignedName(Name):
@@ -114,18 +65,168 @@ class MultiName(object):
         self.names = list(set(allnames))
 
 
-class Extractor(NodeVisitor):
-    def __init__(self, scope, flow, tree):
+class Fork(object):
+    def __init__(self, extractor):
+        self.extractor = extractor
+        self.parent = extractor.flow
+        self.forks = []
+
+    def do(self, *blocks):
+        e = self.extractor
+        p = self.parent
+        for nodes in blocks:
+            if nodes:
+                e.flow = e.add_flow(np(nodes[0]), [p])
+                for n in nodes: e.visit(n)
+                p = e.flow
+
+        self.forks.append(e.flow)
+        return e.flow
+
+    def empty(self):
+        self.forks.append(self.parent)
+
+
+class Scope(object):
+    def __init__(self, parent):
+        self.parent = parent
+
+
+class FuncScope(Scope):
+    def __init__(self, parent, node):
+        Scope.__init__(self, parent)
+        self.name = node.name
+        self.args = []
+        self.declared_at = np(node)
+        self.location = np(node.body[0])
+        for n in node.args.args:
+            if PY2:
+                self.args.append(ArgumentName(n.id, self.location, np(n), self))
+            else:
+                self.args.append(ArgumentName(n.arg, self.location, np(n), self))
+
+        self.flow = Flow(self, self.location)
+        for arg in self.args:
+            self.flow.add_name(arg)
+
+
+class SourceScope(object):
+    def __init__(self, lines):
+        self.parent = None
+        self.lines = lines
+        self.flows = defaultdict(list)
+
+    def get_level(self, loc):
+        l, c = loc
+        line = self.lines[l - 1][:c]
+        sline = line.lstrip()
+        return len(line) - len(sline)
+
+    def get_level_flows(self, level):
+        try:
+            return self.flows[level]
+        except KeyError:
+            pass
+
+        levels = sorted(self.flows)
+        return self.flows[levels[bisect(levels, level) - 1]]
+
+    def add_flow(self, flow):
+        insert_loc(self.flows[self.get_level(flow.location)], flow)
+        return flow
+
+    @property
+    def names(self):
+        return self.flows[0][-1].names
+
+    def names_at(self, loc):
+        flows = self.get_level_flows(self.get_level(loc))
+        idx = bisect(flows, Location(loc)) - 1
+        return flows[idx].names_at(loc)
+
+
+class Flow(Location):
+    def __init__(self, scope, location, parents=None):
         self.scope = scope
-        self.lines = scope.lines
-        self.flow = flow
+        self.location = location
+        self.parents = parents or []
+        self._names = []
+
+    def add_name(self, name):
+        insert_loc(self._names, name)
+
+    @cached_property
+    def names(self):
+        names = self.parent_names.copy()
+        names.update((name.name, name) for name in self._names)
+        return names
+
+    @cached_property
+    def parent_names(self):
+        parents = self.parents[:]
+        if len(parents) == 1:
+            return parents[0].names
+        elif len(parents) > 1:
+            names = {}
+
+            nameset = set()
+            for p in parents:
+                nameset.update(p.names)
+
+            for n in nameset:
+                nrow = set(p.names.get(n, UndefinedName(n)) for p in parents)
+                if len(nrow) == 1:
+                    names[n] = list(nrow)[0]
+                else:
+                    names[n] = MultiName(list(nrow))
+
+            return names
+        else:
+            if self.scope.parent:
+                return self.scope.parent.names
+            else:
+                return {}
+
+    def names_at(self, loc):
+        names = self.parent_names.copy()
+        idx = bisect(self._names, Location(loc))
+        names.update((name.name, name) for name in self._names[:idx])
+        return names
+
+    def loop(self):
+        self.parents.append(LoopFlow(self))
+        return self
+
+    def linkto(self, flow):
+        self.parents.append(flow)
+        return self
+
+    def __repr__(self):
+        return '<Flow({})>'.format(self.location)
+
+
+class LoopFlow(object):
+    def __init__(self, parent):
+        self._names = parent._names
+
+    @cached_property
+    def names(self):
+        return {n.name: n for n in self._names}
+
+
+class Extractor(NodeVisitor):
+    def __init__(self, tree, lines):
         self.tree = tree
         self.get_expr_end = GetExprEnd()
+        self.top = SourceScope(lines)
+        self.scope = self.top
+        self.flow = self.add_flow((1, 0))
 
     def process(self):
-        # print_dump(self.tree)
         for node in self.tree.body:
             self.visit(node)
+
+        return self.top
 
     @contextmanager
     def fork(self, node):
@@ -133,14 +234,17 @@ class Extractor(NodeVisitor):
         yield f
         self.join(node, f.parent, f.forks)
 
+    def add_flow(self, loc, parents=None):
+        return self.top.add_flow(Flow(self.scope, loc, parents))
+
     def join(self, node, parent, forks):
         last_line = self.get_expr_end(node)[0]
         loc = last_line + 1, parent.location[1]
-        self.flow = self.scope.add_flow(loc, forks)
+        self.flow = self.add_flow(loc, forks)
 
     def shift(self, node, nodes):
         flow = self.flow
-        self.flow = self.scope.add_flow(np(nodes[0]), [flow])
+        self.flow = self.add_flow(np(nodes[0]), [flow])
         for n in nodes: self.visit(n)
         self.join(node, flow, [self.flow])
 
@@ -210,25 +314,13 @@ class Extractor(NodeVisitor):
                     self.flow.add_name(
                         AssignedName(h.name, np(h.body[0]), np(h), h.type))
 
+    def visit_FunctionDef(self, node):
+        scope = self.scope
+        flow = self.flow
+        self.scope = FuncScope(self.scope, node)
+        flow.add_name(self.scope)
+        self.flow = self.top.add_flow(self.scope.flow)
+        for n in node.body: self.visit(n)
+        self.scope = scope
+        self.flow = flow
 
-class Fork(object):
-    def __init__(self, extractor):
-        self.extractor = extractor
-        self.scope = extractor.scope
-        self.parent = extractor.flow
-        self.forks = []
-
-    def do(self, *blocks):
-        e = self.extractor
-        p = self.parent
-        for nodes in blocks:
-            if nodes:
-                e.flow = self.scope.add_flow(np(nodes[0]), [p])
-                for n in nodes: e.visit(n)
-                p = e.flow
-
-        self.forks.append(e.flow)
-        return e.flow
-
-    def empty(self):
-        self.forks.append(self.parent)

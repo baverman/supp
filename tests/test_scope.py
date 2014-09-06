@@ -1,14 +1,21 @@
 from __future__ import print_function
 
 from supp.compat import iteritems
-from supp.scope import create_scope
-from supp.astwalk import AssignedName, UndefinedName, MultiName, ImportedName
+from supp.astwalk import AssignedName, UndefinedName, MultiName, ImportedName,\
+    Extractor, ArgumentName, FuncScope
+from supp.util import tree_and_lines, print_dump
 
 from .helpers import sp
 
 undefined = 'undefined'
 listitem = 'listitem'
 iname = 'iname'
+
+
+def create_scope(source, filename=None, debug=False):
+    e = Extractor(*tree_and_lines(source, filename))
+    debug and print_dump(e.tree)
+    return e.process()
 
 
 def get_value(name):
@@ -24,6 +31,10 @@ def get_value(name):
         return set(get_value(r) for r in name.names)
     elif isinstance(name, ImportedName):
         return iname
+    elif isinstance(name, ArgumentName):
+        return '{}.{}'.format(name.func.name, name.name)
+    elif isinstance(name, FuncScope):
+        return 'func.{}'.format(name.name)
     else:
         raise Exception('Unknown name type', name)
 
@@ -228,3 +239,17 @@ def test_try_except():
         'e': {'ValueError', undefined},
         'ee': {'Exception', undefined},
     }
+
+
+def test_function_scope():
+    source, p1, p2 = sp('''\
+        a = 10
+        def foo(b):
+            c = 10
+            |
+        |
+    ''')
+
+    scope = create_scope(source)
+    assert nvalues(scope.names_at(p1)) == {'a': 10, 'b': 'foo.b', 'c': 10, 'foo': 'func.foo'}
+    assert nvalues(scope.names_at(p2)) == {'a': 10, 'foo': 'func.foo'}
