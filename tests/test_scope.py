@@ -253,3 +253,14 @@ def test_function_scope():
     scope = create_scope(source)
     assert nvalues(scope.names_at(p1)) == {'a': 10, 'b': 'foo.b', 'c': 10, 'foo': 'func.foo'}
     assert nvalues(scope.names_at(p2)) == {'a': 10, 'foo': 'func.foo'}
+
+
+def test_parent_scope_var_masking():
+    source, p1 = sp('''\
+        a = 10
+        def foo():
+            |a = 20
+    ''')
+
+    scope = create_scope(source)
+    assert nvalues(scope.names_at(p1)) == {'foo': 'func.foo'}

@@ -90,6 +90,7 @@ class Fork(object):
 class Scope(object):
     def __init__(self, parent):
         self.parent = parent
+        self.locals = set()
 
 
 class FuncScope(Scope):
@@ -99,6 +100,7 @@ class FuncScope(Scope):
         self.args = []
         self.declared_at = np(node)
         self.location = np(node.body[0])
+
         for n in node.args.args:
             if PY2:
                 self.args.append(ArgumentName(n.id, self.location, np(n), self))
@@ -110,9 +112,9 @@ class FuncScope(Scope):
             self.flow.add_name(arg)
 
 
-class SourceScope(object):
+class SourceScope(Scope):
     def __init__(self, lines):
-        self.parent = None
+        Scope.__init__(self, None)
         self.lines = lines
         self.flows = defaultdict(list)
 
@@ -153,6 +155,7 @@ class Flow(Location):
         self._names = []
 
     def add_name(self, name):
+        self.scope.locals.add(name.name)
         insert_loc(self._names, name)
 
     @cached_property
@@ -183,7 +186,9 @@ class Flow(Location):
             return names
         else:
             if self.scope.parent:
-                return self.scope.parent.names
+                pnames = self.scope.parent.names
+                outer_names = set(pnames).difference(self.scope.locals)
+                return {n: pnames[n] for n in outer_names}
             else:
                 return {}
 
