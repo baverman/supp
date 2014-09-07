@@ -9,7 +9,7 @@ from .helpers import sp
 
 undefined = 'undefined'
 listitem = 'listitem'
-iname = 'iname'
+func = 'func'
 
 
 def create_scope(source, filename=None, debug=False):
@@ -30,11 +30,14 @@ def get_value(name):
     elif isinstance(name, MultiName):
         return set(get_value(r) for r in name.names)
     elif isinstance(name, ImportedName):
-        return iname
+        if name.mname:
+            return 'import:{0.module}:{0.mname}'.format(name)
+        else:
+            return 'import:{0.module}'.format(name)
     elif isinstance(name, ArgumentName):
-        return '{}.{}'.format(name.func.name, name.name)
+        return '{}.arg'.format(name.func.name, name.name)
     elif isinstance(name, FuncScope):
-        return 'func.{}'.format(name.name)
+        return func
     else:
         raise Exception('Unknown name type', name)
 
@@ -162,28 +165,17 @@ def test_imports():
     ''')
 
     scope = create_scope(source)
-    names = scope.names
-
-    assert set(names) == {
-        'os', 'so', 'path', 'opath', 'ospath',
-        'boo', 'foo', 'bar', 'tar'
+    assert nvalues(scope.names) == {
+        'os': 'import:os',
+        'so': 'import:os',
+        'ospath': 'import:os.path',
+        'path': 'import:os:path',
+        'opath': 'import:os:path',
+        'boo': 'import:.:boo',
+        'foo': 'import:..:foo',
+        'bar': 'import:.boo:bar',
+        'tar': 'import:.boo:tar',
     }
-
-    assert names['os'].module == 'os'
-    assert names['so'].module == 'os'
-    assert names['ospath'].module == 'os.path'
-    assert names['path'].module == 'os'
-    assert names['path'].mname == 'path'
-    assert names['opath'].module == 'os'
-    assert names['opath'].mname == 'path'
-    assert names['boo'].module == '.'
-    assert names['boo'].mname == 'boo'
-    assert names['foo'].module == '..'
-    assert names['foo'].mname == 'foo'
-    assert names['bar'].module == '.boo'
-    assert names['bar'].mname == 'bar'
-    assert names['tar'].module == '.boo'
-    assert names['tar'].mname == 'tar'
 
 
 def test_oneliners():
@@ -193,8 +185,8 @@ def test_oneliners():
     ''')
 
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p1)) == {'traceback': iname}
-    assert nvalues(scope.names_at(p2)) == {'traceback': iname, 'a': 10}
+    assert nvalues(scope.names_at(p1)) == {'traceback': 'import:traceback'}
+    assert nvalues(scope.names_at(p2)) == {'traceback': 'import:traceback', 'a': 10}
 
 
 def test_simple_try_except():
@@ -251,8 +243,8 @@ def test_function_scope():
     ''')
 
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p1)) == {'a': 10, 'b': 'foo.b', 'c': 10, 'foo': 'func.foo'}
-    assert nvalues(scope.names_at(p2)) == {'a': 10, 'foo': 'func.foo'}
+    assert nvalues(scope.names_at(p1)) == {'a': 10, 'b': 'foo.arg', 'c': 10, 'foo': func}
+    assert nvalues(scope.names_at(p2)) == {'a': 10, 'foo': func}
 
 
 def test_parent_scope_var_masking():
@@ -263,4 +255,4 @@ def test_parent_scope_var_masking():
     ''')
 
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p1)) == {'foo': 'func.foo'}
+    assert nvalues(scope.names_at(p1)) == {'foo': func}
