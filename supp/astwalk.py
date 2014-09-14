@@ -112,6 +112,19 @@ class FuncScope(Scope):
             self.flow.add_name(arg)
 
 
+class ClassScope(Scope):
+    def __init__(self, parent, node):
+        Scope.__init__(self, parent)
+        self.name = node.name
+        self.declared_at = np(node)
+        self.location = np(node.body[0])
+        self.flow = Flow(self, self.location)
+
+    @property
+    def names(self):
+        return self.parent.names
+
+
 class SourceScope(Scope):
     def __init__(self, lines):
         Scope.__init__(self, None)
@@ -323,6 +336,16 @@ class Extractor(NodeVisitor):
         scope = self.scope
         flow = self.flow
         self.scope = FuncScope(self.scope, node)
+        flow.add_name(self.scope)
+        self.flow = self.top.add_flow(self.scope.flow)
+        for n in node.body: self.visit(n)
+        self.scope = scope
+        self.flow = flow
+
+    def visit_ClassDef(self, node):
+        scope = self.scope
+        flow = self.flow
+        self.scope = ClassScope(self.scope, node)
         flow.add_name(self.scope)
         self.flow = self.top.add_flow(self.scope.flow)
         for n in node.body: self.visit(n)
