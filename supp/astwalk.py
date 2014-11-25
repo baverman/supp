@@ -332,23 +332,24 @@ class Extractor(NodeVisitor):
                     self.flow.add_name(
                         AssignedName(h.name, np(h.body[0]), np(h), h.type))
 
-    def visit_FunctionDef(self, node):
+    @contextmanager
+    def nest(self):
         scope = self.scope
         flow = self.flow
-        self.scope = FuncScope(self.scope, node)
-        flow.add_name(self.scope)
-        self.flow = self.top.add_flow(self.scope.flow)
-        for n in node.body: self.visit(n)
+        yield scope, flow
         self.scope = scope
         self.flow = flow
+
+    def visit_FunctionDef(self, node):
+        with self.nest() as (scope, flow):
+            self.scope = FuncScope(self.scope, node)
+            flow.add_name(self.scope)
+            self.flow = self.top.add_flow(self.scope.flow)
+            for n in node.body: self.visit(n)
 
     def visit_ClassDef(self, node):
-        scope = self.scope
-        flow = self.flow
-        self.scope = ClassScope(self.scope, node)
-        flow.add_name(self.scope)
-        self.flow = self.top.add_flow(self.scope.flow)
-        for n in node.body: self.visit(n)
-        self.scope = scope
-        self.flow = flow
-
+        with self.nest() as (scope, flow):
+            self.scope = ClassScope(self.scope, node)
+            flow.add_name(self.scope)
+            self.flow = self.top.add_flow(self.scope.flow)
+            for n in node.body: self.visit(n)
