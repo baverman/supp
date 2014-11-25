@@ -5,6 +5,7 @@ PY2 = sys.version_info[0] == 2
 if PY2:
     string_types = (str, unicode)
     range = xrange
+    reduce = reduce
 
     iterkeys = lambda d: d.iterkeys()
     itervalues = lambda d: d.itervalues()
@@ -13,6 +14,7 @@ if PY2:
     listvalues = lambda d: d.values()
     listitems = lambda d: d.items()
 else:
+    from functools import reduce
     range = range
     string_types = (str, )
 

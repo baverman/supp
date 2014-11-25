@@ -3,13 +3,13 @@ from __future__ import print_function
 from supp.compat import iteritems
 from supp.astwalk import AssignedName, UndefinedName, MultiName, ImportedName,\
     Extractor, ArgumentName, FuncScope, ClassScope
-from supp.util import tree_and_lines, print_dump
+from supp.util import Source, print_dump
 
 from .helpers import sp
 
 
 def create_scope(source, filename=None, debug=False):
-    e = Extractor(*tree_and_lines(source, filename))
+    e = Extractor(Source(source, filename))
     debug and print_dump(e.tree)
     return e.process()
 

@@ -93,7 +93,25 @@ def np(node):
     return node.lineno, node.col_offset
 
 
-def tree_and_lines(source, filename=None):
-    tree = parse(source, filename or '<string>')
-    lines = source.splitlines() or ['']
-    return tree, lines
+SOURCE_PH = '__supp_ph__'
+
+class Source(object):
+    def __init__(self, source, filename=None, position=None):
+        self.filename = filename or '<string>'
+        if position:
+            ln, col = position
+            lines = source.splitlines() or ['']
+            line = lines[ln-1]
+            lines[ln-1] = line[:col] + SOURCE_PH + line[col:]
+            self.source = '\n'.join(lines)
+            self.lines = lines
+        else:
+            self.source = source
+
+    @cached_property
+    def tree(self):
+        return parse(self.source, self.filename)
+
+    @cached_property
+    def lines(self):
+        return self.source.splitlines() or ['']

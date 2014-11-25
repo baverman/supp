@@ -233,10 +233,10 @@ class LoopFlow(object):
 
 
 class Extractor(NodeVisitor):
-    def __init__(self, tree, lines):
-        self.tree = tree
+    def __init__(self, source):
+        self.tree = source.tree
         self.get_expr_end = GetExprEnd()
-        self.top = SourceScope(lines)
+        self.top = SourceScope(source.lines)
         self.scope = self.top
         self.flow = self.add_flow((1, 0))
 
@@ -341,14 +341,14 @@ class Extractor(NodeVisitor):
         self.flow = flow
 
     def visit_FunctionDef(self, node):
-        with self.nest() as (scope, flow):
+        with self.nest() as (_, flow):
             self.scope = FuncScope(self.scope, node)
             flow.add_name(self.scope)
             self.flow = self.top.add_flow(self.scope.flow)
             for n in node.body: self.visit(n)
 
     def visit_ClassDef(self, node):
-        with self.nest() as (scope, flow):
+        with self.nest() as (_, flow):
             self.scope = ClassScope(self.scope, node)
             flow.add_name(self.scope)
             self.flow = self.top.add_flow(self.scope.flow)
