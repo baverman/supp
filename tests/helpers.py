@@ -1,7 +1,4 @@
-import pytest
 from textwrap import dedent
-
-__builtins__['pytest'] = pytest
 
 def sp(source):
     source = dedent(source)

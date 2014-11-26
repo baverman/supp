@@ -4,8 +4,8 @@ from supp.project import Project
 from .helpers import sp
 
 
-def tassist(source, pos, ppath=None, filename=None):
-    return assist(Project(ppath), source, pos, filename)
+def tassist(source, pos, project=None, filename=None):
+    return assist(project or Project(), source, pos, filename)
 
 
 def test_simple_from():
@@ -48,29 +48,27 @@ def test_dyn_from_with_parent_package():
     assert 'path' in result
 
 
-def test_from_src(tmpdir):
-    tmpdir.join('testp/__init__.py').ensure()
-    tmpdir.join('testp/module.py').ensure()
+def test_from_src(project):
+    project.add_module('testp.module')
     source, p = sp('''\
         from testp.|
     ''')
-    result = tassist(source, p, str(tmpdir))
+    result = tassist(source, p, project)
     assert result == ['module']
 
 
-def test_relative_from(tmpdir):
-    tmpdir.join('testp/__init__.py').ensure()
-    tmpdir.join('testp/module.py').ensure()
+def test_relative_from(project):
+    project.add_module('testp.module')
     source, p = sp('''\
         from .|
     ''')
-    result = tassist(source, p, str(tmpdir), str(tmpdir.join('testp/tmodule.py')))
+    result = tassist(source, p, project, project.get_module('testp.tmodule'))
     assert 'module' in result
 
     source, p = sp('''\
         from ..|
     ''')
-    result = tassist(source, p, str(tmpdir), str(tmpdir.join('testp/pkg/tmodule.py')))
+    result = tassist(source, p, project, project.get_module('testp.pkg.tmodule'))
     assert 'module' in result
 
 
@@ -119,11 +117,10 @@ def test_import_from_simple():
     assert 'pool' in result
 
 
-def test_import_from_simple(tmpdir):
-    tmpdir.join('testp/__init__.py').ensure()
-    tmpdir.join('testp/module.py').ensure()
+def test_import_from_simple(project):
+    project.add_module('testp.module')
     source, p = sp('''\
         from . import |
     ''')
-    result = tassist(source, p, str(tmpdir), str(tmpdir.join('testp/tmodule.py')))
+    result = tassist(source, p, project, project.get_module('testp.tmodule'))
     assert 'module' in result
