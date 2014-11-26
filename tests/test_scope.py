@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 from supp.compat import iteritems
 from supp.astwalk import AssignedName, UndefinedName, MultiName, ImportedName,\
     Extractor, ArgumentName, FuncScope, ClassScope

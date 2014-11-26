@@ -1,6 +1,11 @@
 from .compat import itervalues
-from .util import Source, SOURCE_PH
+from .util import Source, unmark, marked
 from .astwalk import Extractor, ImportedName
+
+
+def list_packages(project, root, filename, prefix):
+    root = project.norm_package(root, filename)
+    return sorted(r for r in project.list_packages(root) if r.startswith(prefix))
 
 
 def assist(project, source, position, filename=None):
@@ -12,18 +17,18 @@ def assist(project, source, position, filename=None):
         package, sep, prefix = iname.rpartition('.')
         if (not package or package.startswith('.')) and sep:
             package += '.'
-        return sorted(r for r in project.list_packages(package, filename) if r.startswith(prefix))
+        return list_packages(project, package, filename, prefix)
     else:
         scope = Extractor(source).process()
         names = scope.names_at(position)
         for name in itervalues(names):
             if isinstance(name, ImportedName):
-                if name.module.endswith(SOURCE_PH):
-                    iname = name.module[:-len(SOURCE_PH)]
-                    package, _, prefix = iname.rpartition('.')
-                    return sorted(r for r in project.list_packages(package, filename) if r.startswith(prefix))
-                elif name.mname and name.mname.endswith(SOURCE_PH):
+                if marked(name.module):
+                    package, _, prefix = unmark(name.module).rpartition('.')
+                    return list_packages(project, package, filename, prefix)
+                elif name.mname and marked(name.mname):
                     package = name.module
-                    prefix = name.mname[:-len(SOURCE_PH)]
-                    return sorted(r for r in project.list_packages(package, filename) if r.startswith(prefix))
-
+                    prefix = unmark(name.mname)
+                    plist = list_packages(project, package, filename, prefix)
+                    module = project.get_module(project.norm_package(package, filename))
+                    return sorted(set(plist) | set(module.names))

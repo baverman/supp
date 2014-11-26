@@ -93,7 +93,13 @@ def np(node):
     return node.lineno, node.col_offset
 
 
-SOURCE_PH = '__supp_ph__'
+SOURCE_MARK = '__supp_mark__'
+def unmark(name):
+    return name[:-len(SOURCE_MARK)]
+
+def marked(name):
+    return name.endswith(SOURCE_MARK)
+
 
 class Source(object):
     def __init__(self, source, filename=None, position=None):
@@ -102,7 +108,7 @@ class Source(object):
             ln, col = position
             lines = source.splitlines() or ['']
             line = lines[ln-1]
-            lines[ln-1] = line[:col] + SOURCE_PH + line[col:]
+            lines[ln-1] = line[:col] + SOURCE_MARK + line[col:]
             self.source = '\n'.join(lines)
             self.lines = lines
         else:

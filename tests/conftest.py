@@ -1,3 +1,5 @@
+from textwrap import dedent
+
 import pytest
 from supp.util import print_dump
 from supp.project import Project
@@ -22,12 +24,12 @@ def project(tmpdir):
         m = root.join(module + '.py')
         if not lazy:
             if content:
-                m.write(content)
+                m.write(dedent(content))
             else:
                 m.ensure()
 
         return str(m)
 
-    project.add_module = add_module
-    project.get_module = lambda name: add_module(name, lazy=True)
+    project.add_m = add_module
+    project.get_m = lambda name: add_module(name, lazy=True)
     return project

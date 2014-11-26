@@ -49,7 +49,7 @@ def test_dyn_from_with_parent_package():
 
 
 def test_from_src(project):
-    project.add_module('testp.module')
+    project.add_m('testp.module')
     source, p = sp('''\
         from testp.|
     ''')
@@ -58,17 +58,17 @@ def test_from_src(project):
 
 
 def test_relative_from(project):
-    project.add_module('testp.module')
+    project.add_m('testp.module')
     source, p = sp('''\
         from .|
     ''')
-    result = tassist(source, p, project, project.get_module('testp.tmodule'))
+    result = tassist(source, p, project, project.get_m('testp.tmodule'))
     assert 'module' in result
 
     source, p = sp('''\
         from ..|
     ''')
-    result = tassist(source, p, project, project.get_module('testp.pkg.tmodule'))
+    result = tassist(source, p, project, project.get_m('testp.pkg.tmodule'))
     assert 'module' in result
 
 
@@ -118,9 +118,23 @@ def test_import_from_simple():
 
 
 def test_import_from_simple(project):
-    project.add_module('testp.module')
+    project.add_m('testp.module')
     source, p = sp('''\
         from . import |
     ''')
-    result = tassist(source, p, project, project.get_module('testp.tmodule'))
+    result = tassist(source, p, project, project.get_m('testp.tmodule'))
     assert 'module' in result
+
+
+def test_import_from_module_names(project):
+    project.add_m('testp.__init__', '''\
+        foo = 10
+    ''')
+    project.add_m('testp.module')
+
+    source, p = sp('''\
+        from testp import |
+    ''')
+    result = tassist(source, p, project, project.get_m('testp.tmodule'))
+    assert 'module' in result
+    assert 'foo' in result
