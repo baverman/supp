@@ -1,2 +1,5 @@
 *.pyc
 /TODO
+/dist
+/build
+/*.egg-info
