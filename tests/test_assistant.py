@@ -138,3 +138,13 @@ def test_import_from_module_names(project):
     result = tassist(source, p, project, project.get_m('testp.tmodule'))
     assert 'module' in result
     assert 'foo' in result
+
+
+def test_name_assist():
+    source, p = sp('''\
+        foo = 10
+        |
+    ''')
+    result = tassist(source, p)
+    assert 'foo' in result
+

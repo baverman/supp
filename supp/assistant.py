@@ -32,3 +32,5 @@ def assist(project, source, position, filename=None):
                     plist = list_packages(project, package, filename, prefix)
                     module = project.get_module(project.norm_package(package, filename))
                     return sorted(set(plist) | set(module.names))
+
+        return sorted(names)
