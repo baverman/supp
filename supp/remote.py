@@ -2,7 +2,11 @@ import sys
 import time
 import os.path
 
-from cPickle import dumps
+try:
+    from cPickle import dumps
+except ImportError:
+    from pickle import dumps
+
 from threading import Thread, Lock
 
 
@@ -51,7 +55,7 @@ class Environment(object):
         while True:
             try:
                 self.conn = Client(addr)
-            except Exception, e:
+            except Exception as e:
                 if time.time() - start > 5:
                     raise Exception('Supp server launching timeout exceed: ' + str(e))
 

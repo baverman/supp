@@ -77,7 +77,7 @@ class Server(object):
         ctx = {}
         source = '\n'.join('    ' + r for r in source.splitlines())
         source = 'def boo():\n{}\nresult = boo()'.format(source)
-        exec source in ctx
+        exec(source, ctx)
         return ctx['result']
 
     def run(self):

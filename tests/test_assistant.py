@@ -13,7 +13,8 @@ def test_simple_from():
         from mul|
     ''')
 
-    result = tassist(source, p)
+    m, result = tassist(source, p)
+    assert m == 'mul'
     assert 'multiprocessing' in result
 
     starts_with_mul = all(r.startswith('mul') for r in result)
@@ -24,7 +25,8 @@ def test_from_all():
     source, p = sp('''\
         from |
     ''')
-    result = tassist(source, p)
+    m, result = tassist(source, p)
+    assert m == ''
     assert 'os' in result
     assert 'sys' in result
 
@@ -34,7 +36,8 @@ def test_from_with_parent_package():
         from multiprocessing.|
     ''')
 
-    result = tassist(source, p)
+    m, result = tassist(source, p)
+    assert m == ''
     assert 'connection' in result
     assert 'process' in result
 
@@ -44,7 +47,8 @@ def test_dyn_from_with_parent_package():
         from os.|
     ''')
 
-    result = tassist(source, p)
+    m, result = tassist(source, p)
+    assert m == ''
     assert 'path' in result
 
 
@@ -53,7 +57,8 @@ def test_from_src(project):
     source, p = sp('''\
         from testp.|
     ''')
-    result = tassist(source, p, project)
+    m, result = tassist(source, p, project)
+    assert m == ''
     assert result == ['module']
 
 
@@ -62,13 +67,15 @@ def test_relative_from(project):
     source, p = sp('''\
         from .|
     ''')
-    result = tassist(source, p, project, project.get_m('testp.tmodule'))
+    m, result = tassist(source, p, project, project.get_m('testp.tmodule'))
+    assert m == ''
     assert 'module' in result
 
     source, p = sp('''\
         from ..|
     ''')
-    result = tassist(source, p, project, project.get_m('testp.pkg.tmodule'))
+    m, result = tassist(source, p, project, project.get_m('testp.pkg.tmodule'))
+    assert m == ''
     assert 'module' in result
 
 
@@ -76,7 +83,8 @@ def test_simple_import():
     source, p = sp('''\
         import mul|
     ''')
-    result = tassist(source, p)
+    m, result = tassist(source, p)
+    assert m == 'mul'
     assert 'multiprocessing' in result
 
     starts_with_mul = all(r.startswith('mul') for r in result)
@@ -87,7 +95,8 @@ def test_comma_import():
     source, p = sp('''\
         import os, mul|
     ''')
-    result = tassist(source, p)
+    m, result = tassist(source, p)
+    assert m == 'mul'
     assert 'multiprocessing' in result
 
 
@@ -95,7 +104,8 @@ def test_dotted_import():
     source, p = sp('''\
         import os.|
     ''')
-    result = tassist(source, p)
+    m, result = tassist(source, p)
+    assert m == ''
     assert 'path' in result
 
 
@@ -103,7 +113,8 @@ def test_import_all():
     source, p = sp('''\
         import |
     ''')
-    result = tassist(source, p)
+    m, result = tassist(source, p)
+    assert m == ''
     assert 'os' in result
     assert 'sys' in result
 
@@ -112,7 +123,8 @@ def test_import_from_simple():
     source, p = sp('''\
         from multiprocessing import |
     ''')
-    result = tassist(source, p)
+    m, result = tassist(source, p)
+    assert m == ''
     assert 'connection' in result
     assert 'pool' in result
 
@@ -122,7 +134,8 @@ def test_import_from_simple(project):
     source, p = sp('''\
         from . import |
     ''')
-    result = tassist(source, p, project, project.get_m('testp.tmodule'))
+    m, result = tassist(source, p, project, project.get_m('testp.tmodule'))
+    assert m == ''
     assert 'module' in result
 
 
@@ -135,16 +148,19 @@ def test_import_from_module_names(project):
     source, p = sp('''\
         from testp import |
     ''')
-    result = tassist(source, p, project, project.get_m('testp.tmodule'))
+    m, result = tassist(source, p, project, project.get_m('testp.tmodule'))
+    assert m == ''
     assert 'module' in result
     assert 'foo' in result
 
 
 def test_name_assist():
     source, p = sp('''\
-        foo = 10
-        |
+        boo = 10
+        foo = 20
+        f|
     ''')
-    result = tassist(source, p)
+    m, result = tassist(source, p)
+    assert m == 'f'
     assert 'foo' in result
-
+    assert not 'boo' in result

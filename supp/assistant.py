@@ -1,3 +1,5 @@
+import re
+
 from .compat import itervalues
 from .util import Source, unmark, marked
 from .astwalk import Extractor, ImportedName
@@ -17,7 +19,7 @@ def assist(project, source, position, filename=None):
         package, sep, prefix = iname.rpartition('.')
         if (not package or package.startswith('.')) and sep:
             package += '.'
-        return list_packages(project, package, filename, prefix)
+        return prefix, list_packages(project, package, filename, prefix)
     else:
         scope = Extractor(source).process()
         names = scope.names_at(position)
@@ -25,12 +27,13 @@ def assist(project, source, position, filename=None):
             if isinstance(name, ImportedName):
                 if marked(name.module):
                     package, _, prefix = unmark(name.module).rpartition('.')
-                    return list_packages(project, package, filename, prefix)
+                    return prefix, list_packages(project, package, filename, prefix)
                 elif name.mname and marked(name.mname):
                     package = name.module
                     prefix = unmark(name.mname)
                     plist = list_packages(project, package, filename, prefix)
                     module = project.get_module(project.norm_package(package, filename))
-                    return sorted(set(plist) | set(module.names))
+                    return prefix, sorted(set(plist) | set(module.names))
 
-        return sorted(names)
+        prefix = re.split(r'\.\s', line)[-1]
+        return prefix, sorted(r for r in names if r.startswith(prefix))
