@@ -12,17 +12,8 @@ except ImportError:
 try:
     import supp
 except ImportError:
-    fname = os.__file__
-    if fname.endswith('.pyc'):
-        fname = fname[:-1]
-
-    if not os.path.islink(fname):
-        raise
-
-    real_prefix = os.path.dirname(os.path.realpath(fname))
-    site_packages = os.path.join(real_prefix, 'site-packages')
-    old_path = sys.path
-    sys.path = old_path + [site_packages]
+    old_path = sys.path[:]
+    sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
     try:
         import supp
     finally:

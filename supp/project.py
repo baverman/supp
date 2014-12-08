@@ -3,7 +3,7 @@ import sys
 import imp
 
 from .compat import range, reduce
-from .module import ModuleCache
+from .module import SourceModule, ImportedModule
 
 suffixes_full = imp.get_suffixes()
 suffixes = [s for s, _, _ in suffixes_full]
@@ -13,7 +13,7 @@ class Project(object):
     def __init__(self, src=None):
         self.src = src or '.'
         self._norm_cache = {}
-        self.module_cache = ModuleCache(self)
+        self._module_cache = {}
 
     def get_path(self):
         return sys.path + [self.src]
@@ -52,7 +52,13 @@ class Project(object):
         return modules
 
     def get_module(self, name):
+        try:
+            return self._module_cache[name]
+        except KeyError:
+            pass
+
         path = self.get_path()
+        mtype = 'source'
         for p in path:
             mpath = os.path.join(p, *name.split('.'))
             for s, _, st in suffixes_full:
@@ -65,9 +71,16 @@ class Project(object):
                     filename = None
 
         if not filename:
+            if name in sys.modules:
+                module = ImportedModule(sys.modules[name])
+        else:
+            module = SourceModule(name, self, filename)
+
+        if not module:
             raise ImportError(name)
 
-        return self.module_cache.get(name, filename)
+        self._module_cache[name] = module
+        return module
 
     def norm_package(self, package, filename):
         if not package.startswith('.'):

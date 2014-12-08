@@ -164,3 +164,13 @@ def test_name_assist():
     assert m == 'f'
     assert 'foo' in result
     assert not 'boo' in result
+
+
+def test_dynamic_modules():
+    source, p = sp('''\
+        from os.path import j|
+    ''')
+
+    m, result = tassist(source, p)
+    assert m == 'j'
+    assert 'join' in result
