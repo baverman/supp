@@ -5,11 +5,6 @@ import logging
 logger = logging.getLogger('server')
 
 try:
-    from cPickle import loads, dumps
-except ImportError:
-    from pickle import loads, dumps
-
-try:
     import supp
 except ImportError:
     old_path = sys.path[:]
@@ -21,6 +16,7 @@ except ImportError:
 
 from supp.project import Project
 from supp.assistant import assist
+from supp.umsgpack import dumps, loads
 
 
 class Server(object):
@@ -62,7 +58,7 @@ class Server(object):
         return result, is_ok
 
     def assist(self, path, source, position, filename):
-        return assist(self.get_project(path), source, position, filename)
+        return assist(self.get_project(path), source, tuple(position), filename)
 
     def eval(self, source):
         ctx = {}
@@ -89,7 +85,7 @@ class Server(object):
                 else:
                     result, is_ok = self.process(*args)
                     try:
-                        self.conn.send_bytes(dumps((result, is_ok), 2))
+                        self.conn.send_bytes(dumps((result, is_ok)))
                     except:
                         logger.exception('Send error')
 

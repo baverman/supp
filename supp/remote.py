@@ -2,12 +2,9 @@ import sys
 import time
 import os.path
 
-try:
-    from cPickle import dumps
-except ImportError:
-    from pickle import dumps
-
 from threading import Thread, Lock
+
+from .umsgpack import dumps, loads
 
 
 class Environment(object):
@@ -94,8 +91,8 @@ class Environment(object):
         except AttributeError:
             self.run()
 
-        self.conn.send_bytes(dumps((name, args, kwargs), 2))
-        result, is_ok = self.conn.recv()
+        self.conn.send_bytes(dumps((name, args, kwargs)))
+        result, is_ok = loads(self.conn.recv_bytes())
 
         if is_ok:
             return result
