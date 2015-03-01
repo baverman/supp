@@ -24,8 +24,6 @@ class Server(object):
         self.conn = conn
         self.projects = {}
         self.configs = {}
-        # self.monitor = get_monitor()
-        # self.monitor.start()
 
     def configure_project(self, path, config):
         self.configs[path] = config
@@ -58,7 +56,9 @@ class Server(object):
         return result, is_ok
 
     def assist(self, path, source, position, filename):
-        return assist(self.get_project(path), source, tuple(position), filename)
+        project = self.get_project(path)
+        with project.check_changes():
+            return assist(project, source, tuple(position), filename)
 
     def eval(self, source):
         ctx = {}

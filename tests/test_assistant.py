@@ -153,6 +153,12 @@ def test_import_from_module_names(project):
     assert 'module' in result
     assert 'foo' in result
 
+    # test changed module cache
+    m, result = tassist(source, p, project, project.get_m('testp.tmodule'))
+    assert m == ''
+    assert 'module' in result
+    assert 'foo' in result
+
 
 def test_name_assist():
     source, p = sp('''\
@@ -167,10 +173,16 @@ def test_name_assist():
 
 
 def test_dynamic_modules():
+    project = Project()
     source, p = sp('''\
         from os.path import j|
     ''')
 
-    m, result = tassist(source, p)
+    m, result = tassist(source, p, project)
+    assert m == 'j'
+    assert 'join' in result
+
+    # test changed module cache
+    m, result = tassist(source, p, project)
     assert m == 'j'
     assert 'join' in result

@@ -2,6 +2,8 @@ import os
 import sys
 import imp
 
+from contextlib import contextmanager
+
 from .compat import range, reduce
 from .module import SourceModule, ImportedModule
 
@@ -14,6 +16,7 @@ class Project(object):
         self.src = src or '.'
         self._norm_cache = {}
         self._module_cache = {}
+        self._context_cache = {}
 
     def get_path(self):
         return sys.path + [self.src]
@@ -51,17 +54,31 @@ class Project(object):
 
         return modules
 
+    @contextmanager
+    def check_changes(self):
+        self._context_cache.clear()
+        yield
+
     def get_module(self, name):
         try:
-            return self._module_cache[name]
+            return self._context_cache[name]
+        except KeyError:
+            pass
+
+        try:
+            m = self._module_cache[name]
+            if m.changed:
+                del self._module_cache[name]
+            else:
+                self._context_cache[name] = m
+                return m
         except KeyError:
             pass
 
         path = self.get_path()
-        mtype = 'source'
         for p in path:
             mpath = os.path.join(p, *name.split('.'))
-            for s, _, st in suffixes_full:
+            for s in suffixes:
                 filename = mpath + s
                 if os.path.exists(filename):
                     break

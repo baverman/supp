@@ -11,6 +11,10 @@ class SourceModule(object):
         self.filename = filename
         self.mtime = getmtime(filename)
 
+    @property
+    def changed(self):
+        return self.mtime != getmtime(self.filename)
+
     @cached_property
     def scope(self):
         e = Extractor(Source(open(self.filename).read(), self.filename))
@@ -24,6 +28,7 @@ class SourceModule(object):
 class ImportedModule(object):
     def __init__(self, module):
         self.module = module
+        self.changed = False
 
     @property
     def names(self):
