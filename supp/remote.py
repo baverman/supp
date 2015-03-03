@@ -99,16 +99,8 @@ class Environment(object):
         else:
             raise Exception(result)
 
-    # def lint(self, project_path, source, filename, syntax_only=False):
-    #     return self._call('lint', project_path, source, filename, syntax_only)
-
-    # def check_syntax(self, source):
-    #     """Checks source syntax against current environment
-
-    #     :param source: unicode or byte string code source
-    #     :returns: None if syntax is valid and tuple ((lineno, offset), error_message) otherwise
-    #     """
-    #     return self._call('check_syntax', source)
+    def lint(self, project_path, source, filename, syntax_only=False):
+        return self._call('lint', project_path, source, filename, syntax_only)
 
     def assist(self, project_path, source, position, filename):
         """Return completion match and list of completion proposals

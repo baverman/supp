@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from ast import NodeVisitor, Attribute, Tuple, List, Subscript
 
 from .util import Location, np, get_expr_end, insert_loc, cached_property, Name
-from .compat import PY2
+from .compat import PY2, itervalues
 
 NESTED_INDEXED_NODES = Tuple, List
 UNSOPPORTED_ASSIGMENTS = Attribute, Subscript
@@ -101,12 +101,16 @@ class Scope(object):
 
 
 class FuncScope(Scope, Location):
-    def __init__(self, parent, node):
+    def __init__(self, parent, node, is_lambda=False):
         Scope.__init__(self, parent)
-        self.name = node.name
         self.args = []
         self.declared_at = np(node)
-        self.location = np(node.body[0])
+        if is_lambda:
+            self.name = 'lambda'
+            self.location = np(node.body)
+        else:
+            self.name = node.name
+            self.location = np(node.body[0])
 
         for n in node.args.args:
             if PY2:
@@ -117,6 +121,10 @@ class FuncScope(Scope, Location):
         self.flow = Flow(self, self.location)
         for arg in self.args:
             self.flow.add_name(arg)
+
+    @property
+    def names(self):
+        return self.last_flow.names
 
 
 class ClassScope(Scope, Location):
@@ -132,18 +140,38 @@ class ClassScope(Scope, Location):
         return self.parent.names
 
 
+class Region(Location):
+    def __init__(self, flow, start, end):
+        self.flow = flow
+        self.location = start
+        self.end = end
+
+    def __repr__(self):
+        return 'Region({0.flow}, {0.location}, {0.end})'.format(self)
+
+
 class SourceScope(Scope):
     def __init__(self, lines):
         Scope.__init__(self, None)
         self.lines = lines
         self.flows = defaultdict(list)
+        self.regions = []
 
-    def get_level(self, loc):
+    def get_level(self, loc, check_colon=False):
         l, c = loc
         try:
             line = self.lines[l - 1][:c]
         except IndexError:
-            return 0
+            return c
+
+        if len(line) < c:
+            return c
+
+        if check_colon:
+            rsline = line.rstrip()
+            if rsline.endswith(':'):
+                return -1
+
         sline = line.lstrip()
         return len(line) - len(sline)
 
@@ -156,18 +184,46 @@ class SourceScope(Scope):
         levels = sorted(self.flows)
         return self.flows[levels[bisect(levels, level) - 1]]
 
-    def add_flow(self, flow):
-        insert_loc(self.flows[self.get_level(flow.location)], flow)
+    def add_flow(self, flow, check_colon=False, level=None):
+        if level is None:
+            level = self.get_level(flow.location, check_colon)
+        flow.level = level
+        insert_loc(self.flows[level], flow)
+        # print flow, flow.parents
         return flow
+
+    def add_region(self, flow, start, end):
+        region = Region(flow, start, end)
+        insert_loc(self.regions, region)
 
     @property
     def names(self):
         return self.flows[0][-1].names
 
     def names_at(self, loc):
-        flows = self.get_level_flows(self.get_level(loc))
-        idx = bisect(flows, Location(loc)) - 1
-        return flows[idx].names_at(loc)
+        flow = None
+        lloc = Location(loc)
+
+        idx = bisect(self.regions, lloc) - 1
+        if idx >=0:
+            region = self.regions[idx]
+            if region.end > loc:
+                flow = region.flow
+
+        if not flow:
+            flows = self.get_level_flows(self.get_level(loc))
+            idx = bisect(flows, lloc) - 1
+            flow = flows[idx]
+
+        # print self.regions, flow, loc, self.get_level(loc)
+        return flow.names_at(loc)
+
+    @property
+    def all_names(self):
+        for flows in itervalues(self.flows):
+            for flow in flows:
+                for name in flow._names:
+                    yield flow, name
 
 
 class Flow(Location):
@@ -175,6 +231,7 @@ class Flow(Location):
         self.scope = scope
         self.location = location
         self.parents = parents or []
+        self.level = None
         self._names = []
 
     def add_name(self, name):
@@ -230,7 +287,7 @@ class Flow(Location):
         return self
 
     def __repr__(self):
-        return '<Flow({})>'.format(self.location)
+        return '<Flow({location}, {level}>'.format(**vars(self))
 
 
 class LoopFlow(object):
@@ -261,13 +318,17 @@ class Extractor(NodeVisitor):
         yield f
         self.join(node, f.parent, f.forks)
 
-    def add_flow(self, loc, parents=None):
-        return self.top.add_flow(Flow(self.scope, loc, parents))
+    def add_flow(self, loc, parents=None, level=None):
+        return self.top.add_flow(Flow(self.scope, loc, parents), level=level)
+
+    def add_region(self, node, flow=None, end_node=None):
+        self.top.add_region(flow or self.flow,
+            np(node), get_expr_end(end_node or node))
 
     def join(self, node, parent, forks):
         last_line = get_expr_end(node)[0]
-        loc = last_line + 1, parent.location[1]
-        self.flow = self.add_flow(loc, forks)
+        loc = last_line + 1, parent.level
+        self.flow = self.add_flow(loc, forks, parent.level)
 
     def shift(self, node, nodes):
         flow = self.flow
@@ -281,6 +342,7 @@ class Extractor(NodeVisitor):
             if isinstance(name, UNSOPPORTED_ASSIGMENTS):
                 return
             self.flow.add_name(AssignedName(name.id, eend, np(name), node.value))
+        self.visit(node.value)
 
     def visit_If(self, node):
         self.visit(node.test)
@@ -355,12 +417,28 @@ class Extractor(NodeVisitor):
         with self.nest() as (_, flow):
             self.scope = FuncScope(self.scope, node)
             flow.add_name(self.scope)
-            self.flow = self.top.add_flow(self.scope.flow)
+            self.flow = self.top.add_flow(self.scope.flow, True)
+            if self.flow.level < 0:
+                self.add_region(node.body[0])
             for n in node.body: self.visit(n)
+            self.scope.last_flow = self.flow
+
+    def visit_Lambda(self, node):
+        with self.nest() as (_, flow):
+            self.scope = FuncScope(self.scope, node, True)
+            self.flow = self.top.add_flow(self.scope.flow, level=-1)
+            self.add_region(node.body)
+            self.visit(node.body)
 
     def visit_ClassDef(self, node):
         with self.nest() as (_, flow):
             self.scope = ClassScope(self.scope, node)
             flow.add_name(self.scope)
-            self.flow = self.top.add_flow(self.scope.flow)
+            self.flow = self.top.add_flow(self.scope.flow, True)
+            if self.flow.level < 0:
+                self.add_region(node.body[0])
             for n in node.body: self.visit(n)
+
+    def visit_Expr(self, node):
+        self.add_region(node)
+        self.generic_visit(node)

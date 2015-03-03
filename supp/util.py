@@ -1,7 +1,7 @@
 from __future__ import print_function
 
 from bisect import insort
-from ast import iter_fields, Store, NodeVisitor, parse
+from ast import iter_fields, Store, Load, NodeVisitor, parse
 
 from .compat import iteritems
 
@@ -14,7 +14,6 @@ class cached_property(object):
     def __get__(self, obj, cls):
         if obj is None:
             return self
-
         value = obj.__dict__[self.func.__name__] = self.func(obj)
         return value
 
@@ -115,7 +114,8 @@ class get_name_usages(object):
         return self.locations
 
     def visit_Name(self, node):
-        self.locations.append(Name(node.id, np(node)))
+        if isinstance(node.ctx, Load):
+            self.locations.append(Name(node.id, np(node)))
 
 
 def np(node):

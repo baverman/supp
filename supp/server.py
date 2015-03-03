@@ -14,9 +14,9 @@ except ImportError:
     finally:
         sys.path = old_path
 
-from supp.project import Project
-from supp.assistant import assist
 from supp.umsgpack import dumps, loads
+from supp.project import Project
+from supp import assistant, linter
 
 
 class Server(object):
@@ -58,7 +58,12 @@ class Server(object):
     def assist(self, path, source, position, filename):
         project = self.get_project(path)
         with project.check_changes():
-            return assist(project, source, tuple(position), filename)
+            return assistant.assist(project, source, tuple(position), filename)
+
+    def lint(self, path, source, filename, syntax_only=False):
+        project = self.get_project(path)
+        with project.check_changes():
+            return linter.lint(project, source, filename)
 
     def eval(self, source):
         ctx = {}

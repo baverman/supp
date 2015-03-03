@@ -1,3 +1,4 @@
+from ast import Lambda
 from supp.compat import iteritems
 from supp.astwalk import AssignedName, UndefinedName, MultiName, ImportedName,\
     Extractor, ArgumentName, FuncScope, ClassScope
@@ -14,6 +15,8 @@ def create_scope(source, filename=None, debug=False):
 
 def get_value(name):
     if isinstance(name, AssignedName):
+        if isinstance(name.value_node, Lambda):
+            return 'lambda'
         if hasattr(name.value_node, 'elts'):
             return 'listitem'
         if hasattr(name.value_node, 'id'):
@@ -56,16 +59,18 @@ def test_simple_flow():
 
 
 def test_value_override():
-    source, p1, p2 = sp('''\
+    source, p1, p2, p3 = sp('''\
         foo = 10
         foo = |20
         |
+        foo + |boo
     ''')
 
     scope = create_scope(source)
     assert nvalues(scope.names) == {'foo': 20}
     assert nvalues(scope.names_at(p1)) == {'foo': 10}
     assert nvalues(scope.names_at(p2)) == {'foo': 20}
+    assert nvalues(scope.names_at(p3)) == {'foo': 20}
 
 
 def test_simple_if():
@@ -296,5 +301,62 @@ def test_for_multiple_targest():
         for foo, boo in [1, 2]:
             |pass
     ''')
-    scope = create_scope(source, debug=True)
+    scope = create_scope(source)
     assert set(scope.names_at(p)) == set(('boo', 'foo'))
+
+
+def test_nested_funcs():
+    source, p = sp('''\
+        def foo():
+            a = 10
+            def boo():
+                b = 20
+                |
+
+            if True:
+                a = 20
+                b = 10
+    ''')
+    scope = create_scope(source)
+    assert nvalues(scope.names_at(p)) == {
+        'a': {10, 20},
+        'b': 20,
+        'boo': 'func',
+        'foo': 'func'
+    }
+
+
+def test_one_line_scopes():
+    source, p1, p2 = sp('''\
+        def foo(): pass
+        def boo(baz): return |10
+        class bar: pass
+        |
+    ''')
+    scope = create_scope(source)
+    assert set(scope.names_at(p1)) == {'foo', 'boo', 'bar', 'baz'}
+    assert set(scope.names_at(p2)) == {'foo', 'boo', 'bar'}
+
+
+def test_multiline_expression():
+    source, p = sp('''\
+        foo = 10
+        (foo +
+             |boo)
+    ''')
+
+    scope = create_scope(source)
+    assert nvalues(scope.names_at(p)) == {'foo': 10}
+
+
+def test_lambda():
+    source, p = sp('''\
+        a = 10
+        f = lambda b: a + |a
+    ''')
+    scope = create_scope(source)
+    assert nvalues(scope.names_at(p)) == {
+        'a': 10,
+        'b': 'lambda.arg',
+        'f': 'lambda'
+    }

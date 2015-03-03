@@ -1,5 +1,6 @@
 import os
 
+from supp import linter
 from supp.util import Source
 from supp.astwalk import Extractor
 
@@ -14,6 +15,12 @@ def pytest_generate_tests(metafunc):
         metafunc.parametrize('fname', fnames)
 
 
-def test_scope(fname):
+def _test_scope(fname):
     source = Source(open(fname).read(), fname)
     scope = Extractor(source).process()
+
+
+def test_lint(fname):
+    result = linter.lint(None, open(fname).read(), fname)
+    # print result
+    # assert False
