@@ -3,18 +3,8 @@ from collections import defaultdict
 from contextlib import contextmanager
 from ast import NodeVisitor
 
-from .util import Location, np, GetExprEnd, insert_loc, cached_property
+from .util import Location, np, get_expr_end, insert_loc, cached_property, Name
 from .compat import PY2
-
-
-class Name(Location):
-    def __init__(self, name, location=None):
-        self.name = name
-        self.location = location
-
-    def __repr__(self):
-        return '{}({}, {})'.format(self.__class__.__name__,
-            self.name, self.location)
 
 
 class ArgumentName(Name):
@@ -235,7 +225,6 @@ class LoopFlow(object):
 class Extractor(NodeVisitor):
     def __init__(self, source):
         self.tree = source.tree
-        self.get_expr_end = GetExprEnd()
         self.top = SourceScope(source.lines)
         self.scope = self.top
         self.flow = self.add_flow((1, 0))
@@ -256,7 +245,7 @@ class Extractor(NodeVisitor):
         return self.top.add_flow(Flow(self.scope, loc, parents))
 
     def join(self, node, parent, forks):
-        last_line = self.get_expr_end(node)[0]
+        last_line = get_expr_end(node)[0]
         loc = last_line + 1, parent.location[1]
         self.flow = self.add_flow(loc, forks)
 
@@ -268,7 +257,7 @@ class Extractor(NodeVisitor):
 
     def visit_Assign(self, node):
         nn = node.targets[0]
-        self.flow.add_name(AssignedName(nn.id, self.get_expr_end(node.value),
+        self.flow.add_name(AssignedName(nn.id, get_expr_end(node.value),
             np(nn), node.value))
 
     def visit_If(self, node):
@@ -301,13 +290,13 @@ class Extractor(NodeVisitor):
             self.shift(node, node.orelse)
 
     def visit_Import(self, node):
-        loc = self.get_expr_end(node)
+        loc = get_expr_end(node)
         for a in node.names:
             name = a.asname or a.name.partition('.')[0]
             self.flow.add_name(ImportedName(name, loc, np(node), a.name, None))
 
     def visit_ImportFrom(self, node):
-        loc = self.get_expr_end(node)
+        loc = get_expr_end(node)
         for a in node.names:
             name = a.asname or a.name
             module = '.' * node.level + (node.module or '')

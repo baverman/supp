@@ -34,6 +34,16 @@ class Location(object):
         return self.location < other.location
 
 
+class Name(Location):
+    def __init__(self, name, location=None):
+        self.name = name
+        self.location = location
+
+    def __repr__(self):
+        return '{}({}, {})'.format(self.__class__.__name__,
+            self.name, self.location)
+
+
 LW = '   '
 def dumptree(node, result, level):
     fields = [(k, v) for k, v in iter_fields(node)
@@ -62,11 +72,19 @@ def dump(node):
 
 
 def print_dump(node):
-    print(dump(node))
+    print(dump, (node))
 
 
-class GetExprEnd(NodeVisitor):
-    def __call__(self, node):
+def visitor(cls):
+    v = type(cls.__name__, (cls, NodeVisitor), {})
+    func = lambda node: v().process(node)
+    func.visitor = v
+    return func
+
+
+@visitor
+class get_expr_end(object):
+    def process(self, node):
         self.last_loc = node.lineno, node.col_offset + 1
         self.visit(node)
         return self.last_loc
@@ -87,6 +105,17 @@ class GetExprEnd(NodeVisitor):
 
         setattr(self, name, inner)
         return inner
+
+
+@visitor
+class get_name_usages(object):
+    def process(self, node):
+        self.locations = []
+        self.visit(node)
+        return self.locations
+
+    def visit_Name(self, node):
+        self.locations.append(Name(node.id, np(node)))
 
 
 def np(node):
