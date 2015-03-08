@@ -274,3 +274,27 @@ def test_class_scope():
     assert nvalues(scope.names_at(p2)) == {'a': 10, 'Boo': 'class', 'self': 'boo.arg', 'b': 10}
     assert nvalues(scope.names_at(p3)) == {'a': 10, 'Boo': 'class', 'boo': 'func', 'BOO': 10}
     assert nvalues(scope.names_at(p4)) == {'a': 10, 'Boo': 'class'}
+
+
+def test_attr_assign():
+    source, = sp('''\
+        foo.boo = 10
+    ''')
+    scope = create_scope(source)
+
+
+def test_multiple_targest():
+    source, = sp('''\
+        foo, boo = 1, 2
+    ''')
+    scope = create_scope(source)
+    assert set(scope.names) == set(('boo', 'foo'))
+
+
+def test_for_multiple_targest():
+    source, p= sp('''\
+        for foo, boo in [1, 2]:
+            |pass
+    ''')
+    scope = create_scope(source, debug=True)
+    assert set(scope.names_at(p)) == set(('boo', 'foo'))

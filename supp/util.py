@@ -72,7 +72,7 @@ def dump(node):
 
 
 def print_dump(node):
-    print(dump, (node))
+    print(dump(node))
 
 
 def visitor(cls):

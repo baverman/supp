@@ -1,10 +1,27 @@
 from bisect import bisect
 from collections import defaultdict
 from contextlib import contextmanager
-from ast import NodeVisitor
+from ast import NodeVisitor, Attribute, Tuple, List, Subscript
 
 from .util import Location, np, get_expr_end, insert_loc, cached_property, Name
 from .compat import PY2
+
+NESTED_INDEXED_NODES = Tuple, List
+UNSOPPORTED_ASSIGMENTS = Attribute, Subscript
+
+
+def get_indexes_for_target(target, result, idx):
+    if isinstance(target, NESTED_INDEXED_NODES):
+        idx.append(0)
+        for r in target.elts:
+            get_indexes_for_target(r, result, idx)
+        idx.pop()
+    else:
+        result.append((target, idx[:]))
+        if idx:
+            idx[-1] += 1
+
+    return result
 
 
 class ArgumentName(Name):
@@ -83,7 +100,7 @@ class Scope(object):
         self.locals = set()
 
 
-class FuncScope(Scope):
+class FuncScope(Scope, Location):
     def __init__(self, parent, node):
         Scope.__init__(self, parent)
         self.name = node.name
@@ -102,7 +119,7 @@ class FuncScope(Scope):
             self.flow.add_name(arg)
 
 
-class ClassScope(Scope):
+class ClassScope(Scope, Location):
     def __init__(self, parent, node):
         Scope.__init__(self, parent)
         self.name = node.name
@@ -123,7 +140,10 @@ class SourceScope(Scope):
 
     def get_level(self, loc):
         l, c = loc
-        line = self.lines[l - 1][:c]
+        try:
+            line = self.lines[l - 1][:c]
+        except IndexError:
+            return 0
         sline = line.lstrip()
         return len(line) - len(sline)
 
@@ -256,9 +276,11 @@ class Extractor(NodeVisitor):
         self.join(node, flow, [self.flow])
 
     def visit_Assign(self, node):
-        nn = node.targets[0]
-        self.flow.add_name(AssignedName(nn.id, get_expr_end(node.value),
-            np(nn), node.value))
+        eend = get_expr_end(node.value)
+        for name, idx in get_indexes_for_target(node.targets[0], [], []):
+            if isinstance(name, UNSOPPORTED_ASSIGMENTS):
+                return
+            self.flow.add_name(AssignedName(name.id, eend, np(name), node.value))
 
     def visit_If(self, node):
         self.visit(node.test)
@@ -273,9 +295,9 @@ class Extractor(NodeVisitor):
         with self.fork(node) as fork:
             fork.empty()
             fork.do(node.body).loop()
-            nn = node.target
-            self.flow.add_name(
-                AssignedName(nn.id, np(node.body[0]), np(nn), node.iter))
+            for nn, _idx in get_indexes_for_target(node.target, [], []):
+                self.flow.add_name(
+                    AssignedName(nn.id, np(node.body[0]), np(nn), node.iter))
 
         if node.orelse:
             self.shift(node, node.orelse)
