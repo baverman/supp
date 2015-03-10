@@ -10,6 +10,7 @@ from .helpers import sp
 def create_scope(source, filename=None, debug=False):
     e = Extractor(Source(source, filename))
     debug and print_dump(e.tree)
+    e.scope.parent = None
     return e.process()
 
 

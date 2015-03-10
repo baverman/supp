@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from ast import NodeVisitor, Attribute, Tuple, List, Subscript
 
 from .util import Location, np, get_expr_end, insert_loc, cached_property, Name
-from .compat import PY2, itervalues
+from .compat import PY2, itervalues, builtins
 
 NESTED_INDEXED_NODES = Tuple, List
 UNSOPPORTED_ASSIGMENTS = Attribute, Subscript
@@ -150,9 +150,15 @@ class Region(Location):
         return 'Region({0.flow}, {0.location}, {0.end})'.format(self)
 
 
+class BuiltinScope(object):
+    @cached_property
+    def names(self):
+        return {k: Name(k, (0, 0)) for k in dir(builtins)}
+
+
 class SourceScope(Scope):
     def __init__(self, lines):
-        Scope.__init__(self, None)
+        Scope.__init__(self, BuiltinScope())
         self.lines = lines
         self.flows = defaultdict(list)
         self.regions = []

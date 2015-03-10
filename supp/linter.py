@@ -1,5 +1,7 @@
 from .util import Source, get_name_usages
-from .astwalk import Extractor, SourceScope
+from .astwalk import Extractor, SourceScope, ClassScope
+
+IGNORED_SCOPES = SourceScope, ClassScope
 
 
 def lint(project, source, filename=None):
@@ -22,7 +24,7 @@ def lint(project, source, filename=None):
 
     for flow, name in scope.all_names:
         if name.name.startswith('_'): continue
-        if not isinstance(flow.scope, SourceScope) and not hasattr(name, 'used'):
+        if not isinstance(flow.scope, IGNORED_SCOPES) and not hasattr(name, 'used'):
             result.append(('W01', 'Unused name: {}'.format(name.name),
                 name.location[0], name.location[1]))
 

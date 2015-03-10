@@ -4,9 +4,6 @@ import pytest
 from supp.util import print_dump
 from supp.project import Project
 
-__builtins__['pytest'] = pytest
-__builtins__['print_dump'] = print_dump
-
 
 @pytest.fixture
 def project(tmpdir):

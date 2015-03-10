@@ -3,6 +3,7 @@ import sys
 PY2 = sys.version_info[0] == 2
 
 if PY2:
+    import __builtin__ as builtins
     string_types = (str, unicode)
     range = xrange
     reduce = reduce
@@ -15,6 +16,7 @@ if PY2:
     listitems = lambda d: d.items()
 else:
     from functools import reduce
+    import builtins
     range = range
     string_types = (str, )
 
