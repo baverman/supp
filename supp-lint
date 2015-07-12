@@ -3,5 +3,7 @@ import sys
 from supp import linter
 
 for fname in sys.argv[1:]:
-    for e, msg, line, col in linter.lint(None, open(fname).read(), fname):
-        print('{}:{}:{}\t{}\t{}'.format(fname, line, col, e, msg))
+    errors = linter.lint(None, open(fname).read(), fname)
+    for e, msg, line, col, flow in errors:
+        print('{}:{}:{}\t{}\t{}\t{} {}'.format(
+            fname, line, col, e, msg, flow, flow.scope))

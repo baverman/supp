@@ -7,7 +7,7 @@ from .util import Location, np, get_expr_end, insert_loc, cached_property, Name
 from .compat import PY2, itervalues, builtins
 
 NESTED_INDEXED_NODES = Tuple, List
-UNSOPPORTED_ASSIGMENTS = Attribute, Subscript
+UNSUPPORTED_ASSIGMENTS = Attribute, Subscript
 
 
 def get_indexes_for_target(target, result, idx):
@@ -58,7 +58,9 @@ class ImportedName(Name):
             self.name, self.location, self.declared_at, self.module, self.mname)
 
 
-class UndefinedName(str): pass
+class UndefinedName(str):
+    def __repr__(self):
+        return 'UndefinedName({})'.format(self)
 
 
 class MultiName(object):
@@ -71,12 +73,16 @@ class MultiName(object):
                 allnames.append(n)
         self.names = list(set(allnames))
 
+    def __repr__(self):
+        return 'MultiName({})'.format(self.names)
+
 
 class Fork(object):
     def __init__(self, extractor):
         self.extractor = extractor
         self.parent = extractor.flow
         self.forks = []
+        self.first_flow = None
 
     def do(self, *blocks):
         e = self.extractor
@@ -84,6 +90,8 @@ class Fork(object):
         for nodes in blocks:
             if nodes:
                 e.flow = e.add_flow(np(nodes[0]), [p])
+                if not self.first_flow:
+                    self.first_flow = e.flow
                 for n in nodes: e.visit(n)
                 p = e.flow
 
@@ -118,13 +126,24 @@ class FuncScope(Scope, Location):
             else:
                 self.args.append(ArgumentName(n.arg, self.location, np(n), self))
 
+        for n in (node.args.vararg, node.args.kwarg):
+            if n:
+                if PY2:
+                    self.args.append(ArgumentName(n, self.location, self.location, self))
+                else:
+                    self.args.append(ArgumentName(n.arg, self.location, np(n), self))
+
         self.flow = Flow(self, self.location)
         for arg in self.args:
             self.flow.add_name(arg)
 
+
     @property
     def names(self):
         return self.last_flow.names
+
+    def __repr__(self):
+        return 'FuncScope({}, {})'.format(self.name, self.location)
 
 
 class ClassScope(Scope, Location):
@@ -161,6 +180,8 @@ class SourceScope(Scope):
         Scope.__init__(self, BuiltinScope())
         self.lines = lines
         self.flows = defaultdict(list)
+        self.allflows = []
+        self.scope_flows = defaultdict(list)
         self.regions = []
 
     def get_level(self, loc, check_colon=False):
@@ -181,21 +202,13 @@ class SourceScope(Scope):
         sline = line.lstrip()
         return len(line) - len(sline)
 
-    def get_level_flows(self, level):
-        try:
-            return self.flows[level]
-        except KeyError:
-            pass
-
-        levels = sorted(self.flows)
-        return self.flows[levels[bisect(levels, level) - 1]]
-
     def add_flow(self, flow, check_colon=False, level=None):
         if level is None:
             level = self.get_level(flow.location, check_colon)
         flow.level = level
         insert_loc(self.flows[level], flow)
-        # print flow, flow.parents
+        insert_loc(self.allflows, flow)
+        insert_loc(self.scope_flows[flow.scope], flow)
         return flow
 
     def add_region(self, flow, start, end):
@@ -206,7 +219,7 @@ class SourceScope(Scope):
     def names(self):
         return self.flows[0][-1].names
 
-    def names_at(self, loc):
+    def flow_at(self, loc):
         flow = None
         lloc = Location(loc)
 
@@ -217,11 +230,34 @@ class SourceScope(Scope):
                 flow = region.flow
 
         if not flow:
-            flows = self.get_level_flows(self.get_level(loc))
-            idx = bisect(flows, lloc) - 1
-            flow = flows[idx]
+            flows = self.allflows
+            level = self.get_level(loc)
+            while True:
+                idx = bisect(flows, lloc) - 1
+                flow = flows[idx]
+                if level < self.scope_flows[flow.scope][0].level:
+                    flows = self.scope_flows[flow.scope.parent]
+                else:
+                    break
 
-        # print self.regions, flow, loc, self.get_level(loc)
+            flow_level = abs(flow.level - level)
+            scope = flow.scope
+            while idx >= 0:
+                idx -= 1
+                f = flows[idx]
+                if f.scope != scope:
+                    break
+
+                flevel = abs(f.level - level)
+                if flevel < flow_level:
+                    flow = f
+                    flow_level = flevel
+
+        return flow
+
+    def names_at(self, loc):
+        flow = self.flow_at(loc)
+        # print self.regions, flow, loc, self.get_level(loc), flow._names
         return flow.names_at(loc)
 
     @property
@@ -286,23 +322,42 @@ class Flow(Location):
 
     def loop(self):
         self.parents.append(LoopFlow(self))
+        # cached_property.invalidate(self, 'names')
+        # cached_property.invalidate(self, 'parent_names')
         return self
 
     def linkto(self, flow):
         self.parents.append(flow)
+        # cached_property.invalidate(self, 'names')
+        # cached_property.invalidate(self, 'parent_names')
         return self
 
     def __repr__(self):
-        return '<Flow({location}, {level}>'.format(**vars(self))
+        return '<Flow({location}, {level})>'.format(**vars(self))
 
 
 class LoopFlow(object):
     def __init__(self, parent):
-        self._names = parent._names
+        self.parent = parent
+        self._resolving = False
 
-    @cached_property
+    @property
     def names(self):
-        return {n.name: n for n in self._names}
+        if self._resolving:
+            return {}
+
+        try:
+            return self._names
+        except AttributeError:
+            pass
+
+        self._resolving = True
+        try:
+            result = self._names = self.parent.names
+        finally:
+            self._resolving = False
+
+        return result
 
 
 class Extractor(NodeVisitor):
@@ -345,7 +400,7 @@ class Extractor(NodeVisitor):
     def visit_Assign(self, node):
         eend = get_expr_end(node.value)
         for name, idx in get_indexes_for_target(node.targets[0], [], []):
-            if isinstance(name, UNSOPPORTED_ASSIGMENTS):
+            if isinstance(name, UNSUPPORTED_ASSIGMENTS):
                 return
             self.flow.add_name(AssignedName(name.id, eend, np(name), node.value))
         self.visit(node.value)
@@ -362,10 +417,12 @@ class Extractor(NodeVisitor):
     def visit_For(self, node):
         with self.fork(node) as fork:
             fork.empty()
-            fork.do(node.body).loop()
+            fork.do(node.body)
             for nn, _idx in get_indexes_for_target(node.target, [], []):
-                self.flow.add_name(
+                fork.first_flow.add_name(
                     AssignedName(nn.id, np(node.body[0]), np(nn), node.iter))
+
+            fork.first_flow.linkto(LoopFlow(self.flow))
 
         if node.orelse:
             self.shift(node, node.orelse)
@@ -374,7 +431,8 @@ class Extractor(NodeVisitor):
         self.visit(node.test)
         with self.fork(node) as fork:
             fork.empty()
-            fork.do(node.body).loop()
+            fork.do(node.body)
+            fork.first_flow.linkto(LoopFlow(self.flow))
 
         if node.orelse:
             self.shift(node, node.orelse)

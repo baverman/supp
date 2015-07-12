@@ -1,6 +1,9 @@
 from supp.linter import lint
 from .helpers import dedent
 
+def clint(source):
+    return [r[:4] for r in lint(None, source)]
+
 
 def test_check_syntax():
     s = dedent('''\
@@ -8,7 +11,7 @@ def test_check_syntax():
             pass
     ''')
 
-    result = lint(None, s)
+    result = clint(s)
     assert result == [('E01', 'Invalid syntax', 1, 10)]
 
 
@@ -22,7 +25,7 @@ def test_name_usages():
             bar(foo)
     ''')
 
-    result = lint(None, s)
+    result = clint(s)
     assert result == [
         ('E02', 'Undefined name: bar', 6, 4),
         ('W01', 'Unused name: boo', 5, 11)

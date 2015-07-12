@@ -1,5 +1,6 @@
 from __future__ import print_function
 
+import sys
 from bisect import insort
 from ast import iter_fields, Store, Load, NodeVisitor, parse
 
@@ -7,6 +8,8 @@ from .compat import iteritems
 
 
 class cached_property(object):
+    cached = True
+
     def __init__(self, func):
         self.__doc__ = getattr(func, '__doc__')
         self.func = func
@@ -16,6 +19,14 @@ class cached_property(object):
             return self
         value = obj.__dict__[self.func.__name__] = self.func(obj)
         return value
+
+    @staticmethod
+    def invalidate(obj, name):
+        if name in obj.__class__.__dict__:
+            try:
+                delattr(obj, name)
+            except AttributeError:
+                pass
 
 
 def insert_loc(locations, loc):
@@ -31,6 +42,9 @@ class Location(object):
 
     def __lt__(self, other):
         return self.location < other.location
+
+    def __repr__(self):
+        return repr(self.location)
 
 
 class Name(Location):
@@ -150,3 +164,46 @@ class Source(object):
     @cached_property
     def lines(self):
         return self.source.splitlines() or ['']
+
+
+def dump_flows(scope, fd=None):
+    from .astwalk import LoopFlow
+
+    fd = fd or sys.stdout
+    print('digraph G {', file=fd)
+    print('rankdir=BT;', file=fd)
+    print('node [shape=box];', file=fd)
+
+    scopes = {}
+
+    for level, flows in sorted(iteritems(scope.flows)):
+        for flow in flows:
+            try:
+                l = scope.lines[flow.location[0]-1].strip() + r'\n'
+            except IndexError:
+                l = ''
+            print(r'{} [label="{}\n{}{}"];'.format(
+                id(flow),
+                flow,
+                l,
+                flow._names), file=fd)
+            scopes.setdefault(flow.scope, []).append((level, flow))
+
+    def print_flows(flows):
+        for level, flow in flows:
+            for p in flow.parents:
+                if isinstance(p, LoopFlow):
+                    print('{} [label="loop"];'.format(id(p)), file=fd)
+                    print('{} -> {};'.format(id(p), id(p.parent)), file=fd)
+                print('{} -> {};'.format(id(flow), id(p)), file=fd)
+
+    print_flows(scopes[scope])
+    for s, flows in iteritems(scopes):
+        if s is scope:
+            continue
+        print('subgraph {} {{'.format(id(s)), file=fd)
+        print_flows(flows)
+        print('}', file=fd)
+
+    print('}', file=fd)
+    fd.flush()

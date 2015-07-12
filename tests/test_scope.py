@@ -2,7 +2,7 @@ from ast import Lambda
 from supp.compat import iteritems
 from supp.astwalk import AssignedName, UndefinedName, MultiName, ImportedName,\
     Extractor, ArgumentName, FuncScope, ClassScope
-from supp.util import Source, print_dump
+from supp.util import Source, print_dump, dump_flows
 
 from .helpers import sp
 
@@ -133,6 +133,20 @@ def test_for_without_break():
     assert nvalues(scope.names_at(p2)) == {'a': 'listitem', 'b': 20}
     assert nvalues(scope.names_at(p3)) == {'a': {'listitem', 'undefined'}, 'b': {10, 20}, 'c': 10}
     assert nvalues(scope.names_at(p4)) == {'a': {'listitem', 'undefined'}, 'b': {10, 20}, 'c': 10}
+
+
+def test_for_with_inner_try():
+    source, p1 = sp('''\
+        for name in (1, 3):
+            name(); |
+            try:
+                boo = 10
+            except KeyError:
+                pass
+    ''')
+
+    scope = create_scope(source)
+    assert nvalues(scope.names_at(p1)) == {'name': 'listitem', 'boo': {10, 'undefined'}}
 
 
 def test_while_without_break():
@@ -350,6 +364,17 @@ def test_multiline_expression():
     assert nvalues(scope.names_at(p)) == {'foo': 10}
 
 
+def test_multiline_expression2():
+    source, p = sp('''\
+        def foo(arg):
+            return 'ArgumentName({}, {}, {})'.format(
+                arg.name, |arg.location, arg.declared_at)
+    ''')
+
+    scope = create_scope(source)
+    assert nvalues(scope.names_at(p)) == {'arg': 'foo.arg', 'foo': 'func'}
+
+
 def test_lambda():
     source, p = sp('''\
         a = 10
@@ -361,3 +386,35 @@ def test_lambda():
         'b': 'lambda.arg',
         'f': 'lambda'
     }
+
+
+def test_scope_levels():
+    source, p = sp('''\
+        def boo():
+            if name:
+                return 10
+
+        def foo(arg):
+            return func(
+                |arg)
+    ''')
+    scope = create_scope(source)
+    assert nvalues(scope.names_at(p)) == {'arg': 'foo.arg', 'foo': 'func', 'boo': 'func'}
+
+
+def test_vargs():
+    source, p = sp('''\
+        def boo(*vargs):
+            |pass
+    ''')
+    scope = create_scope(source)
+    assert nvalues(scope.names_at(p)) == {'vargs': 'boo.arg', 'boo': 'func'}
+
+
+def test_kwargs():
+    source, p = sp('''\
+        def boo(**kwargs):
+            |pass
+    ''')
+    scope = create_scope(source)
+    assert nvalues(scope.names_at(p)) == {'kwargs': 'boo.arg', 'boo': 'func'}

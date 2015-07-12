@@ -4,9 +4,9 @@ PY2 = sys.version_info[0] == 2
 
 if PY2:
     import __builtin__ as builtins
+    range = builtins.xrange
+    reduce = builtins.reduce
     string_types = (str, unicode)
-    range = xrange
-    reduce = reduce
 
     iterkeys = lambda d: d.iterkeys()
     itervalues = lambda d: d.itervalues()
@@ -15,9 +15,9 @@ if PY2:
     listvalues = lambda d: d.values()
     listitems = lambda d: d.items()
 else:
-    from functools import reduce
     import builtins
-    range = range
+    from functools import reduce
+    range = builtins.range
     string_types = (str, )
 
     iterkeys = lambda d: d.keys()
