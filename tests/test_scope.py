@@ -461,3 +461,12 @@ def test_with():
     ''')
     scope = create_scope(source)
     assert nvalues(scope.names_at(p)) == {'f': 'with'}
+
+
+def test_multi_assign():
+    source, p = sp('''\
+        a = b = 10
+        |
+    ''')
+    scope = create_scope(source)
+    assert nvalues(scope.names_at(p)) == {'a': 10, 'b': 10}

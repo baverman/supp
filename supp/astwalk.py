@@ -5,6 +5,7 @@ from ast import NodeVisitor, Attribute, Tuple, List, Subscript
 
 from .util import Location, np, get_expr_end, insert_loc, cached_property, Name
 from .compat import PY2, itervalues, builtins
+from . import compat
 
 NESTED_INDEXED_NODES = Tuple, List
 UNSUPPORTED_ASSIGMENTS = Attribute, Subscript
@@ -172,7 +173,11 @@ class Region(Location):
 class BuiltinScope(object):
     @cached_property
     def names(self):
-        return {k: Name(k, (0, 0)) for k in dir(builtins)}
+        names = {k: Name(k, (0, 0)) for k in dir(builtins)}
+        names.update({k: Name(k, (0, 0))
+                      for k in dir(compat)
+                      if k.startswith('__')})
+        return names
 
 
 class SourceScope(Scope):
@@ -399,10 +404,11 @@ class Extractor(NodeVisitor):
 
     def visit_Assign(self, node):
         eend = get_expr_end(node.value)
-        for name, idx in get_indexes_for_target(node.targets[0], [], []):
-            if isinstance(name, UNSUPPORTED_ASSIGMENTS):
-                return
-            self.flow.add_name(AssignedName(name.id, eend, np(name), node.value))
+        for targets in node.targets:
+            for name, idx in get_indexes_for_target(targets, [], []):
+                if isinstance(name, UNSUPPORTED_ASSIGMENTS):
+                    return
+                self.flow.add_name(AssignedName(name.id, eend, np(name), node.value))
         self.visit(node.value)
 
     def visit_If(self, node):
