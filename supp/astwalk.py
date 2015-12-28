@@ -407,7 +407,7 @@ class Extractor(NodeVisitor):
         for targets in node.targets:
             for name, idx in get_indexes_for_target(targets, [], []):
                 if isinstance(name, UNSUPPORTED_ASSIGMENTS):
-                    return
+                    continue
                 self.flow.add_name(AssignedName(name.id, eend, np(name), node.value))
         self.visit(node.value)
 

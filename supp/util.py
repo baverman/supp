@@ -4,7 +4,7 @@ import sys
 from bisect import insort
 from ast import iter_fields, Store, Load, NodeVisitor, parse
 
-from .compat import iteritems
+from .compat import iteritems, string_types
 
 
 class cached_property(object):
@@ -170,6 +170,9 @@ def dump_flows(scope, fd=None):
     from .astwalk import LoopFlow
 
     fd = fd or sys.stdout
+    if isinstance(fd, string_types):
+        fd = open(fd, 'w')
+
     print('digraph G {', file=fd)
     print('rankdir=BT;', file=fd)
     print('node [shape=box];', file=fd)

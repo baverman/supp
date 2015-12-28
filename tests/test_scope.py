@@ -470,3 +470,11 @@ def test_multi_assign():
     ''')
     scope = create_scope(source)
     assert nvalues(scope.names_at(p)) == {'a': 10, 'b': 10}
+
+
+def test_boo():
+    source, p = sp('''\
+        foo.boo = lambda a: |a + 1
+    ''')
+    scope = create_scope(source, debug=True)
+    assert nvalues(scope.names_at(p)) == {'a': 'lambda.arg'}
