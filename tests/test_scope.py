@@ -1,4 +1,4 @@
-from ast import Lambda
+from ast import Lambda, With
 from supp.compat import iteritems
 from supp.astwalk import AssignedName, UndefinedName, MultiName, ImportedName,\
     Extractor, ArgumentName, FuncScope, ClassScope
@@ -18,6 +18,8 @@ def get_value(name):
     if isinstance(name, AssignedName):
         if isinstance(name.value_node, Lambda):
             return 'lambda'
+        if isinstance(name.value_node, With):
+            return 'with'
         if hasattr(name.value_node, 'elts'):
             return 'listitem'
         if hasattr(name.value_node, 'id'):
@@ -422,35 +424,40 @@ def test_kwargs():
 
 def test_list_comprehension():
     source, p = sp('''\
-        def foo():
-            [|r for r in (1, 2, 3)]
+        [|r for r in (1, 2, 3)]
     ''')
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p)) == {'r': 'listitem', 'foo': 'func'}
+    assert nvalues(scope.names_at(p)) == {'r': 'listitem'}
 
 
 def test_generator_comprehension():
     source, p = sp('''\
-        def foo():
-            (|r for r in (1, 2, 3))
+        (|r for r in (1, 2, 3))
     ''')
-    scope = create_scope(source, debug=True)
-    assert nvalues(scope.names_at(p)) == {'r': 'listitem', 'foo': 'func'}
+    scope = create_scope(source)
+    assert nvalues(scope.names_at(p)) == {'r': 'listitem'}
 
 
 def test_dict_comprehension():
     source, p = sp('''\
-        def foo():
-            {1: |r for r in (1, 2, 3)}
+        {1: |r for r in (1, 2, 3)}
     ''')
-    scope = create_scope(source, debug=True)
-    assert nvalues(scope.names_at(p)) == {'r': 'listitem', 'foo': 'func'}
+    scope = create_scope(source)
+    assert nvalues(scope.names_at(p)) == {'r': 'listitem'}
 
 
 def test_set_comprehension():
     source, p = sp('''\
-        def foo():
-            {|r for r in (1, 2, 3)}
+        {|r for r in (1, 2, 3)}
     ''')
-    scope = create_scope(source, debug=True)
-    assert nvalues(scope.names_at(p)) == {'r': 'listitem', 'foo': 'func'}
+    scope = create_scope(source)
+    assert nvalues(scope.names_at(p)) == {'r': 'listitem'}
+
+
+def test_with():
+    source, p = sp('''\
+        with open('boo') as f:
+            |pass
+    ''')
+    scope = create_scope(source)
+    assert nvalues(scope.names_at(p)) == {'f': 'with'}
