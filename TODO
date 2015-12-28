@@ -1,0 +1,8 @@
+* fix lint errors for supp package
+* include lint error checking for supp package in self tests
+* fix false positive lint warnings
+* imports checker
+* hints to ignore lint errors/warnings
+* ignore first (self) unused argument in methods
+* exact declaration location for import names
+* goto import declaration remote method
