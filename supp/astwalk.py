@@ -88,16 +88,18 @@ class Fork(object):
     def do(self, *blocks):
         e = self.extractor
         p = self.parent
+        flow = None
         for nodes in blocks:
             if nodes:
                 e.flow = e.add_flow(np(nodes[0]), [p])
+                flow = flow or e.flow
                 if not self.first_flow:
                     self.first_flow = e.flow
                 for n in nodes: e.visit(n)
                 p = e.flow
 
         self.forks.append(e.flow)
-        return e.flow
+        return flow
 
     def empty(self):
         self.forks.append(self.parent)
@@ -460,20 +462,18 @@ class Extractor(NodeVisitor):
         with self.fork(node) as fork:
             fork.do(node.body, node.orelse)
             for h in node.handlers:
-                fork.do(h.body)
+                flow = fork.do(h.body)
                 if h.name:
                     nn = h.name
-                    self.flow.add_name(
-                        AssignedName(nn.id, np(h.body[0]), np(nn), h.type))
+                    flow.add_name(AssignedName(nn.id, np(h.body[0]), np(nn), h.type))
 
     def visit_Try(self, node):
         with self.fork(node) as fork:
             fork.do(node.body, node.orelse)
             for h in node.handlers:
-                fork.do(h.body)
+                flow = fork.do(h.body)
                 if h.name:
-                    self.flow.add_name(
-                        AssignedName(h.name, np(h.body[0]), np(h), h.type))
+                    flow.add_name(AssignedName(h.name, np(h.body[0]), np(h), h.type))
 
     @contextmanager
     def nest(self):

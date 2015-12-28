@@ -302,7 +302,7 @@ def test_attr_assign():
     source, = sp('''\
         foo.boo = 10
     ''')
-    scope = create_scope(source)
+    create_scope(source)
 
 
 def test_multiple_targest():
@@ -472,9 +472,23 @@ def test_multi_assign():
     assert nvalues(scope.names_at(p)) == {'a': 10, 'b': 10}
 
 
-def test_boo():
+def test_visit_value_node_in_unsupported_assignments():
     source, p = sp('''\
         foo.boo = lambda a: |a + 1
     ''')
-    scope = create_scope(source, debug=True)
+    scope = create_scope(source)
     assert nvalues(scope.names_at(p)) == {'a': 'lambda.arg'}
+
+
+def test_if_in_try_except():
+    source, p = sp('''\
+        try:
+            pass
+        except Exception as e:
+            if True:
+                raise |e
+        else:
+            break
+    ''')
+    scope = create_scope(source)
+    assert nvalues(scope.names_at(p)) == {'e': 'Exception'}
