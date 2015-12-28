@@ -418,3 +418,39 @@ def test_kwargs():
     ''')
     scope = create_scope(source)
     assert nvalues(scope.names_at(p)) == {'kwargs': 'boo.arg', 'boo': 'func'}
+
+
+def test_list_comprehension():
+    source, p = sp('''\
+        def foo():
+            [|r for r in (1, 2, 3)]
+    ''')
+    scope = create_scope(source)
+    assert nvalues(scope.names_at(p)) == {'r': 'listitem', 'foo': 'func'}
+
+
+def test_generator_comprehension():
+    source, p = sp('''\
+        def foo():
+            (|r for r in (1, 2, 3))
+    ''')
+    scope = create_scope(source, debug=True)
+    assert nvalues(scope.names_at(p)) == {'r': 'listitem', 'foo': 'func'}
+
+
+def test_dict_comprehension():
+    source, p = sp('''\
+        def foo():
+            {1: |r for r in (1, 2, 3)}
+    ''')
+    scope = create_scope(source, debug=True)
+    assert nvalues(scope.names_at(p)) == {'r': 'listitem', 'foo': 'func'}
+
+
+def test_set_comprehension():
+    source, p = sp('''\
+        def foo():
+            {|r for r in (1, 2, 3)}
+    ''')
+    scope = create_scope(source, debug=True)
+    assert nvalues(scope.names_at(p)) == {'r': 'listitem', 'foo': 'func'}

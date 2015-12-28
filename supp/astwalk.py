@@ -506,3 +506,12 @@ class Extractor(NodeVisitor):
     def visit_Expr(self, node):
         self.add_region(node)
         self.generic_visit(node)
+
+    def visit_ListComp(self, node):
+        for g in node.generators:
+            for nn, _idx in get_indexes_for_target(g.target, [], []):
+                self.flow.add_name(AssignedName(nn.id, np(node), np(nn), g.iter))
+
+    visit_GeneratorExp = visit_ListComp
+    visit_DictComp = visit_ListComp
+    visit_SetComp = visit_ListComp

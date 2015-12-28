@@ -13,7 +13,7 @@ def lint(project, source, filename=None):
 
     result = []
     scope = Extractor(source).process()
-    dump_flows(scope, open('/tmp/boo.dot', 'w'))
+    # dump_flows(scope, open('/tmp/boo.dot', 'w'))
     name_usages = get_name_usages(source.tree)
     for name in name_usages:
         snames = scope.names_at(name.location)

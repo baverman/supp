@@ -15,12 +15,10 @@ def pytest_generate_tests(metafunc):
         metafunc.parametrize('fname', fnames)
 
 
-def _test_scope(fname):
+def test_scope(fname):
     source = Source(open(fname).read(), fname)
     scope = Extractor(source).process()
 
 
 def test_lint(fname):
     result = linter.lint(None, open(fname).read(), fname)
-    # print result
-    # assert False
