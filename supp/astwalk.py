@@ -109,6 +109,7 @@ class Scope(object):
     def __init__(self, parent):
         self.parent = parent
         self.locals = set()
+        self.globals = set()
 
 
 class FuncScope(Scope, Location):
@@ -190,6 +191,7 @@ class SourceScope(Scope):
         self.allflows = []
         self.scope_flows = defaultdict(list)
         self.regions = []
+        self._global_names = {}
 
     def get_level(self, loc, check_colon=False):
         l, c = loc
@@ -213,6 +215,7 @@ class SourceScope(Scope):
         if level is None:
             level = self.get_level(flow.location, check_colon)
         flow.level = level
+        flow.top = self
         insert_loc(self.flows[level], flow)
         insert_loc(self.allflows, flow)
         insert_loc(self.scope_flows[flow.scope], flow)
@@ -222,9 +225,14 @@ class SourceScope(Scope):
         region = Region(flow, start, end)
         insert_loc(self.regions, region)
 
-    @property
+    def add_global(self, name):
+        self._global_names[name.name] = name
+
+    @cached_property
     def names(self):
-        return self.flows[0][-1].names
+        names = self.flows[0][-1].names.copy()
+        names.update(self._global_names)
+        return names
 
     def flow_at(self, loc):
         flow = None
@@ -284,8 +292,11 @@ class Flow(Location):
         self._names = []
 
     def add_name(self, name):
-        self.scope.locals.add(name.name)
-        insert_loc(self._names, name)
+        if name.name in self.scope.globals:
+            self.top.add_global(name)
+        else:
+            self.scope.locals.add(name.name)
+            insert_loc(self._names, name)
 
     @cached_property
     def names(self):
@@ -534,3 +545,6 @@ class Extractor(NodeVisitor):
                     self.flow.add_name(AssignedName(nn.id, np(node.body[0]), np(nn), node))
 
         self.generic_visit(node)
+
+    def visit_Global(self, node):
+        self.scope.globals.update(node.names)

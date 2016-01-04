@@ -492,3 +492,18 @@ def test_if_in_try_except():
     ''')
     scope = create_scope(source)
     assert nvalues(scope.names_at(p)) == {'e': 'Exception'}
+
+
+def test_global():
+    source, p1, p2 = sp('''\
+        def foo():
+            global boo
+            boo = 10
+
+        def bar():
+            |pass
+        |
+    ''')
+    scope = create_scope(source)
+    assert nvalues(scope.names_at(p1)) == {'foo': 'func', 'bar': 'func', 'boo': 10}
+    assert nvalues(scope.names_at(p2)) == {'foo': 'func', 'bar': 'func'}
