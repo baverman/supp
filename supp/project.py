@@ -85,7 +85,9 @@ class Project(object):
                     break
             else:
                 filename = os.path.join(mpath, '__init__.py')
-                if not os.path.exists(filename):
+                if os.path.exists(filename):
+                    break
+                else:
                     filename = None
 
         if not filename:
