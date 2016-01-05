@@ -95,7 +95,8 @@ class Fork(object):
                 flow = flow or e.flow
                 if not self.first_flow:
                     self.first_flow = e.flow
-                for n in nodes: e.visit(n)
+                for n in nodes:
+                    e.visit(n)
                 p = e.flow
 
         self.forks.append(e.flow)
@@ -140,7 +141,6 @@ class FuncScope(Scope, Location):
         self.flow = Flow(self, self.location)
         for arg in self.args:
             self.flow.add_name(arg)
-
 
     @property
     def names(self):
@@ -239,7 +239,7 @@ class SourceScope(Scope):
         lloc = Location(loc)
 
         idx = bisect(self.regions, lloc) - 1
-        if idx >=0:
+        if idx >= 0:
             region = self.regions[idx]
             if region.end > loc:
                 flow = region.flow
@@ -402,7 +402,8 @@ class Extractor(NodeVisitor):
 
     def add_region(self, node, flow=None, end_node=None):
         self.top.add_region(flow or self.flow,
-            np(node), get_expr_end(end_node or node))
+                            np(node),
+                            get_expr_end(end_node or node))
 
     def join(self, node, parent, forks):
         last_line = get_expr_end(node)[0]
@@ -412,7 +413,8 @@ class Extractor(NodeVisitor):
     def shift(self, node, nodes):
         flow = self.flow
         self.flow = self.add_flow(np(nodes[0]), [flow])
-        for n in nodes: self.visit(n)
+        for n in nodes:
+            self.visit(n)
         self.join(node, flow, [self.flow])
 
     def visit_Assign(self, node):
@@ -501,7 +503,8 @@ class Extractor(NodeVisitor):
             self.flow = self.top.add_flow(self.scope.flow, True)
             if self.flow.level < 0:
                 self.add_region(node.body[0])
-            for n in node.body: self.visit(n)
+            for n in node.body:
+                self.visit(n)
             self.scope.last_flow = self.flow
 
     def visit_Lambda(self, node):
@@ -518,7 +521,8 @@ class Extractor(NodeVisitor):
             self.flow = self.top.add_flow(self.scope.flow, True)
             if self.flow.level < 0:
                 self.add_region(node.body[0])
-            for n in node.body: self.visit(n)
+            for n in node.body:
+                self.visit(n)
 
     def visit_Expr(self, node):
         self.add_region(node)

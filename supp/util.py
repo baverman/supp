@@ -54,19 +54,23 @@ class Name(Location):
 
     def __repr__(self):
         return '{}({}, {})'.format(self.__class__.__name__,
-            self.name, self.location)
+                                   self.name, self.location)
 
 
-LW = '   '
 def dumptree(node, result, level):
-    fields = [(k, v) for k, v in iter_fields(node)
-        if (hasattr(v, '_fields') and not isinstance(v, Store))
-            or (isinstance(v, list) and v and hasattr(v[0], '_fields'))]
+    LW = '   '
+    fields = [(k, v)
+              for k, v in iter_fields(node)
+              if (hasattr(v, '_fields') and not isinstance(v, Store)) or
+                 (isinstance(v, list) and v and hasattr(v[0], '_fields'))]
     field_names = set(k for k, _ in fields)
 
-    result.append('{} {} {}'.format(LW * level, type(node).__name__,
-        ', '.join('{}: {}'.format(k, v) for k, v in sorted(iteritems(vars(node)))
-            if k not in field_names)))
+    result.append('{} {} {}'.format(
+        LW * level,
+        type(node).__name__,
+        ', '.join('{}: {}'.format(k, v)
+                  for k, v in sorted(iteritems(vars(node)))
+                  if k not in field_names)))
 
     for k, v in fields:
         if isinstance(v, list):
@@ -137,8 +141,11 @@ def np(node):
 
 
 SOURCE_MARK = '__supp_mark__'
+
+
 def unmark(name):
     return name[:-len(SOURCE_MARK)]
+
 
 def marked(name):
     return name.endswith(SOURCE_MARK)

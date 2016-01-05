@@ -45,7 +45,8 @@ class Project(object):
                 for s in suffixes:
                     if name.endswith(s):
                         mname = name[:-len(s)]
-                        if mname == '__init__': continue
+                        if mname == '__init__':
+                            continue
                         modules.add(mname)
                         break
                 else:

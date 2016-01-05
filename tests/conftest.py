@@ -1,13 +1,13 @@
 from textwrap import dedent
 
 import pytest
-from supp.util import print_dump
 from supp.project import Project
 
 
 @pytest.fixture
 def project(tmpdir):
     project = Project(str(tmpdir))
+
     def add_module(name, content=None, lazy=False):
         parts = name.split('.')
         module = parts[-1]

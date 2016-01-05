@@ -1,5 +1,6 @@
 from textwrap import dedent
 
+
 def sp(source):
     source = dedent(source)
     cursors = []

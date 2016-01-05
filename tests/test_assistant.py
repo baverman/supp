@@ -119,7 +119,7 @@ def test_import_all():
     assert 'sys' in result
 
 
-def test_import_from_simple():
+def test_import_from_simple1():
     source, p = sp('''\
         from multiprocessing import |
     ''')
@@ -129,7 +129,7 @@ def test_import_from_simple():
     assert 'pool' in result
 
 
-def test_import_from_simple(project):
+def test_import_from_simple2(project):
     project.add_m('testp.module')
     source, p = sp('''\
         from . import |
@@ -169,7 +169,7 @@ def test_name_assist():
     m, result = tassist(source, p)
     assert m == 'f'
     assert 'foo' in result
-    assert not 'boo' in result
+    assert 'boo' not in result
 
 
 def test_dynamic_modules():

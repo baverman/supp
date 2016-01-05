@@ -314,7 +314,7 @@ def test_multiple_targest():
 
 
 def test_for_multiple_targest():
-    source, p= sp('''\
+    source, p = sp('''\
         for foo, boo in [1, 2]:
             |pass
     ''')

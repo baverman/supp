@@ -33,17 +33,18 @@ def lint(project, source, filename=None):
                 sname.used = True
 
     for flow, name in scope.all_names:
-        if hasattr(name, 'used'): continue
-
-        if name.name.startswith('_'): continue
-
-        if isinstance(flow.scope, IGNORED_SCOPES): continue
-
+        if hasattr(name, 'used'):
+            continue
+        if name.name.startswith('_'):
+            continue
+        if isinstance(flow.scope, IGNORED_SCOPES):
+            continue
         if (isinstance(name, ArgumentName) and
-            isinstance(flow.scope.parent, ClassScope)): continue
+                isinstance(flow.scope.parent, ClassScope)):
+            continue
 
         # print('###', name)
         result.append(('W01', 'Unused name: {}'.format(name.name),
-            name.location[0], name.location[1], flow))
+                       name.location[0], name.location[1], flow))
 
     return result

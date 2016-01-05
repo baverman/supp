@@ -32,7 +32,7 @@ class Server(object):
     def create_project(self, path):
         # config = self.configs.get(path, {})
         # config.setdefault('hooks', []).insert(0, 'supplement.hooks.override')
-        p = Project(path) #, self.configs.get(path, {}))
+        p = Project(path)  # self.configs.get(path, {}))
         return p
 
     def get_project(self, path):
@@ -103,7 +103,8 @@ if __name__ == '__main__':
         level = logging.ERROR
 
     if 'SUPP_LOG_FILE' in os.environ:
-        logging.basicConfig(filename=os.environ['SUPP_LOG_FILE'],
+        logging.basicConfig(
+            filename=os.environ['SUPP_LOG_FILE'],
             format="%(asctime)s %(name)s %(levelname)s: %(message)s", level=level)
     else:
         logging.basicConfig(format="%(name)s %(levelname)s: %(message)s", level=level)

@@ -1,13 +1,13 @@
 from setuptools import setup, find_packages
 
 setup(
-    name     = 'supp',
-    version  = '0.1dev',
-    author   = 'Anton Bobrov',
+    name = 'supp',
+    version = '0.1dev',
+    author = 'Anton Bobrov',
     author_email = 'bobrov@vl.ru',
     description = 'Python code completion library',
     long_description = open('README.rst').read(),
-    zip_safe   = False,
+    zip_safe = False,
     packages = find_packages(exclude=('tests', )),
     include_package_data = True,
     url = 'http://github.com/baverman/supp',

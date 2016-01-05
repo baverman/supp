@@ -14,7 +14,7 @@ def assist(project, source, position, filename=None):
     source = Source(source, filename, position)
     ln, col = position
     line = source.lines[ln - 1][:col]
-    if line.lstrip().startswith('from ') and not ' import ' in line:
+    if line.lstrip().startswith('from ') and ' import ' not in line:
         iname = line.rpartition(' ')[2]
         package, sep, prefix = iname.rpartition('.')
         if (not package or package.startswith('.')) and sep:
