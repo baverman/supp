@@ -62,7 +62,7 @@ def dumptree(node, result, level):
     fields = [(k, v) for k, v in iter_fields(node)
         if (hasattr(v, '_fields') and not isinstance(v, Store))
             or (isinstance(v, list) and v and hasattr(v[0], '_fields'))]
-    field_names = set(k for k, v in fields)
+    field_names = set(k for k, _ in fields)
 
     result.append('{} {} {}'.format(LW * level, type(node).__name__,
         ', '.join('{}: {}'.format(k, v) for k, v in sorted(iteritems(vars(node)))
@@ -193,7 +193,7 @@ def dump_flows(scope, fd=None):
             scopes.setdefault(flow.scope, []).append((level, flow))
 
     def print_flows(flows):
-        for level, flow in flows:
+        for _, flow in flows:
             for p in flow.parents:
                 if isinstance(p, LoopFlow):
                     print('{} [label="loop"];'.format(id(p)), file=fd)

@@ -10,7 +10,7 @@ from supp.compat import PY2
 def pytest_generate_tests(metafunc):
     if 'fname' in metafunc.funcargnames:
         fnames = []
-        for top, dirs, files in chain(os.walk('supp'), os.walk('tests')):
+        for top, _, files in chain(os.walk('supp'), os.walk('tests')):
             for fname in files:
                 if fname.endswith('.py'):
                     fnames.append(os.path.join(top, fname))
@@ -19,7 +19,7 @@ def pytest_generate_tests(metafunc):
 
 def test_scope(fname):
     source = Source(open(fname).read(), fname)
-    scope = Extractor(source).process()
+    Extractor(source).process()
 
 
 def test_lint(fname):

@@ -1,22 +1,26 @@
 from supp.linter import lint
 from .helpers import dedent
 
-def clint(source):
-    return [r[:4] for r in lint(None, source)]
+
+def tlint(source):
+    return lint(None, dedent(source))
+
+
+def strip(result):
+    return [r[:4] for r in result]
 
 
 def test_check_syntax():
-    s = dedent('''\
+    result = tlint('''\
         def boo()
             pass
     ''')
 
-    result = clint(s)
-    assert result == [('E01', 'Invalid syntax', 1, 10)]
+    assert strip(result) == [('E01', 'Invalid syntax', 1, 10)]
 
 
 def test_name_usages():
-    s = dedent('''\
+    result = tlint('''\
         baz = 10
         def boo():
             _i = 0
@@ -25,8 +29,27 @@ def test_name_usages():
             bar(foo)
     ''')
 
-    result = clint(s)
-    assert result == [
+    assert strip(result) == [
         ('E02', 'Undefined name: bar', 6, 4),
         ('W01', 'Unused name: boo', 5, 11)
     ]
+
+
+def test_usage_with_multiflows():
+    result = tlint('''\
+        def boo():
+            foo = 10
+            while True:
+                pass
+            return foo
+    ''')
+    assert not result
+
+
+def test_ignore_unused_args_in_methods():
+    result = tlint('''\
+        class Boo:
+            def foo(self, arg):
+                pass
+    ''')
+    assert not result

@@ -418,7 +418,7 @@ class Extractor(NodeVisitor):
     def visit_Assign(self, node):
         eend = get_expr_end(node.value)
         for targets in node.targets:
-            for name, idx in get_indexes_for_target(targets, [], []):
+            for name, _ in get_indexes_for_target(targets, [], []):
                 if isinstance(name, UNSUPPORTED_ASSIGMENTS):
                     continue
                 self.flow.add_name(AssignedName(name.id, eend, np(name), node.value))
@@ -505,7 +505,7 @@ class Extractor(NodeVisitor):
             self.scope.last_flow = self.flow
 
     def visit_Lambda(self, node):
-        with self.nest() as (_, flow):
+        with self.nest():
             self.scope = FuncScope(self.scope, node, True)
             self.flow = self.top.add_flow(self.scope.flow, level=-1)
             self.add_region(node.body)
