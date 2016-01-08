@@ -1,4 +1,4 @@
-from ast import Lambda, With, Call, Subscript
+from ast import Lambda, With, Call, Subscript, Dict
 from supp.compat import iteritems
 from supp.astwalk import (
     AssignedName, UndefinedName, MultiName, ImportedName,
@@ -27,6 +27,8 @@ def get_value(name):
             return 'func()'
         if isinstance(name.value_node, Subscript):
             return 'item[]'
+        if isinstance(name.value_node, Dict):
+            return '{}'
         if hasattr(name.value_node, 'elts'):
             return 'listitem'
         if hasattr(name.value_node, 'id'):
@@ -430,11 +432,12 @@ def test_kwargs():
 
 
 def test_list_comprehension():
-    source, p = sp('''\
-        [|r for r in (1, 2, 3)]
+    source, p1, p2 = sp('''\
+        [|r for |r in (1, 2, 3)]
     ''')
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p)) == {'r': 'listitem'}
+    assert nvalues(scope.names_at(p1)) == {'r': 'listitem'}
+    assert nvalues(scope.names_at(p2)) == {}
 
 
 def test_generator_comprehension():
@@ -544,7 +547,6 @@ def test_nested_nest():
                     c = 10
                     pass
         |    |    |    |
-
     ''')
     scope = create_scope(source)
     assert nvalues(scope.names_at(p4)) == {'a': 10, 'b': 10, 'c': 10}
@@ -567,3 +569,65 @@ def test_scope_shift_after_nested_flow():
     ''')
     scope = create_scope(source)
     assert nvalues(scope.names_at(p)) == {'boo': 10}
+
+
+def test_names_at_flow_start():
+    source, p = sp('''\
+        def foo(boo):
+            with |boo:
+                pass
+    ''')
+    scope = create_scope(source)
+    assert nvalues(scope.names_at(p)) == {'boo': 'foo.arg', 'foo': 'func'}
+
+
+def test_lambda_in_gen_expression():
+    source, p = sp('''\
+        [i for i in filter(lambda r: |r, [1,2,3])]
+    ''')
+    scope = create_scope(source)
+    assert nvalues(scope.names_at(p)) == {'r': 'lambda.arg'}
+
+
+def test_top_expression_region():
+    source, p = sp('''\
+        if True:
+            if True:
+                pass
+
+        boo = 10
+        data = {
+            'key': |boo
+        }
+    ''')
+    scope = create_scope(source)
+    assert nvalues(scope.names_at(p)) == {'boo': 10}
+
+
+def test_multi_comprehensions():
+    source, p1, p2, p3 = sp('''\
+        [x for x in [] for y in |x if |y if |x]
+    ''')
+    scope = create_scope(source)
+    assert nvalues(scope.names_at(p1)) == {'x': 'listitem'}
+    assert nvalues(scope.names_at(p2)) == {'x': 'listitem', 'y': 'x'}
+    assert nvalues(scope.names_at(p3)) == {'x': 'listitem', 'y': 'x'}
+
+
+def test_nested_comprehensions():
+    source, p1, p2 = sp('''\
+        [[|r for r in |x] for x in []]
+    ''')
+    scope = create_scope(source)
+    assert nvalues(scope.names_at(p1)) == {'x': 'listitem', 'r': 'x'}
+    assert nvalues(scope.names_at(p2)) == {'x': 'listitem'}
+
+
+def test_visit_decorator():
+    source, p = sp('''\
+        @boo(|r for r in [])
+        def foo():
+            pass
+    ''')
+    scope = create_scope(source)
+    assert nvalues(scope.names_at(p)) == {'r': 'listitem', 'foo': 'func'}

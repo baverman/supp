@@ -127,7 +127,8 @@ class FuncScope(Scope, Location):
 
         for n in node.args.args:
             if PY2:
-                self.args.append(ArgumentName(n.id, self.location, np(n), self))
+                for nn, _idx in get_indexes_for_target(n, [], []):
+                    self.args.append(ArgumentName(nn.id, self.location, np(nn), self))
             else:
                 self.args.append(ArgumentName(n.arg, self.location, np(n), self))
 
@@ -245,7 +246,6 @@ class SourceScope(Scope):
 
         flows = self.allflows
         level = self.get_level(loc)
-        lloc = Location((loc[0], level))
         while True:
             idx = bisect(flows, lloc) - 1
             flow = flows[idx]
@@ -413,13 +413,14 @@ class Extractor(NodeVisitor):
         return self.top.add_flow(Flow(self.scope, loc, parents), level=level)
 
     def add_region(self, node, flow=None, end_node=None):
+        # print node, end_node, np(node), get_expr_end(end_node or node)
         self.top.add_region(flow or self.flow,
                             np(node),
                             get_expr_end(end_node or node))
 
     def join(self, node, parent, forks):
         last_line = get_expr_end(node)[0]
-        loc = last_line + 1, parent.level
+        loc = last_line + 1, -parent.level
         self.flow = self.add_flow(loc, forks, parent.level)
 
     def shift(self, node, nodes):
@@ -455,6 +456,7 @@ class Extractor(NodeVisitor):
                 fork.first_flow.add_name(
                     AssignedName(nn.id, np(node.body[0]), np(nn), node.iter))
 
+            self.visit(node.iter)
             fork.first_flow.linkto(LoopFlow(self.flow))
 
         if node.orelse:
@@ -509,6 +511,8 @@ class Extractor(NodeVisitor):
         self.flow = flow
 
     def visit_FunctionDef(self, node):
+        for d in node.decorator_list:
+            self.visit(d)
         with self.nest() as (_, flow):
             self.scope = FuncScope(self.scope, node)
             flow.add_name(self.scope)
@@ -541,9 +545,22 @@ class Extractor(NodeVisitor):
         self.generic_visit(node)
 
     def visit_ListComp(self, node):
+        flow = self.flow
         for g in node.generators:
+            self.add_region(g.iter)
+            self.visit(g.iter)
+            self.flow = self.add_flow(np(g.target), [self.flow], -1)
             for nn, _idx in get_indexes_for_target(g.target, [], []):
                 self.flow.add_name(AssignedName(nn.id, np(node), np(nn), g.iter))
+            if g.ifs:
+                self.add_region(g.ifs[0], end_node=g.ifs[-1])
+                for inode in g.ifs:
+                    self.visit(inode)
+
+        elt = getattr(node, 'elt', None) or node.value
+        self.add_region(node, end_node=elt)
+        self.visit(elt)
+        self.flow = flow
 
     visit_GeneratorExp = visit_ListComp
     visit_DictComp = visit_ListComp
