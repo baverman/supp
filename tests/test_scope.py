@@ -1,17 +1,20 @@
-from ast import Lambda, With
+from ast import Lambda, With, Call, Subscript
 from supp.compat import iteritems
-from supp.astwalk import AssignedName, UndefinedName, MultiName, ImportedName,\
-    Extractor, ArgumentName, FuncScope, ClassScope
+from supp.astwalk import (
+    AssignedName, UndefinedName, MultiName, ImportedName,
+    Extractor, ArgumentName, FuncScope, ClassScope)
 from supp.util import Source, print_dump, dump_flows
 
 from .helpers import sp
 
 
-def create_scope(source, filename=None, debug=False):
+def create_scope(source, filename=None, debug=False, flow_graph=False):
     e = Extractor(Source(source, filename))
     debug and print_dump(e.tree)
     e.scope.parent = None
-    return e.process()
+    scope = e.process()
+    flow_graph and dump_flows(scope, '/tmp/scope-dump.dot')
+    return scope
 
 
 def get_value(name):
@@ -20,6 +23,10 @@ def get_value(name):
             return 'lambda'
         if isinstance(name.value_node, With):
             return 'with'
+        if isinstance(name.value_node, Call):
+            return 'func()'
+        if isinstance(name.value_node, Subscript):
+            return 'item[]'
         if hasattr(name.value_node, 'elts'):
             return 'listitem'
         if hasattr(name.value_node, 'id'):
@@ -507,3 +514,56 @@ def test_global():
     scope = create_scope(source)
     assert nvalues(scope.names_at(p1)) == {'foo': 'func', 'bar': 'func', 'boo': 10}
     assert nvalues(scope.names_at(p2)) == {'foo': 'func', 'bar': 'func'}
+
+
+def test_deep_flow_shift():
+    source, p = sp('''\
+        if True:
+            if True:
+                if True:
+                    pass
+
+        for boo in []:
+            if False:
+                continue
+            if (True and
+                    |boo):
+                continue
+    ''')
+    scope = create_scope(source)
+    assert nvalues(scope.names_at(p)) == {'boo': 'listitem'}
+
+
+def test_nested_nest():
+    source, p1, p2, p3, p4 = sp('''\
+        if True:
+            a = 10
+            if True:
+                b = 10
+                if True:
+                    c = 10
+                    pass
+        |    |    |    |
+
+    ''')
+    scope = create_scope(source)
+    assert nvalues(scope.names_at(p4)) == {'a': 10, 'b': 10, 'c': 10}
+    assert nvalues(scope.names_at(p3)) == {'a': 10, 'b': 10, 'c': {10, 'undefined'}}
+    assert nvalues(scope.names_at(p2)) == {'a': 10, 'b': {10, 'undefined'},
+                                           'c': {10, 'undefined'}}
+    assert nvalues(scope.names_at(p1)) == {'a': {10, 'undefined'},
+                                           'b': {10, 'undefined'},
+                                           'c': {10, 'undefined'}}
+
+
+def test_scope_shift_after_nested_flow():
+    source, p = sp('''\
+        if True:
+            if True:
+                pass
+
+        boo = 10
+        return |boo
+    ''')
+    scope = create_scope(source)
+    assert nvalues(scope.names_at(p)) == {'boo': 10}

@@ -235,40 +235,50 @@ class SourceScope(Scope):
         return names
 
     def flow_at(self, loc):
-        flow = None
         lloc = Location(loc)
 
         idx = bisect(self.regions, lloc) - 1
         if idx >= 0:
             region = self.regions[idx]
             if region.end > loc:
-                flow = region.flow
+                return region.flow
 
-        if not flow:
-            flows = self.allflows
-            level = self.get_level(loc)
-            while True:
-                idx = bisect(flows, lloc) - 1
-                flow = flows[idx]
-                if level < self.scope_flows[flow.scope][0].level:
-                    flows = self.scope_flows[flow.scope.parent]
-                else:
-                    break
+        flows = self.allflows
+        level = self.get_level(loc)
+        lloc = Location((loc[0], level))
+        while True:
+            idx = bisect(flows, lloc) - 1
+            flow = flows[idx]
+            slevel = self.scope_flows[flow.scope][0].level
+            if level < slevel or slevel == -1:
+                flows = self.scope_flows[flow.scope.parent]
+            else:
+                break
 
-            flow_level = abs(flow.level - level)
-            scope = flow.scope
-            while idx >= 0:
-                idx -= 1
-                f = flows[idx]
-                if f.scope != scope:
-                    break
+        flow_level = abs(flow.level - level)
+        if flow_level == 0:
+            return flow
 
-                flevel = abs(f.level - level)
-                if flevel < flow_level:
-                    flow = f
-                    flow_level = flevel
+        if flow.location[0] < loc[0] and flow.level <= level:
+            return flow
 
-        return flow
+        # print '!!!', lloc, flow, flow.parents, flows[max(0, idx-3):idx+1]
+        result = []
+        cf = flow
+        floc = flow.location
+        while idx >= 0 and cf.location[0] == floc[0]:
+            if (abs(cf.level - level) == 0):
+                result.append(cf)
+            for f in cf.parents:
+                if f.virtual:
+                    continue
+                if (abs(f.level - level) == 0):
+                    result.append(f)
+
+            idx -= 1
+            cf = flows[idx]
+
+        return result and max(result) or flow
 
     def names_at(self, loc):
         flow = self.flow_at(loc)
@@ -284,12 +294,13 @@ class SourceScope(Scope):
 
 
 class Flow(Location):
-    def __init__(self, scope, location, parents=None):
+    def __init__(self, scope, location, parents=None, virtual=False):
         self.scope = scope
         self.location = location
         self.parents = parents or []
         self.level = None
         self._names = []
+        self.virtual = virtual
 
     def add_name(self, name):
         if name.name in self.scope.globals:
@@ -358,6 +369,7 @@ class LoopFlow(object):
     def __init__(self, parent):
         self.parent = parent
         self._resolving = False
+        self.virtual = True
 
     @property
     def names(self):
