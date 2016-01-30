@@ -1,4 +1,5 @@
 from __future__ import print_function
+import string
 from bisect import bisect
 from collections import defaultdict
 from contextlib import contextmanager
@@ -10,6 +11,8 @@ from . import compat
 
 NESTED_INDEXED_NODES = Tuple, List
 UNSUPPORTED_ASSIGMENTS = Attribute, Subscript
+IMPORT_DELIMETERS = string.whitespace + '(,'
+IMPORT_END_DELIMETERS = string.whitespace + '),.;'
 
 
 def get_indexes_for_target(target, result, idx):
@@ -296,6 +299,22 @@ class SourceScope(Scope):
                 for name in flow._names:
                     yield flow, name
 
+    def find_id_loc(self, id, start):
+        sl, pos = start
+        source = '\n'.join(self.lines[sl-1:sl+50])
+        source_len = len(source)
+        while True:
+            pos = source.find(id, pos + 1)
+            if pos < 0:
+                break
+
+            if pos == 0 or source[pos-1] in IMPORT_DELIMETERS:
+                ep = pos + len(id)
+                if ep >= source_len or source[ep] in IMPORT_END_DELIMETERS:
+                    return sl + source.count('\n', 0, pos), pos - source.rfind('\n', 0, pos) - 1
+
+        return start
+
 
 class Flow(Location):
     def __init__(self, scope, location, parents=None, virtual=False):
@@ -479,16 +498,20 @@ class Extractor(NodeVisitor):
 
     def visit_Import(self, node):
         loc = get_expr_end(node)
+        start = np(node)
         for a in node.names:
             name = a.asname or a.name.partition('.')[0]
-            self.flow.add_name(ImportedName(name, loc, np(node), a.name, None))
+            declared_at = self.top.find_id_loc(name, start)
+            self.flow.add_name(ImportedName(name, loc, declared_at, a.name, None))
 
     def visit_ImportFrom(self, node):
         loc = get_expr_end(node)
+        start = np(node)
         for a in node.names:
             name = a.asname or a.name
+            declared_at = self.top.find_id_loc(name, start)
             module = '.' * node.level + (node.module or '')
-            self.flow.add_name(ImportedName(name, loc, np(node), module, a.name))
+            self.flow.add_name(ImportedName(name, loc, declared_at, module, a.name))
 
     def visit_TryExcept(self, node):
         with self.fork(node) as fork:

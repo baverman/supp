@@ -1,4 +1,3 @@
 * imports checker
 * hints to ignore lint errors/warnings
-* exact declaration location for import names
 * goto import declaration remote method

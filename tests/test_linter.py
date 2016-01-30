@@ -59,7 +59,7 @@ def test_unused_imports():
     result = tlint('''\
         import os
     ''')
-    assert strip(result) == [('W02', 'Unused import: os', 1, 0)]
+    assert strip(result) == [('W02', 'Unused import: os', 1, 7)]
 
 
 def test_future_imports():

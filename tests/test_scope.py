@@ -644,7 +644,7 @@ def test_flow_position_shoud_ignore_fake_flows():
     assert result['source'].declared_at == p1
 
 
-def test_boo():
+def test_nested_expression_regions():
     source, p = sp('''\
         {r.id: (
             r.related_artists and list(r.related_artists) or [],
@@ -654,3 +654,17 @@ def test_boo():
     scope = create_scope(source)
     result = scope.names_at(p)
     assert nvalues(result) == {'r': 'listitem'}
+
+
+def test_import_name_locations():
+    source, = sp('''\
+        import booga,foo,boo
+        from module import (some,
+                            bar)
+    ''')
+    scope = create_scope(source)
+    names = scope.names
+    assert names['boo'].declared_at == (1, 17)
+    assert names['foo'].declared_at == (1, 13)
+    assert names['some'].declared_at == (2, 20)
+    assert names['bar'].declared_at == (3, 20)
