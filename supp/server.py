@@ -63,7 +63,7 @@ class Server(object):
     def lint(self, path, source, filename, syntax_only=False):
         project = self.get_project(path)
         with project.check_changes():
-            return linter.lint(project, source, filename)
+            return [r[:4] for r in linter.lint(project, source, filename)]
 
     def eval(self, source):
         ctx = {}
@@ -90,9 +90,14 @@ class Server(object):
                 else:
                     result, is_ok = self.process(*args)
                     try:
-                        self.conn.send_bytes(dumps((result, is_ok)))
+                        content = dumps((result, is_ok))
+                    except:
+                        content = dumps((('SerializeError', 'Serialize error'), False))
+                    try:
+                        self.conn.send_bytes(content)
                     except:
                         logger.exception('Send error')
+
 
 if __name__ == '__main__':
     from multiprocessing.connection import Listener
