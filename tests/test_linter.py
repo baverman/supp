@@ -53,3 +53,17 @@ def test_ignore_unused_args_in_methods():
                 pass
     ''')
     assert not result
+
+
+def test_unused_imports():
+    result = tlint('''\
+        import os
+    ''')
+    assert strip(result) == [('W02', 'Unused import: os', 1, 0)]
+
+
+def test_future_imports():
+    result = tlint('''\
+        from __future__ import print_function
+    ''')
+    assert not result

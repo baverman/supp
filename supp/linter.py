@@ -1,5 +1,6 @@
-from .util import Source, get_name_usages, dump_flows
-from .astwalk import Extractor, SourceScope, ClassScope, MultiName, ArgumentName
+from .util import Source, get_name_usages
+from .astwalk import (Extractor, SourceScope, ClassScope,
+                      MultiName, ArgumentName, ImportedName)
 
 IGNORED_SCOPES = SourceScope, ClassScope
 
@@ -13,7 +14,6 @@ def lint(project, source, filename=None):
 
     result = []
     scope = Extractor(source).process()
-    # dump_flows(scope, open('/tmp/boo.dot', 'w'))
     name_usages = get_name_usages(source.tree)
 
     for name in name_usages:
@@ -33,18 +33,26 @@ def lint(project, source, filename=None):
                 sname.used = True
 
     for flow, name in scope.all_names:
+        w = 'W01'
+        message = 'Unused name: {}'
         if hasattr(name, 'used'):
             continue
         if name.name.startswith('_'):
             continue
         if isinstance(flow.scope, IGNORED_SCOPES):
-            continue
+            if isinstance(name, ImportedName):
+                w = 'W02'
+                message = 'Unused import: {}'
+                if name.module == '__future__':
+                    continue
+            else:
+                continue
         if (isinstance(name, ArgumentName) and
                 isinstance(flow.scope.parent, ClassScope)):
             continue
 
         # print('###', name)
-        result.append(('W01', 'Unused name: {}'.format(name.name),
+        result.append((w, message.format(name.name),
                        name.declared_at[0], name.declared_at[1], flow))
 
     return result
