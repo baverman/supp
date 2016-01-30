@@ -1,6 +1,4 @@
-* fix false positive lint warnings
 * imports checker
 * hints to ignore lint errors/warnings
-* ignore first (self) unused argument in methods
 * exact declaration location for import names
 * goto import declaration remote method
