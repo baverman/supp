@@ -631,3 +631,26 @@ def test_visit_decorator():
     ''')
     scope = create_scope(source)
     assert nvalues(scope.names_at(p)) == {'r': 'listitem', 'foo': 'func'}
+
+
+def test_flow_position_shoud_ignore_fake_flows():
+    source, p1, p2 = sp('''\
+        def foo(source):
+            |source = [r for r in source.splitlines()]
+            source = 'very long text to catch   region'.format(|source)
+    ''')
+    scope = create_scope(source)
+    result = scope.names_at(p2)
+    assert result['source'].declared_at == p1
+
+
+def test_boo():
+    source, p = sp('''\
+        {r.id: (
+            r.related_artists and list(r.related_artists) or [],
+            |r.image_orig_width,
+        ) for r in []}
+    ''')
+    scope = create_scope(source)
+    result = scope.names_at(p)
+    assert nvalues(result) == {'r': 'listitem'}

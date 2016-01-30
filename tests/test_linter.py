@@ -16,7 +16,7 @@ def test_check_syntax():
             pass
     ''')
 
-    assert strip(result) == [('E01', 'Invalid syntax', 1, 10)]
+    assert strip(result) == [('E01', 'invalid syntax', 1, 10)]
 
 
 def test_name_usages():
@@ -31,7 +31,7 @@ def test_name_usages():
 
     assert strip(result) == [
         ('E02', 'Undefined name: bar', 6, 4),
-        ('W01', 'Unused name: boo', 5, 11)
+        ('W01', 'Unused name: boo', 5, 4)
     ]
 
 

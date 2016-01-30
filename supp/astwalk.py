@@ -1,3 +1,4 @@
+from __future__ import print_function
 from bisect import bisect
 from collections import defaultdict
 from contextlib import contextmanager
@@ -218,8 +219,9 @@ class SourceScope(Scope):
         flow.level = level
         flow.top = self
         insert_loc(self.flows[level], flow)
-        insert_loc(self.allflows, flow)
-        insert_loc(self.scope_flows[flow.scope], flow)
+        if level != -1:
+            insert_loc(self.allflows, flow)
+            insert_loc(self.scope_flows[flow.scope], flow)
         return flow
 
     def add_region(self, flow, start, end):
@@ -239,10 +241,12 @@ class SourceScope(Scope):
         lloc = Location(loc)
 
         idx = bisect(self.regions, lloc) - 1
-        if idx >= 0:
+        while idx >= 0:
             region = self.regions[idx]
             if region.end > loc:
                 return region.flow
+
+            idx -= 1
 
         flows = self.allflows
         level = self.get_level(loc)
@@ -255,6 +259,7 @@ class SourceScope(Scope):
             else:
                 break
 
+        # print('!!!', lloc, flow, flow.parents, flows[max(0, idx-3):idx+1])
         flow_level = abs(flow.level - level)
         if flow_level == 0:
             return flow
@@ -262,7 +267,6 @@ class SourceScope(Scope):
         if flow.location[0] < loc[0] and flow.level <= level:
             return flow
 
-        # print '!!!', lloc, flow, flow.parents, flows[max(0, idx-3):idx+1]
         result = []
         cf = flow
         floc = flow.location
@@ -345,6 +349,7 @@ class Flow(Location):
 
     def names_at(self, loc):
         names = self.parent_names.copy()
+        # print(loc, self, names)
         idx = bisect(self._names, Location(loc))
         names.update((name.name, name) for name in self._names[:idx])
         return names
@@ -540,9 +545,15 @@ class Extractor(NodeVisitor):
             for n in node.body:
                 self.visit(n)
 
-    def visit_Expr(self, node):
+    def visit_expr(self, node):
         self.add_region(node)
         self.generic_visit(node)
+
+    visit_Expr = visit_expr
+    visit_Dict = visit_expr
+    visit_Set = visit_expr
+    visit_List = visit_expr
+    visit_Tuple = visit_expr
 
     def visit_ListComp(self, node):
         flow = self.flow

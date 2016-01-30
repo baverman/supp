@@ -9,7 +9,7 @@ def lint(project, source, filename=None):
     try:
         source.tree
     except SyntaxError as e:
-        return [('E01', 'Invalid syntax', e.lineno, e.offset)]
+        return [('E01', e.msg, e.lineno, e.offset)]
 
     result = []
     scope = Extractor(source).process()
@@ -45,6 +45,6 @@ def lint(project, source, filename=None):
 
         # print('###', name)
         result.append(('W01', 'Unused name: {}'.format(name.name),
-                       name.location[0], name.location[1], flow))
+                       name.declared_at[0], name.declared_at[1], flow))
 
     return result
