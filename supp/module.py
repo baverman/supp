@@ -22,7 +22,7 @@ class SourceModule(object):
 
     @property
     def names(self):
-        return self.scope.names
+        return self.scope.exported_names
 
 
 class ImportedModule(object):

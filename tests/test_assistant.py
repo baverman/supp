@@ -127,6 +127,7 @@ def test_import_from_simple1():
     assert m == ''
     assert 'connection' in result
     assert 'pool' in result
+    assert 'Exception' not in result
 
 
 def test_import_from_simple2(project):

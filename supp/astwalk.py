@@ -240,6 +240,12 @@ class SourceScope(Scope):
         names.update(self._global_names)
         return names
 
+    @property
+    def exported_names(self):
+        return {k: v
+                for k, v in self.names.iteritems()
+                if getattr(v, 'location', None) != (0, 0)}
+
     def flow_at(self, loc):
         lloc = Location(loc)
 
