@@ -139,6 +139,16 @@ def test_import_from_simple2(project):
     assert 'module' in result
 
 
+def test_import_from_simple3(project):
+    project.add_m('testp.module.submod')
+    source, p = sp('''\
+        from .module import |
+    ''')
+    m, result = tassist(source, p, project, project.get_m('testp.tmodule'))
+    assert m == ''
+    assert 'submod' in result
+
+
 def test_import_from_module_names(project):
     project.add_m('testp.__init__', '''\
         foo = 10

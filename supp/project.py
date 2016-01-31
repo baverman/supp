@@ -108,25 +108,25 @@ class Project(object):
 
         root = key = reduce(
             lambda p, _: os.path.dirname(p),
-            range(len(package) - len(package.rstrip('.'))),
+            range(len(package) - len(package.lstrip('.'))),
             filename
         )
 
         try:
-            return self._norm_cache[key]
+            parts = self._norm_cache[key]
         except KeyError:
-            pass
+            parts = []
+            while True:
+                if os.path.exists(os.path.join(root, '__init__.py')):
+                    parts.insert(0, os.path.basename(root))
+                    root = os.path.dirname(root)
+                else:
+                    break
 
-        parts = []
-        while True:
-            if os.path.exists(os.path.join(root, '__init__.py')):
-                parts.insert(0, os.path.basename(root))
-                root = os.path.dirname(root)
-            else:
-                break
+            if not parts:
+                raise Exception('Not a package: {}'.format(filename))
 
-        if not parts:
-            raise Exception('Not a package: {}'.format(filename))
+            self._norm_cache[key] = parts
 
-        result = self._norm_cache[key] = '.'.join(parts)
+        result = '.'.join(parts + [package.lstrip('.')])
         return result
