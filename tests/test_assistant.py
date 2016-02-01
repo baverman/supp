@@ -193,12 +193,23 @@ def test_dynamic_modules():
     assert 'join' in result
 
 
-def test_imported_name_attributes():
+# def test_imported_name_attributes():
+#     project = Project()
+#     source, p = sp('''\
+#         from multiprocessing.connection import Client
+#         path.j|
+#     ''')
+#     m, result = tassist(source, p, project)
+#     assert m == 'j'
+#     assert 'join' in result
+
+
+def test_imported_name_modules():
     project = Project()
     source, p = sp('''\
-        from os import path
-        path.j|
+        from multiprocessing import connection
+        connection.Cl|
     ''')
     m, result = tassist(source, p, project)
-    assert m == 'j'
-    assert 'join' in result
+    assert m == 'Cl'
+    assert 'Client' in result

@@ -80,18 +80,24 @@ class Project(object):
             pass
 
         path = self.get_path()
+        filename = None
         for p in path:
             mpath = os.path.join(p, *name.split('.'))
             for s in suffixes:
                 filename = mpath + s
                 if os.path.exists(filename):
                     break
+                else:
+                    filename = None
             else:
                 filename = os.path.join(mpath, '__init__.py')
                 if os.path.exists(filename):
                     break
                 else:
                     filename = None
+
+            if filename:
+                break
 
         if not filename:
             if name in sys.modules:

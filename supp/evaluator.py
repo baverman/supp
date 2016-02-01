@@ -10,6 +10,11 @@ class ImportObject(object):
 
     @property
     def names(self):
+        if self.name.mname:
+            value = self.project.get_nmodule(self.name.module + '.' + self.name.mname,
+                                             self.filename)
+            return value.names
+
         value = self.project.get_nmodule(self.name.module, self.filename)
         if self.name.mname:
             value = value.names[self.name.mname]
