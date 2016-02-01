@@ -60,6 +60,9 @@ class Project(object):
         self._context_cache.clear()
         yield
 
+    def get_nmodule(self, name, filename):
+        return self.get_module(self.norm_package(name, filename))
+
     def get_module(self, name):
         try:
             return self._context_cache[name]

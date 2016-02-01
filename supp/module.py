@@ -2,6 +2,7 @@ from os.path import getmtime
 
 from .util import cached_property, Source
 from .astwalk import Extractor
+from .compat import iteritems
 
 
 class SourceModule(object):
@@ -25,6 +26,16 @@ class SourceModule(object):
         return self.scope.exported_names
 
 
+class ImportedName(object):
+    def __init__(self, name, value):
+        self.name = name
+        self.value = value
+
+    @property
+    def names(self):
+        return {k: ImportedName(k, v) for k, v in iteritems(vars(self.value))}
+
+
 class ImportedModule(object):
     def __init__(self, module):
         self.module = module
@@ -32,4 +43,4 @@ class ImportedModule(object):
 
     @property
     def names(self):
-        return vars(self.module)
+        return {k: ImportedName(k, v) for k, v in iteritems(vars(self.module))}

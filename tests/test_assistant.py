@@ -4,8 +4,8 @@ from supp.project import Project
 from .helpers import sp
 
 
-def tassist(source, pos, project=None, filename=None):
-    return assist(project or Project(), source, pos, filename)
+def tassist(source, pos, project=None, filename=None, debug=False):
+    return assist(project or Project(), source, pos, filename, debug=debug)
 
 
 def test_simple_from():
@@ -16,9 +16,6 @@ def test_simple_from():
     m, result = tassist(source, p)
     assert m == 'mul'
     assert 'multiprocessing' in result
-
-    starts_with_mul = all(r.startswith('mul') for r in result)
-    assert starts_with_mul
 
 
 def test_from_all():
@@ -86,9 +83,6 @@ def test_simple_import():
     m, result = tassist(source, p)
     assert m == 'mul'
     assert 'multiprocessing' in result
-
-    starts_with_mul = all(r.startswith('mul') for r in result)
-    assert starts_with_mul
 
 
 def test_comma_import():
@@ -180,7 +174,7 @@ def test_name_assist():
     m, result = tassist(source, p)
     assert m == 'f'
     assert 'foo' in result
-    assert 'boo' not in result
+    assert 'boo' in result
 
 
 def test_dynamic_modules():
@@ -194,6 +188,17 @@ def test_dynamic_modules():
     assert 'join' in result
 
     # test changed module cache
+    m, result = tassist(source, p, project)
+    assert m == 'j'
+    assert 'join' in result
+
+
+def test_imported_name_attributes():
+    project = Project()
+    source, p = sp('''\
+        from os import path
+        path.j|
+    ''')
     m, result = tassist(source, p, project)
     assert m == 'j'
     assert 'join' in result

@@ -99,6 +99,11 @@ def visitor(cls):
     return func
 
 
+class StopVisiting(Exception):
+    def __init__(self, value):
+        self.value = value
+
+
 @visitor
 class get_expr_end(object):
     def process(self, node):
@@ -134,6 +139,22 @@ class get_name_usages(object):
     def visit_Name(self, node):
         if isinstance(node.ctx, Load):
             self.locations.append(Name(node.id, np(node)))
+
+
+@visitor
+class get_marked_atribute(object):
+    def process(self, node):
+        try:
+            self.visit(node)
+        except StopVisiting as e:
+            return e.value
+        return None
+
+    def visit_Attribute(self, node):
+        if marked(node.attr):
+            raise StopVisiting(node.value)
+
+        self.visit(node.value)
 
 
 def np(node):

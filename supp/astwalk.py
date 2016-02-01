@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from ast import NodeVisitor, Attribute, Tuple, List, Subscript
 
 from .util import Location, np, get_expr_end, insert_loc, cached_property, Name
-from .compat import PY2, itervalues, builtins
+from .compat import PY2, itervalues, builtins, iteritems
 from . import compat
 
 NESTED_INDEXED_NODES = Tuple, List
@@ -243,7 +243,7 @@ class SourceScope(Scope):
     @property
     def exported_names(self):
         return {k: v
-                for k, v in self.names.iteritems()
+                for k, v in iteritems(self.names)
                 if getattr(v, 'location', None) != (0, 0)}
 
     def flow_at(self, loc):
