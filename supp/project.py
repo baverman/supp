@@ -133,9 +133,11 @@ class Project(object):
                     break
 
             if not parts:
-                raise Exception('Not a package: {}'.format(filename))
+                raise Exception('Not a package: {} ({})'.format(filename, package))
 
             self._norm_cache[key] = parts
 
-        result = '.'.join(parts + [package.lstrip('.')])
-        return result
+        package = package.lstrip('.')
+        if package:
+            parts = parts + [package]
+        return '.'.join(parts)

@@ -41,7 +41,7 @@ def assist(project, source, position, filename=None, debug=False):
         prefix = re.split(r'(\.|\s)', line)[-1]
         expr = get_marked_atribute(e.tree)
         if expr:
-            value = evaluate(project, scope, expr, filename)
+            value = evaluate(project, scope, expr)
             if value:
                 names = value.names
             else:

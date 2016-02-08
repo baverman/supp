@@ -52,11 +52,36 @@ class AssignedName(Name):
 
 
 class ImportedName(Name):
-    def __init__(self, name, location, declared_at, module, mname=None):
+    def __init__(self, name, location, declared_at, module,
+                 mname=None, filename=None):
         Name.__init__(self, name, location)
         self.declared_at = declared_at
         self.module = module
         self.mname = mname
+        self.filename = filename
+
+    def resolve(self, project):
+        try:
+            return self._ref
+        except AttributeError:
+            pass
+
+        if self.mname:
+            if self.module.strip('.'):
+                module = self.module + '.' + self.mname
+            else:
+                module = self.module + self.mname
+            value = project.get_nmodule(module, self.filename)
+        else:
+            value = project.get_nmodule(self.module, self.filename)
+            if self.mname:
+                value = value.names[self.mname]
+
+        if isinstance(value, ImportedName):
+            value = value.resolve(project)
+
+        self._ref = value
+        return value
 
     def __repr__(self):
         return 'ImportedName({}, {}, {}, {}, {})'.format(
@@ -332,6 +357,7 @@ class Flow(Location):
         self.virtual = virtual
 
     def add_name(self, name):
+        name.scope = self.scope
         if name.name in self.scope.globals:
             self.top.add_global(name)
         else:
@@ -422,6 +448,7 @@ class LoopFlow(object):
 
 class Extractor(NodeVisitor):
     def __init__(self, source):
+        self.filename = source.filename
         self.tree = source.tree
         self.top = SourceScope(source.lines)
         self.scope = self.top
@@ -508,7 +535,8 @@ class Extractor(NodeVisitor):
         for a in node.names:
             name = a.asname or a.name.partition('.')[0]
             declared_at = self.top.find_id_loc(name, start)
-            self.flow.add_name(ImportedName(name, loc, declared_at, a.name, None))
+            self.flow.add_name(ImportedName(name, loc, declared_at, a.name,
+                                            None, self.filename))
 
     def visit_ImportFrom(self, node):
         loc = get_expr_end(node)
@@ -517,7 +545,8 @@ class Extractor(NodeVisitor):
             name = a.asname or a.name
             declared_at = self.top.find_id_loc(name, start)
             module = '.' * node.level + (node.module or '')
-            self.flow.add_name(ImportedName(name, loc, declared_at, module, a.name))
+            self.flow.add_name(ImportedName(name, loc, declared_at, module,
+                                            a.name, self.filename))
 
     def visit_TryExcept(self, node):
         with self.fork(node) as fork:
