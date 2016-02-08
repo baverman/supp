@@ -1,7 +1,8 @@
 import re
 
 from .compat import itervalues
-from .util import Source, unmark, marked, print_dump, get_marked_atribute
+from .util import (Source, unmark, marked, print_dump,
+                   get_marked_atribute, get_marked_name)
 from .evaluator import evaluate
 from .astwalk import Extractor, ImportedName
 
@@ -39,7 +40,7 @@ def assist(project, source, position, filename=None, debug=False):
                     return prefix, sorted(set(plist) | set(module.names))
 
         prefix = re.split(r'(\.|\s)', line)[-1]
-        expr = get_marked_atribute(e.tree)
+        _, expr = get_marked_atribute(e.tree)
         if expr:
             value = evaluate(project, scope, expr)
             if value:
@@ -48,3 +49,30 @@ def assist(project, source, position, filename=None, debug=False):
                 names = {}
 
         return prefix, sorted(names)
+
+
+def location(project, source, position, filename=None, debug=False):
+    source = Source(source, filename, position)
+
+    e = Extractor(source)
+    debug and print_dump(e.tree)
+    scope = e.process()
+
+    mname = get_marked_name(e.tree)
+    if mname:
+        names = scope.names_at(position)
+        name = names.get(mname)
+        if name:
+            if isinstance(name, ImportedName):
+                name = name.resolve(project)
+                return name.declared_at, name.filename
+            return name.declared_at, None
+    else:
+        mname, expr = get_marked_atribute(e.tree)
+        value = evaluate(project, scope, expr)
+        name = value.names.get(mname)
+        if isinstance(name, ImportedName):
+            name = name.resolve(project)
+        return name.declared_at, name.filename
+
+    return None, None

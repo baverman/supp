@@ -113,19 +113,19 @@ class Environment(object):
         """
         return self._call('assist', project_path, source, position, filename)
 
-    # def get_location(self, project_path, source, position, filename):
-    #     """Return line number and file path where name under cursor is defined
+    def location(self, project_path, source, position, filename):
+        """Return position and file path where name under cursor is defined
 
-    #     If line is None location wasn't finded. If file path is None, defenition is located in
-    #     the same source.
+        If position is None location wasn't finded. If file path is None, defenition is located in
+        the same source.
 
-    #     :param project_path: absolute project path
-    #     :param source: unicode or byte string code source
-    #     :param position: character or byte cursor position
-    #     :param filename: absolute path of file with source code
-    #     :returns: tuple (lineno, file path)
-    #     """
-    #     return self._call('get_location', project_path, source, position, filename)
+        :param project_path: absolute project path
+        :param source: code source
+        :param position:  tuple of (line, column)
+        :param filename: absolute path of file with source code
+        :returns: tuple ((line, column), file path)
+        """
+        return self._call('location', project_path, source, position, filename)
 
     # def get_docstring(self, project_path, source, position, filename):
     #     """Return signature and docstring for current cursor call context

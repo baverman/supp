@@ -56,6 +56,17 @@ class Name(Location):
         return '{}({}, {})'.format(self.__class__.__name__,
                                    self.name, self.location)
 
+    @cached_property
+    def filename(self):
+        s = self.scope
+        while s:
+            try:
+                return getattr(s, 'filename')
+            except AttributeError:
+                s = s.parent
+
+        return None
+
 
 def dumptree(node, result, level):
     LW = '   '
@@ -148,13 +159,27 @@ class get_marked_atribute(object):
             self.visit(node)
         except StopVisiting as e:
             return e.value
-        return None
+
+        return None, None
 
     def visit_Attribute(self, node):
         if marked(node.attr):
-            raise StopVisiting(node.value)
+            raise StopVisiting((unmark(node.attr), node.value))
 
         self.visit(node.value)
+
+
+@visitor
+class get_marked_name(object):
+    def process(self, node):
+        try:
+            self.visit(node)
+        except StopVisiting as e:
+            return e.value
+
+    def visit_Name(self, node):
+        if isinstance(node.ctx, Load) and marked(node.id):
+            raise StopVisiting(unmark(node.id))
 
 
 def np(node):
@@ -165,11 +190,12 @@ SOURCE_MARK = '__supp_mark__'
 
 
 def unmark(name):
-    return name[:-len(SOURCE_MARK)]
+    pos = name.find(SOURCE_MARK)
+    return name[:pos] + name[pos+len(SOURCE_MARK):]
 
 
 def marked(name):
-    return name.endswith(SOURCE_MARK)
+    return SOURCE_MARK in name
 
 
 class Source(object):

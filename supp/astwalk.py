@@ -71,8 +71,13 @@ class ImportedName(Name):
                 module = self.module + '.' + self.mname
             else:
                 module = self.module + self.mname
-            value = project.get_nmodule(module, self.filename)
-        else:
+
+            try:
+                value = project.get_nmodule(module, self.filename)
+            except ImportError:
+                value = None
+
+        if value is None:
             value = project.get_nmodule(self.module, self.filename)
             if self.mname:
                 value = value.names[self.mname]
@@ -142,7 +147,20 @@ class Scope(object):
         self.globals = set()
 
 
-class FuncScope(Scope, Location):
+class FileScope(object):
+    @cached_property
+    def filename(self):
+        s = self.parent
+        while s:
+            try:
+                return getattr(s, 'filename')
+            except AttributeError:
+                s = s.parent
+
+        return None
+
+
+class FuncScope(Scope, Location, FileScope):
     def __init__(self, parent, node, is_lambda=False):
         Scope.__init__(self, parent)
         self.args = []
@@ -180,7 +198,7 @@ class FuncScope(Scope, Location):
         return 'FuncScope({}, {})'.format(self.name, self.location)
 
 
-class ClassScope(Scope, Location):
+class ClassScope(Scope, Location, FileScope):
     def __init__(self, parent, node):
         Scope.__init__(self, parent)
         self.name = node.name
@@ -214,8 +232,9 @@ class BuiltinScope(object):
 
 
 class SourceScope(Scope):
-    def __init__(self, lines):
+    def __init__(self, lines, filename=None):
         Scope.__init__(self, BuiltinScope())
+        self.filename = filename
         self.lines = lines
         self.flows = defaultdict(list)
         self.allflows = []
@@ -450,7 +469,7 @@ class Extractor(NodeVisitor):
     def __init__(self, source):
         self.filename = source.filename
         self.tree = source.tree
-        self.top = SourceScope(source.lines)
+        self.top = SourceScope(source.lines, source.filename)
         self.scope = self.top
         self.flow = self.add_flow((1, 0))
 

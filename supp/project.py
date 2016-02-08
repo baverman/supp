@@ -99,6 +99,7 @@ class Project(object):
             if filename:
                 break
 
+        module = None
         if not filename:
             if name in sys.modules:
                 module = ImportedModule(sys.modules[name])

@@ -60,6 +60,11 @@ class Server(object):
         with project.check_changes():
             return assistant.assist(project, source, tuple(position), filename)
 
+    def location(self, path, source, position, filename):
+        project = self.get_project(path)
+        with project.check_changes():
+            return assistant.location(project, source, tuple(position), filename)
+
     def lint(self, path, source, filename, syntax_only=False):
         project = self.get_project(path)
         with project.check_changes():
