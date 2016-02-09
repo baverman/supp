@@ -66,6 +66,7 @@ class ImportedName(Name):
         except AttributeError:
             pass
 
+        value = None
         if self.mname:
             if self.module.strip('.'):
                 module = self.module + '.' + self.mname
@@ -75,7 +76,7 @@ class ImportedName(Name):
             try:
                 value = project.get_nmodule(module, self.filename)
             except ImportError:
-                value = None
+                pass
 
         if value is None:
             value = project.get_nmodule(self.module, self.filename)
