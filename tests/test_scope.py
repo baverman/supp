@@ -668,3 +668,15 @@ def test_import_name_locations():
     assert names['foo'].declared_at == (1, 13)
     assert names['some'].declared_at == (2, 20)
     assert names['bar'].declared_at == (3, 20)
+
+
+def test_parent_names_through_loop():
+    source, p = sp('''\
+        foo = 10
+        for _ in []:
+            pass
+        |
+    ''')
+    scope = create_scope(source)
+    names = scope.names_at(p)
+    assert type(names['foo']) == AssignedName

@@ -367,6 +367,13 @@ class SourceScope(Scope):
         return start
 
 
+def resolved_parent_names(parents):
+    for p in parents:
+        names = p.names
+        if not isinstance(names, UnresolvedNames):
+            yield names
+
+
 class Flow(Location):
     def __init__(self, scope, location, parents=None, virtual=False):
         self.scope = scope
@@ -403,7 +410,8 @@ class Flow(Location):
                 nameset.update(p.names)
 
             for n in nameset:
-                nrow = set(p.names.get(n, UndefinedName(n)) for p in parents)
+                nrow = set(r.get(n, UndefinedName(n))
+                           for r in resolved_parent_names(parents))
                 if len(nrow) == 1:
                     names[n] = list(nrow)[0]
                 else:
@@ -427,18 +435,18 @@ class Flow(Location):
 
     def loop(self):
         self.parents.append(LoopFlow(self))
-        # cached_property.invalidate(self, 'names')
-        # cached_property.invalidate(self, 'parent_names')
         return self
 
     def linkto(self, flow):
         self.parents.append(flow)
-        # cached_property.invalidate(self, 'names')
-        # cached_property.invalidate(self, 'parent_names')
         return self
 
     def __repr__(self):
         return '<Flow({location}, {level})>'.format(**vars(self))
+
+
+class UnresolvedNames(dict):
+    pass
 
 
 class LoopFlow(object):
@@ -450,7 +458,7 @@ class LoopFlow(object):
     @property
     def names(self):
         if self._resolving:
-            return {}
+            return UnresolvedNames()
 
         try:
             return self._names
