@@ -16,15 +16,15 @@ def lint(project, source, filename=None):
     scope = Extractor(source).process()
     name_usages = get_name_usages(source.tree)
 
-    for name in name_usages:
-        snames = scope.names_at(name.location)
+    for name, location in name_usages:
+        snames = scope.names_at(location)
         try:
-            sname = snames[name.name]
+            sname = snames[name]
             # print('!!!', name, sname)
         except KeyError:
-            flow = scope.flow_at(name.location)
-            result.append(('E02', 'Undefined name: {}'.format(name.name),
-                           name.location[0], name.location[1], flow))
+            flow = scope.flow_at(location)
+            result.append(('E02', 'Undefined name: {}'.format(name),
+                           location[0], location[1], flow))
         else:
             if isinstance(sname, MultiName):
                 for n in sname.names:

@@ -47,27 +47,6 @@ class Location(object):
         return repr(self.location)
 
 
-class Name(Location):
-    def __init__(self, name, location=None):
-        self.name = name
-        self.location = location
-
-    def __repr__(self):
-        return '{}({}, {})'.format(self.__class__.__name__,
-                                   self.name, self.location)
-
-    @cached_property
-    def filename(self):
-        s = self.scope
-        while s:
-            try:
-                return getattr(s, 'filename')
-            except AttributeError:
-                s = s.parent
-
-        return None
-
-
 def dumptree(node, result, level):
     LW = '   '
     fields = [(k, v)
@@ -149,7 +128,7 @@ class get_name_usages(object):
 
     def visit_Name(self, node):
         if isinstance(node.ctx, Load):
-            self.locations.append(Name(node.id, np(node)))
+            self.locations.append((node.id, np(node)))
 
 
 @visitor

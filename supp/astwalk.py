@@ -5,8 +5,9 @@ from collections import defaultdict
 from contextlib import contextmanager
 from ast import NodeVisitor, Attribute, Tuple, List, Subscript
 
-from .util import Location, np, get_expr_end, insert_loc, cached_property, Name
+from .util import Location, np, get_expr_end, insert_loc, cached_property
 from .compat import PY2, itervalues, builtins, iteritems
+from .name import ArgumentName, MultiName, UndefinedName, ImportedName, Name, AssignedName
 from . import compat
 
 NESTED_INDEXED_NODES = Tuple, List
@@ -27,90 +28,6 @@ def get_indexes_for_target(target, result, idx):
             idx[-1] += 1
 
     return result
-
-
-class ArgumentName(Name):
-    def __init__(self, name, location, declared_at, func):
-        Name.__init__(self, name, location)
-        self.declared_at = declared_at
-        self.func = func
-
-    def __repr__(self):
-        return 'ArgumentName({}, {}, {})'.format(
-            self.name, self.location, self.declared_at)
-
-
-class AssignedName(Name):
-    def __init__(self, name, location, declared_at, value_node):
-        Name.__init__(self, name, location)
-        self.declared_at = declared_at
-        self.value_node = value_node
-
-    def __repr__(self):
-        return 'AssignedName({}, {}, {})'.format(
-            self.name, self.location, self.declared_at)
-
-
-class ImportedName(Name):
-    def __init__(self, name, location, declared_at, module,
-                 mname=None, filename=None):
-        Name.__init__(self, name, location)
-        self.declared_at = declared_at
-        self.module = module
-        self.mname = mname
-        self.filename = filename
-
-    def resolve(self, project):
-        try:
-            return self._ref
-        except AttributeError:
-            pass
-
-        value = None
-        if self.mname:
-            if self.module.strip('.'):
-                module = self.module + '.' + self.mname
-            else:
-                module = self.module + self.mname
-
-            try:
-                value = project.get_nmodule(module, self.filename)
-            except ImportError:
-                pass
-
-        if value is None:
-            value = project.get_nmodule(self.module, self.filename)
-            if self.mname:
-                value = value.names[self.mname]
-
-        if isinstance(value, ImportedName):
-            value = value.resolve(project)
-
-        self._ref = value
-        return value
-
-    def __repr__(self):
-        return 'ImportedName({}, {}, {}, {}, {})'.format(
-            self.name, self.location, self.declared_at, self.module, self.mname)
-
-
-class UndefinedName(str):
-    def __repr__(self):
-        return 'UndefinedName({})'.format(self)
-
-
-class MultiName(object):
-    def __init__(self, names):
-        allnames = []
-        for n in names:
-            if isinstance(n, MultiName):
-                allnames.extend(n.names)
-            else:
-                allnames.append(n)
-        self.names = list(set(allnames))
-
-    def __repr__(self):
-        return 'MultiName({})'.format(self.names)
 
 
 class Fork(object):
