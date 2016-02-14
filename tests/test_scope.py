@@ -1,8 +1,10 @@
 from ast import Lambda, With, Call, Subscript, Dict
+
 from supp.compat import iteritems
-from supp.astwalk import (
-    AssignedName, UndefinedName, MultiName, ImportedName,
-    Extractor, ArgumentName, FuncScope, ClassScope)
+from supp.name import (AssignedName, UndefinedName, MultiName,
+                       ImportedName, ArgumentName)
+from supp.scope import FuncScope, ClassScope
+from supp.astwalk import Extractor
 from supp.util import Source, print_dump, dump_flows
 
 from .helpers import sp

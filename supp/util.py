@@ -2,9 +2,11 @@ from __future__ import print_function
 
 import sys
 from bisect import insort
-from ast import iter_fields, Store, Load, NodeVisitor, parse
+from ast import iter_fields, Store, Load, NodeVisitor, parse, Tuple, List
 
 from .compat import iteritems, string_types
+
+NESTED_INDEXED_NODES = Tuple, List
 
 
 class cached_property(object):
@@ -159,6 +161,20 @@ class get_marked_name(object):
     def visit_Name(self, node):
         if isinstance(node.ctx, Load) and marked(node.id):
             raise StopVisiting(unmark(node.id))
+
+
+def get_indexes_for_target(target, result, idx):
+    if isinstance(target, NESTED_INDEXED_NODES):
+        idx.append(0)
+        for r in target.elts:
+            get_indexes_for_target(r, result, idx)
+        idx.pop()
+    else:
+        result.append((target, idx[:]))
+        if idx:
+            idx[-1] += 1
+
+    return result
 
 
 def np(node):

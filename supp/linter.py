@@ -1,6 +1,7 @@
 from .util import Source, get_name_usages
-from .astwalk import (Extractor, SourceScope, ClassScope,
-                      MultiName, ArgumentName, ImportedName)
+from .name import MultiName, ArgumentName, ImportedName
+from .scope import SourceScope, ClassScope
+from .astwalk import Extractor
 
 IGNORED_SCOPES = SourceScope, ClassScope
 
