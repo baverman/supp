@@ -97,7 +97,7 @@ class Environment(object):
         if is_ok:
             return result
         else:
-            raise Exception(result)
+            raise Exception(result[1])
 
     def lint(self, project_path, source, filename, syntax_only=False):
         return self._call('lint', project_path, source, filename, syntax_only)
