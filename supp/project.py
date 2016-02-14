@@ -81,20 +81,21 @@ class Project(object):
 
         path = self.get_path()
         filename = None
+        ftype = None
         for p in path:
             mpath = os.path.join(p, *name.split('.'))
-            for s in suffixes:
-                filename = mpath + s
-                if os.path.exists(filename):
+            for s, _, t in suffixes_full:
+                fname = mpath + s
+                if os.path.exists(fname):
+                    filename = fname
+                    ftype = t
                     break
-                else:
-                    filename = None
             else:
-                filename = os.path.join(mpath, '__init__.py')
-                if os.path.exists(filename):
+                fname = os.path.join(mpath, '__init__.py')
+                if os.path.exists(fname):
+                    filename = fname
+                    ftype = imp.PY_SOURCE
                     break
-                else:
-                    filename = None
 
             if filename:
                 break
@@ -104,7 +105,12 @@ class Project(object):
             if name in sys.modules:
                 module = ImportedModule(sys.modules[name])
         else:
-            module = SourceModule(name, self, filename)
+            if ftype == imp.PY_SOURCE:
+                module = SourceModule(name, self, filename)
+            else:
+                if name not in sys.modules:
+                    __import__(name)
+                module = ImportedModule(sys.modules[name])
 
         if not module:
             raise ImportError(name)
