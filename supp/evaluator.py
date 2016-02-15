@@ -9,5 +9,8 @@ def evaluate(project, scope, node):
         names = scope.names_at(np(node))
         name = names.get(node.id)
         if name:
-            if isinstance(name, ImportedName):
-                return name.resolve(project)
+            return evaluate(project, scope, name)
+    elif isinstance(node, ImportedName):
+        return evaluate(project, node.scope, node.resolve(project))
+    elif getattr(node, 'names', None):
+        return node

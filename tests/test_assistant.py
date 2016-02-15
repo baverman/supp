@@ -269,3 +269,17 @@ def test_imported_attr_location(project):
     loc, fname = tlocation(source, p2, project, filename=project.get_m('testp.testm2'))
     assert loc == (1, 0)
     assert fname == project.get_m('testp.testm')
+
+
+def test_recursive_imported_name(project):
+    project.add_m('testp.testm', '''\
+        import datetime
+    ''')
+
+    source, p = sp('''\
+        from testp.testm import datetime
+        datetime.|
+    ''')
+
+    _, result = tassist(source, p, project)
+    assert 'timedelta' in result

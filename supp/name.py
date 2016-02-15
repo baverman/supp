@@ -76,9 +76,6 @@ class ImportedName(Name):
             if self.mname:
                 value = value.names[self.mname]
 
-        if isinstance(value, ImportedName):
-            value = value.resolve(project)
-
         self._ref = value
         return value
 
