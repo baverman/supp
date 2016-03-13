@@ -283,3 +283,13 @@ def test_recursive_imported_name(project):
 
     _, result = tassist(source, p, project)
     assert 'timedelta' in result
+
+
+def test_assigned_imported_name():
+    source, p = sp('''\
+        from multiprocessing import connection
+        cn = connection
+        cn.|
+    ''')
+    _, result = tassist(source, p)
+    assert 'Client' in result
