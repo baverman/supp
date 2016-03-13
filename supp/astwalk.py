@@ -40,7 +40,6 @@ class Fork(object):
 
 class Extractor(NodeVisitor):
     def __init__(self, source):
-        self.filename = source.filename
         self.tree = source.tree
         self.top = SourceScope(source.lines, source.filename)
         self.scope = self.top
@@ -125,10 +124,17 @@ class Extractor(NodeVisitor):
         loc = get_expr_end(node)
         start = np(node)
         for a in node.names:
-            name = a.asname or a.name.partition('.')[0]
+            if a.asname:
+                name = a.asname
+                iname = a.name
+            else:
+                name = a.name.partition('.')[0]
+                iname = name
+                self.top._imports.append(a.name)
+
             declared_at = self.top.find_id_loc(name, start)
-            self.flow.add_name(ImportedName(name, loc, declared_at, a.name,
-                                            None, self.filename))
+            self.flow.add_name(ImportedName(name, loc, declared_at, iname,
+                                            None, self.top))
 
     def visit_ImportFrom(self, node):
         loc = get_expr_end(node)
@@ -138,7 +144,7 @@ class Extractor(NodeVisitor):
             declared_at = self.top.find_id_loc(name, start)
             module = '.' * node.level + (node.module or '')
             self.flow.add_name(ImportedName(name, loc, declared_at, module,
-                                            a.name, self.filename))
+                                            a.name, self.top))
 
     def visit_TryExcept(self, node):
         with self.fork(node) as fork:

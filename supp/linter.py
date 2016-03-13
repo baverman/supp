@@ -28,7 +28,7 @@ def lint(project, source, filename=None):
                            location[0], location[1], flow))
         else:
             if isinstance(sname, MultiName):
-                for n in sname.names:
+                for n in sname.alt_names:
                     n.used = True
             else:
                 sname.used = True

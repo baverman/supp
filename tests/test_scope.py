@@ -39,7 +39,7 @@ def get_value(name):
     elif isinstance(name, UndefinedName):
         return 'undefined'
     elif isinstance(name, MultiName):
-        return set(get_value(r) for r in name.names)
+        return set(get_value(r) for r in name.alt_names)
     elif isinstance(name, ImportedName):
         if name.mname:
             return 'import:{0.module}:{0.mname}'.format(name)
@@ -682,3 +682,19 @@ def test_parent_names_through_loop():
     scope = create_scope(source)
     names = scope.names_at(p)
     assert type(names['foo']) == AssignedName
+
+
+def test_dotted_imports():
+    source, p = sp('''\
+        import os.path
+        |
+    ''')
+    scope = create_scope(source)
+    names = scope.names_at(p)
+    assert nvalues(names) == {'os': 'import:os'}
+
+
+# def test_boo():
+#     scope = create_scope(open('/usr/lib/python2.7/posixpath.py').read())
+#     print scope.flows[0]
+#     assert False

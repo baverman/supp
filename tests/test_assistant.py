@@ -293,3 +293,21 @@ def test_assigned_imported_name():
     ''')
     _, result = tassist(source, p)
     assert 'Client' in result
+
+
+def test_deep_attribute():
+    source, p = sp('''\
+        import os.path
+        os.path.|
+    ''')
+    _, result = tassist(source, p)
+    assert 'join' in result
+
+
+def test_import_space():
+    source, p = sp('''\
+        import multiprocessing.connection
+        multiprocessing.connection.|
+    ''')
+    _, result = tassist(source, p)
+    assert 'Client' in result

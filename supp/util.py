@@ -163,6 +163,26 @@ class get_marked_name(object):
             raise StopVisiting(unmark(node.id))
 
 
+@visitor
+class get_marked_import(object):
+    def process(self, node):
+        try:
+            self.visit(node)
+        except StopVisiting as e:
+            return e.value
+
+    def visit_Import(self, node):
+        for a in node.names:
+            if marked(a.name):
+                raise StopVisiting((True, unmark(a.name)))
+
+    def visit_ImportFrom(self, node):
+        for a in node.names:
+            if marked(a.name):
+                raise StopVisiting((False,
+                                    '.' * node.level + (node.module or '') + '.' + unmark(a.name)))
+
+
 def get_indexes_for_target(target, result, idx):
     if isinstance(target, NESTED_INDEXED_NODES):
         idx.append(0)

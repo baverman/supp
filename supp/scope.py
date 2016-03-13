@@ -42,7 +42,10 @@ class FuncScope(Scope, Location, FileScope):
             self.location = np(node.body)
         else:
             self.name = node.name
-            self.location = np(node.body[0])
+            for n in node.body:
+                if n.col_offset >= 0:
+                    self.location = np(n)
+                    break
 
         for n in node.args.args:
             if PY2:
@@ -113,6 +116,10 @@ class SourceScope(Scope):
         self.scope_flows = defaultdict(list)
         self.regions = []
         self._global_names = {}
+        self._imports = []
+
+    def __repr__(self):
+        return 'SourceScope({})'.format(self.filename)
 
     def get_level(self, loc, check_colon=False):
         l, c = loc
