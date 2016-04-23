@@ -60,6 +60,20 @@ def location(project, source, position, filename=None, debug=False):
     debug and print_dump(e.tree)
     scope = e.process()
 
+    marked_import = get_marked_import(e.tree)
+    if marked_import:
+        is_module, iname = marked_import
+        package, _, prefix = iname.rpartition('.')
+        if is_module:
+            module = project.get_module(project.norm_package(iname, filename))
+            return (1, 0), module.filename
+        else:
+            module = project.get_module(project.norm_package(package, filename))
+            name = module.names.get(prefix)
+            if isinstance(name, ImportedName):
+                name = name.resolve(project)
+            return name.declared_at, name.filename
+
     mname = get_marked_name(e.tree)
     if mname:
         names = scope.names_at(position)

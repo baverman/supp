@@ -239,12 +239,21 @@ def test_imported_name_location(project):
         boo = 20
     ''')
 
-    source, p = sp('''\
-        from testp.testm import boo
+    source, p1, p2, p3 = sp('''\
+        import testp.te|stm
+        from testp.testm import b|oo
         bo|o
     ''')
 
-    loc, fname = tlocation(source, p, project, filename=project.get_m('testp.testm2'))
+    loc, fname = tlocation(source, p1, project, filename=project.get_m('testp.testm2'))
+    assert loc == (1, 0)
+    assert fname == project.get_m('testp.testm')
+
+    loc, fname = tlocation(source, p2, project, filename=project.get_m('testp.testm2'))
+    assert loc == (1, 0)
+    assert fname == project.get_m('testp.testm')
+
+    loc, fname = tlocation(source, p3, project, filename=project.get_m('testp.testm2'))
     assert loc == (1, 0)
     assert fname == project.get_m('testp.testm')
 
