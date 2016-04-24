@@ -19,7 +19,7 @@ class Project(object):
         self._context_cache = {}
 
     def get_path(self):
-        return sys.path + [self.src]
+        return  [self.src] + sys.path
 
     def list_packages(self, root):
         modules = set()

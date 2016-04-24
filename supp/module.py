@@ -12,6 +12,9 @@ class SourceModule(object):
         self.filename = filename
         self.mtime = getmtime(filename)
 
+    def __repr__(self):
+        return 'SourceModule({}, {})'.format(self.name, self.filename)
+
     @property
     def changed(self):
         return self.mtime != getmtime(self.filename)

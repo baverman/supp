@@ -320,3 +320,11 @@ def test_import_space():
     ''')
     _, result = tassist(source, p)
     assert 'Client' in result
+
+
+# def test_boo():
+#     project = Project('/home/bobrov/work/supp')
+#     source = open(__file__.rstrip('c')).read()
+#     loc, fname = tlocation(source, (4, 23), project, filename=__file__)
+#     print loc, fname
+#     assert False
