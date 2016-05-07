@@ -15,6 +15,8 @@ def lint(project, source, filename=None):
 
     result = []
     scope = Extractor(source).process()
+    scope.resolve_star_imports(project)
+
     name_usages = get_name_usages(source.tree)
 
     for name, location in name_usages:
@@ -39,6 +41,8 @@ def lint(project, source, filename=None):
         if hasattr(name, 'used'):
             continue
         if name.name.startswith('_'):
+            continue
+        if getattr(name, 'is_star', None):
             continue
         if isinstance(flow.scope, IGNORED_SCOPES):
             if isinstance(name, ImportedName):

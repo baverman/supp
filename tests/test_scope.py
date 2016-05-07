@@ -5,6 +5,7 @@ from supp.name import (AssignedName, UndefinedName, MultiName,
                        ImportedName, ArgumentName)
 from supp.scope import FuncScope, ClassScope
 from supp.astwalk import Extractor
+from supp.project import Project
 from supp.util import Source, print_dump, dump_flows
 
 from .helpers import sp
@@ -692,6 +693,19 @@ def test_dotted_imports():
     scope = create_scope(source)
     names = scope.names_at(p)
     assert nvalues(names) == {'os': 'import:os'}
+
+
+def test_star_imports():
+    source, p = sp('''\
+        from os.path import *
+        |
+    ''')
+
+    scope = create_scope(source)
+    scope.resolve_star_imports(Project())
+    names = scope.names_at(p)
+    assert 'join' in names
+    assert 'abspath' in names
 
 
 # def test_boo():

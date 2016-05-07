@@ -5,7 +5,7 @@ from collections import defaultdict
 
 from .util import Location, np, insert_loc, cached_property, get_indexes_for_target
 from .compat import PY2, itervalues, builtins, iteritems
-from .name import ArgumentName, MultiName, UndefinedName, Name
+from .name import ArgumentName, MultiName, UndefinedName, Name, ImportedName
 from . import compat
 
 IMPORT_DELIMETERS = string.whitespace + '(,'
@@ -117,6 +117,7 @@ class SourceScope(Scope):
         self.regions = []
         self._global_names = {}
         self._imports = []
+        self._star_imports = []
 
     def __repr__(self):
         return 'SourceScope({})'.format(self.filename)
@@ -243,6 +244,20 @@ class SourceScope(Scope):
                     return sl + source.count('\n', 0, pos), pos - source.rfind('\n', 0, pos) - 1
 
         return start
+
+    def resolve_star_imports(self, project):
+        for loc, declared_at, mname, flow in self._star_imports:
+            try:
+                module = project.get_nmodule(mname, self.filename)
+            except ImportError:
+                continue
+
+            for name in itervalues(module.names):
+                if not name.name.startswith('_'):
+                    flow.add_name(ImportedName(name.name, loc, declared_at,
+                                               mname, name.name, self, True))
+
+        self._star_imports[:] = []
 
 
 def resolved_parent_names(parents):

@@ -1,9 +1,11 @@
+from supp.project import Project
 from supp.linter import lint
+
 from .helpers import dedent
 
 
-def tlint(source):
-    return lint(None, dedent(source))
+def tlint(source, project=None):
+    return lint(project, dedent(source))
 
 
 def strip(result):
@@ -66,4 +68,11 @@ def test_future_imports():
     result = tlint('''\
         from __future__ import print_function
     ''')
+    assert not result
+
+
+def test_star_imports():
+    result = tlint('''\
+        from os.path import *
+    ''', Project())
     assert not result

@@ -22,7 +22,9 @@ class SourceModule(object):
     @cached_property
     def scope(self):
         e = Extractor(Source(open(self.filename).read(), self.filename))
-        return e.process()
+        scope = e.process()
+        scope.resolve_star_imports(self.project)
+        return scope
 
     @property
     def names(self):

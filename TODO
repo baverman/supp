@@ -1,4 +1,3 @@
-* resolve star import in modules
 * imports checker
 * hints to ignore lint errors/warnings
 * goto import declaration remote method

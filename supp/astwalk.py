@@ -143,8 +143,11 @@ class Extractor(NodeVisitor):
             name = a.asname or a.name
             declared_at = self.top.find_id_loc(name, start)
             module = '.' * node.level + (node.module or '')
-            self.flow.add_name(ImportedName(name, loc, declared_at, module,
-                                            a.name, self.top))
+            if name == '*':
+                self.top._star_imports.append((loc, declared_at, module, self.flow))
+            else:
+                self.flow.add_name(ImportedName(name, loc, declared_at, module,
+                                                a.name, self.top))
 
     def visit_TryExcept(self, node):
         with self.fork(node) as fork:

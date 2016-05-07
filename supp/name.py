@@ -63,12 +63,13 @@ class FailedImport(str):
 
 class ImportedName(Name):
     def __init__(self, name, location, declared_at, module,
-                 mname=None, top_scope=None):
+                 mname=None, top_scope=None, is_star=False):
         Name.__init__(self, name, location)
         self.declared_at = declared_at
         self.module = module
         self.mname = mname
         self.top_scope = top_scope
+        self.is_star = is_star
 
     def resolve(self, project):
         try:
@@ -136,6 +137,11 @@ class MultiName(object):
             else:
                 allnames.append(n)
         self.alt_names = list(set(allnames))
+        n = self.alt_names[0]
+        if type(n) == UndefinedName:
+            self.name = str(n)
+        else:
+            self.name = n.name
 
     def __repr__(self):
         return 'MultiName({})'.format(self.alt_names)

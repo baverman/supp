@@ -1,7 +1,6 @@
 import re
 
-from .compat import itervalues
-from .util import (Source, unmark, marked, print_dump, get_marked_atribute,
+from .util import (Source, print_dump, get_marked_atribute,
                    get_marked_name, get_marked_import)
 from .evaluator import evaluate
 from .astwalk import Extractor, ImportedName
@@ -34,10 +33,11 @@ def assist(project, source, position, filename=None, debug=False):
             return prefix, list_packages(project, package, filename)
         else:
             plist = list_packages(project, package, filename)
-            module = project.get_module(project.norm_package(package, filename))
+            module = project.get_nmodule(package, filename)
             return prefix, sorted(set(plist) | set(module.names))
 
     scope = e.process()
+    scope.resolve_star_imports(project)
 
     prefix = re.split(r'(\.|\s)', line)[-1]
     _, expr = get_marked_atribute(e.tree)
@@ -59,16 +59,17 @@ def location(project, source, position, filename=None, debug=False):
     e = Extractor(source)
     debug and print_dump(e.tree)
     scope = e.process()
+    scope.resolve_star_imports(project)
 
     marked_import = get_marked_import(e.tree)
     if marked_import:
         is_module, iname = marked_import
         package, _, prefix = iname.rpartition('.')
         if is_module:
-            module = project.get_module(project.norm_package(iname, filename))
+            module = project.get_nmodule(iname, filename)
             return (1, 0), module.filename
         else:
-            module = project.get_module(project.norm_package(package, filename))
+            module = project.get_nmodule(package, filename)
             name = module.names.get(prefix)
             if isinstance(name, ImportedName):
                 name = name.resolve(project)
