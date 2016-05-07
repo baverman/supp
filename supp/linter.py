@@ -2,8 +2,17 @@ from .util import Source, get_name_usages
 from .name import MultiName, ArgumentName, ImportedName
 from .scope import SourceScope, ClassScope
 from .astwalk import Extractor
+from .compat import itervalues
 
 IGNORED_SCOPES = SourceScope, ClassScope
+
+
+def use_name(name):
+    if isinstance(name, MultiName):
+        for n in name.alt_names:
+            n.used = True
+    else:
+        name.used = True
 
 
 def lint(project, source, filename=None):
@@ -29,11 +38,14 @@ def lint(project, source, filename=None):
             result.append(('E02', 'Undefined name: {}'.format(name),
                            location[0], location[1], flow))
         else:
-            if isinstance(sname, MultiName):
-                for n in sname.alt_names:
-                    n.used = True
-            else:
-                sname.used = True
+            if sname.name == 'locals' and sname.location == (0, 0):
+                flow = scope.flow_at(location)
+                for n in itervalues(flow.names_at(location)):
+                    if getattr(n, 'scope', None) is flow.scope:
+                        use_name(n)
+
+            use_name(sname)
+
 
     for flow, name in scope.all_names:
         w = 'W01'

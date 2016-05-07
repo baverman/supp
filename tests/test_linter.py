@@ -76,3 +76,12 @@ def test_star_imports():
         from os.path import *
     ''', Project())
     assert not result
+
+
+def test_locals_usage():
+    result = tlint('''\
+        def boo():
+            bar = 10
+            return locals()
+    ''')
+    assert not result
