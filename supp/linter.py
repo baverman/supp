@@ -20,7 +20,7 @@ def lint(project, source, filename=None):
     try:
         source.tree
     except SyntaxError as e:
-        return [('E01', e.msg, e.lineno, e.offset)]
+        return [('E01', e.msg, e.lineno, e.offset, None)]
 
     result = []
     scope = Extractor(source).process()

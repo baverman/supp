@@ -1,10 +1,18 @@
 #!/usr/bin/env python
 import sys
-from supp import linter
+import os.path
 
-for fname in sys.argv[1:]:
-    # print fname
-    errors = linter.lint(None, open(fname).read(), fname)
-    for e, msg, line, col, flow in errors:
-        print('{}:{}:{}\t{}\t{}\t{} {}'.format(
-            fname, line, col, e, msg, flow, flow.scope))
+from supp import linter
+from supp.project import Project
+
+project = Project(sys.argv[1])
+
+for root, _, fnames in os.walk(sys.argv[1]):
+    for fname in fnames:
+        if not fname.endswith('.py'):
+            continue
+        fullname = os.path.join(root, fname)
+        errors = linter.lint(project, open(fullname).read(), fullname)
+        for e, msg, line, col, flow in errors:
+            print('{}:{}:{}\t{}\t{}\t{} {}'.format(
+                fullname, line, col, e, msg, flow, flow and flow.scope))
