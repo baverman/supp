@@ -1,18 +1,30 @@
 #!/usr/bin/env python
-import sys
 import os.path
+import argparse
 
 from supp import linter
 from supp.project import Project
 
-project = Project(sys.argv[1])
+parser = argparse.ArgumentParser(description='Lint python code')
+parser.add_argument('-p', '--project', metavar='project', default=os.getcwd(),
+                    help='Path to project root')
+parser.add_argument('--debug', action='store_true', default=False)
+parser.add_argument('dirs', nargs='*', metavar='directory',
+                    help='Directory to check')
 
-for root, _, fnames in os.walk(sys.argv[1]):
-    for fname in fnames:
-        if not fname.endswith('.py'):
-            continue
-        fullname = os.path.join(root, fname)
-        errors = linter.lint(project, open(fullname).read(), fullname)
-        for e, msg, line, col, flow in errors:
-            print('{}:{}:{}\t{}\t{}\t{} {}'.format(
-                fullname, line, col, e, msg, flow, flow and flow.scope))
+args = parser.parse_args()
+project = Project(args.project)
+
+for dname in args.dirs or [os.getcwd()]:
+    for root, _, fnames in os.walk(dname):
+        for fname in fnames:
+            if not fname.endswith('.py'):
+                continue
+            fullname = os.path.join(root, fname)
+            errors = linter.lint(project, open(fullname).read(), fullname)
+            for e, msg, line, col, flow in errors:
+                if args.debug:
+                    print('{}:{}:{}\t{}\t{}\t{} {}'.format(
+                        fullname, line, col, e, msg, flow, flow and flow.scope))
+                else:
+                    print('{}:{}:{}\t{}\t{}'.format(fullname, line, col, e, msg))
