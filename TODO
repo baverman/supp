@@ -1,3 +1,11 @@
 * imports checker
 * hints to ignore lint errors/warnings
-* goto import declaration remote method
+
+Bugs:
+
+from pkg.mo|d1.mod2 import boo
+invalid kwargs declared_at
+class declaration with decorators
+
+~/.virtualenvs/zvq/lib/python2.7/site-packages/sqlalchemy/sql/operators.py:13,18 no navigation
+from .. import mo|d

@@ -11,6 +11,7 @@ class SourceModule(object):
         self.name = name
         self.filename = filename
         self.mtime = getmtime(filename)
+        self.declared_at = 0, 0
 
     def __repr__(self):
         return 'SourceModule({}, {})'.format(self.name, self.filename)
@@ -36,9 +37,12 @@ class ImportedName(object):
         self.name = name
         self.value = value
 
-    @property
+    @cached_property
     def names(self):
-        return {k: ImportedName(k, v) for k, v in iteritems(vars(self.value))}
+        try:
+            return {k: ImportedName(k, v) for k, v in iteritems(vars(self.value))}
+        except TypeError:
+            return {k: ImportedName(k, getattr(self.value, k, None)) for k in dir(self.value)}
 
 
 class ImportedModule(object):
@@ -46,6 +50,6 @@ class ImportedModule(object):
         self.module = module
         self.changed = False
 
-    @property
+    @cached_property
     def names(self):
         return {k: ImportedName(k, v) for k, v in iteritems(vars(self.module))}

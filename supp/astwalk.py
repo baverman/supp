@@ -7,7 +7,11 @@ from .name import ImportedName, AssignedName
 from .scope import SourceScope, Flow, LoopFlow, ClassScope, FuncScope
 from .util import np, get_expr_end, get_indexes_for_target
 
-UNSUPPORTED_ASSIGMENTS = Attribute, Subscript
+if PY2:
+    UNSUPPORTED_ASSIGMENTS = Attribute, Subscript
+else:
+    from ast import Starred
+    UNSUPPORTED_ASSIGMENTS = Attribute, Subscript, Starred
 
 
 class Fork(object):
@@ -133,8 +137,7 @@ class Extractor(NodeVisitor):
                 self.top._imports.append(a.name)
 
             declared_at = self.top.find_id_loc(name, start)
-            self.flow.add_name(ImportedName(name, loc, declared_at, iname,
-                                            None, self.top))
+            self.flow.add_name(ImportedName(name, loc, declared_at, iname, None))
 
     def visit_ImportFrom(self, node):
         loc = get_expr_end(node)
@@ -146,8 +149,7 @@ class Extractor(NodeVisitor):
             if name == '*':
                 self.top._star_imports.append((loc, declared_at, module, self.flow))
             else:
-                self.flow.add_name(ImportedName(name, loc, declared_at, module,
-                                                a.name, self.top))
+                self.flow.add_name(ImportedName(name, loc, declared_at, module, a.name))
 
     def visit_TryExcept(self, node):
         with self.fork(node) as fork:
@@ -178,7 +180,7 @@ class Extractor(NodeVisitor):
         for d in node.decorator_list:
             self.visit(d)
         with self.nest() as (_, flow):
-            self.scope = FuncScope(self.scope, node)
+            self.scope = FuncScope(self.scope, node, top=self.top)
             flow.add_name(self.scope)
             self.flow = self.top.add_flow(self.scope.flow, True)
             if self.flow.level < 0:
@@ -189,14 +191,14 @@ class Extractor(NodeVisitor):
 
     def visit_Lambda(self, node):
         with self.nest():
-            self.scope = FuncScope(self.scope, node, True)
+            self.scope = FuncScope(self.scope, node, True, top=self.top)
             self.flow = self.top.add_flow(self.scope.flow, level=-1)
             self.add_region(node.body)
             self.visit(node.body)
 
     def visit_ClassDef(self, node):
         with self.nest() as (_, flow):
-            self.scope = ClassScope(self.scope, node)
+            self.scope = ClassScope(self.scope, node, top=self.top)
             flow.add_name(self.scope)
             self.flow = self.top.add_flow(self.scope.flow, True)
             if self.flow.level < 0:

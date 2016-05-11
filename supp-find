@@ -1,0 +1,28 @@
+#!/usr/bin/env python
+import os.path
+import argparse
+
+from supp import assistant
+from supp.project import Project
+
+parser = argparse.ArgumentParser(description='Find usages')
+parser.add_argument('-p', '--project', metavar='project', default=os.getcwd(),
+                    help='Path to project root')
+parser.add_argument('--debug', action='store_true', default=False)
+parser.add_argument('dirs_and_files', nargs='*', metavar='dir|file',
+                    help='Directory and files to check')
+
+args = parser.parse_args()
+project = Project([args.project])
+
+for dname in args.dirs_and_files or [os.getcwd()]:
+    if os.path.isdir(dname):
+        for root, _, fnames in os.walk(dname):
+            for fname in fnames:
+                if not fname.endswith('.py'):
+                    continue
+                fullname = os.path.join(root, fname)
+                assistant.usages(project, None, open(fullname).read(), fullname)
+    else:
+        fullname = os.path.abspath(dname)
+        assistant.usages(project, None, open(fullname).read(), fullname)

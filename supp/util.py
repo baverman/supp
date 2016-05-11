@@ -134,6 +134,22 @@ class get_name_usages(object):
 
 
 @visitor
+class get_all_usages(object):
+    def process(self, node):
+        self.locations = []
+        self.visit(node)
+        return self.locations
+
+    def visit_Name(self, node):
+        if type(node.ctx) is Load:
+            self.locations.append(('name', node.id, np(node), node))
+
+    def visit_Attribute(self, node):
+        self.locations.append(('attr', node.attr, np(node), node))
+        self.visit(node.value)
+
+
+@visitor
 class get_marked_atribute(object):
     def process(self, node):
         try:
@@ -177,10 +193,12 @@ class get_marked_import(object):
                 raise StopVisiting((True, unmark(a.name)))
 
     def visit_ImportFrom(self, node):
+        if node.module and marked(node.module):
+            raise StopVisiting((True, unmark(node.module)))
         for a in node.names:
             if marked(a.name):
-                raise StopVisiting((False,
-                                    '.' * node.level + (node.module or '') + '.' + unmark(a.name)))
+                name = '.' * node.level + (node.module or '') + '.' + unmark(a.name)
+                raise StopVisiting((False, name))
 
 
 def get_indexes_for_target(target, result, idx):
@@ -206,7 +224,11 @@ SOURCE_MARK = '__supp_mark__'
 
 def unmark(name):
     pos = name.find(SOURCE_MARK)
-    return name[:pos] + name[pos+len(SOURCE_MARK):]
+    result = name[:pos] + name[pos+len(SOURCE_MARK):]
+    dpos = result.find('.', pos)
+    if dpos >= 0:
+        result = result[:dpos]
+    return result
 
 
 def marked(name):
