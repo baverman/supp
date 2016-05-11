@@ -12,16 +12,9 @@ class Name(Location):
         return '{}({}, {})'.format(self.__class__.__name__,
                                    self.name, self.location)
 
-    @cached_property
+    @property
     def filename(self):
-        s = self.scope
-        while s:
-            try:
-                return getattr(s, 'filename')
-            except AttributeError:
-                s = s.parent
-
-        return None
+        return self.scope and self.scope.top.filename
 
 
 class ArgumentName(Name):
@@ -52,6 +45,14 @@ class AdditionalNameWrapper(object):
         self._names = names
 
     @property
+    def scope(self):
+        return self.value.scope
+
+    @property
+    def declared_at(self):
+        return self.value.declared_at
+
+    @property
     def names(self):
         names = self._names.copy()
         if self.value:
@@ -65,12 +66,11 @@ class FailedImport(str):
 
 class ImportedName(Name):
     def __init__(self, name, location, declared_at, module,
-                 mname=None, top_scope=None, is_star=False):
+                 mname=None, is_star=False):
         Name.__init__(self, name, location)
         self.declared_at = declared_at
         self.module = module
         self.mname = mname
-        self.top_scope = top_scope
         self.is_star = is_star
 
     def resolve(self, project):
@@ -87,29 +87,29 @@ class ImportedName(Name):
                 module = self.module + self.mname
 
             try:
-                value = project.get_nmodule(module, self.top_scope.filename)
+                value = project.get_nmodule(module, self.filename)
             except ImportError:
                 pass
 
         if value is None:
             try:
-                value = project.get_nmodule(self.module, self.top_scope.filename)
+                value = project.get_nmodule(self.module, self.filename)
             except ImportError:
                 logging.getLogger('supp.import').error(
-                    'Failed import of %s from %s', self.module, self.top_scope.filename)
+                    'Failed import of %s from %s', self.module, self.filename)
                 value = FailedImport(self.module)
             else:
                 if self.mname:
-                    value = value.names[self.mname]
+                    value = value.names.get(self.mname)
 
         if not self.mname and value:
             prefix = self.module + '.'
             names = {}
-            for mname in self.top_scope._imports:
+            for mname in self.scope.top._imports:
                 if mname.startswith(prefix):
                     name = mname[len(prefix):].partition('.')[0]
                     names[name] = iname = ImportedName(name, (0, 0), (0, 0),
-                                                       prefix + name, None, self.top_scope)
+                                                       prefix + name, None)
                     iname.scope = self.scope
             if names:
                 value = AdditionalNameWrapper(value, names)

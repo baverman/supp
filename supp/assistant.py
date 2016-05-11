@@ -1,9 +1,10 @@
+from __future__ import print_function
 import re
 
-from .util import (Source, print_dump, get_marked_atribute,
-                   get_marked_name, get_marked_import)
-from .evaluator import evaluate
-from .astwalk import Extractor, ImportedName
+from .util import (Source, print_dump, get_marked_atribute, np, split_pkg,
+                   get_marked_name, get_marked_import, get_all_usages, join_pkg)
+from .evaluator import evaluate, declarations
+from .astwalk import Extractor
 
 
 def list_packages(project, root, filename):
@@ -27,14 +28,14 @@ def assist(project, source, position, filename=None, debug=False):
 
     marked_import = get_marked_import(e.tree)
     if marked_import:
-        is_module, iname = marked_import
-        package, _, prefix = iname.rpartition('.')
-        if is_module:
-            return prefix, list_packages(project, package, filename)
+        head, tail = marked_import
+        if tail is None:
+            head, tail = split_pkg(head)
+            return tail, list_packages(project, head, filename)
         else:
-            plist = list_packages(project, package, filename)
-            module = project.get_nmodule(package, filename)
-            return prefix, sorted(set(plist) | set(module.names))
+            plist = list_packages(project, head, filename)
+            module = project.get_nmodule(head, filename)
+            return tail, sorted(set(plist) | set(module.names))
 
     scope = e.process()
     scope.resolve_star_imports(project)
@@ -53,6 +54,10 @@ def assist(project, source, position, filename=None, debug=False):
     return prefix, sorted(names)
 
 
+def _loc(location, filename):
+    return {'loc': location, 'file': filename}
+
+
 def location(project, source, position, filename=None, debug=False):
     source = Source(source, filename, position)
 
@@ -63,33 +68,59 @@ def location(project, source, position, filename=None, debug=False):
 
     marked_import = get_marked_import(e.tree)
     if marked_import:
-        is_module, iname = marked_import
-        package, _, prefix = iname.rpartition('.')
-        if is_module:
-            module = project.get_nmodule(iname, filename)
-            return (1, 0), module.filename
+        head, tail = marked_import
+        if tail is None:
+            name = project.get_nmodule(head, filename)
         else:
-            module = project.get_nmodule(package, filename)
-            name = module.names.get(prefix)
-            if isinstance(name, ImportedName):
-                name = name.resolve(project)
-            return name.declared_at, name.filename
+            if not tail:
+                full = head
+                head, tail = split_pkg(head)
+            else:
+                full = join_pkg(head, tail)
 
-    mname = get_marked_name(e.tree)
-    if mname:
-        names = scope.names_at(position)
-        name = names.get(mname)
-        if name:
-            if isinstance(name, ImportedName):
-                name = name.resolve(project)
-                return name.declared_at, name.filename
-            return name.declared_at, None
+            module = project.get_nmodule(head, filename)
+            name = module.names.get(tail)
+            if not name:
+                name = project.get_nmodule(full, filename)
+
+        result = declarations(project, None, name, [])
     else:
-        mname, expr = get_marked_atribute(e.tree)
-        value = evaluate(project, scope, expr)
-        name = value.names.get(mname)
-        if isinstance(name, ImportedName):
-            name = name.resolve(project)
-        return name.declared_at, name.filename
+        mname = get_marked_name(e.tree)
+        if mname:
+            names = scope.names_at(position)
+            name = names.get(mname)
+            if name:
+                result = declarations(project, scope, name, [])
+        else:
+            mname, expr = get_marked_atribute(e.tree)
+            value = evaluate(project, scope, expr)
+            name = value.names.get(mname)
+            result = declarations(project, value.scope.top, name, [])
 
-    return None, None
+    locs = []
+    for r in result:
+        if isinstance(r, list):
+            locs.append([_loc(n.declared_at, n.filename) for n in r])
+        else:
+            locs.append(_loc(r.declared_at, r.filename))
+
+    return locs
+
+
+def usages(project, source, filename=None):
+    source = Source(source, filename)
+    e = Extractor(source)
+    scope = e.process()
+    scope.resolve_star_imports(project)
+
+    for utype, nname, loc, node in get_all_usages(source.tree):
+        value = None
+        if utype == 'name':
+            names = scope.names_at(np(node))
+            value = names.get(node.id)
+
+        # value = evaluate(project, scope, node)
+        if value:
+            print(nname, loc, value)
+        else:
+            print('!!', utype, nname, loc, node)

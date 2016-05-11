@@ -13,8 +13,9 @@ IMPORT_END_DELIMETERS = string.whitespace + '),.;'
 
 
 class Scope(object):
-    def __init__(self, parent):
+    def __init__(self, parent, top=None):
         self.parent = parent
+        self.top = top
         self.locals = set()
         self.globals = set()
 
@@ -22,19 +23,13 @@ class Scope(object):
 class FileScope(object):
     @cached_property
     def filename(self):
-        s = self.parent
-        while s:
-            try:
-                return getattr(s, 'filename')
-            except AttributeError:
-                s = s.parent
-
-        return None
+        if self.top:
+            return self.top.filename
 
 
 class FuncScope(Scope, Location, FileScope):
-    def __init__(self, parent, node, is_lambda=False):
-        Scope.__init__(self, parent)
+    def __init__(self, parent, node, is_lambda=False, top=None):
+        Scope.__init__(self, parent, top)
         self.args = []
         self.declared_at = np(node)
         if is_lambda:
@@ -70,12 +65,12 @@ class FuncScope(Scope, Location, FileScope):
         return self.last_flow.names
 
     def __repr__(self):
-        return 'FuncScope({}, {})'.format(self.name, self.location)
+        return 'FuncScope({}, {})'.format(self.name, self.declared_at)
 
 
 class ClassScope(Scope, Location, FileScope):
-    def __init__(self, parent, node):
-        Scope.__init__(self, parent)
+    def __init__(self, parent, node, top=None):
+        Scope.__init__(self, parent, top)
         self.name = node.name
         self.declared_at = np(node)
         self.location = np(node.body[0])
@@ -84,6 +79,9 @@ class ClassScope(Scope, Location, FileScope):
     @property
     def names(self):
         return self.parent.names
+
+    def __repr__(self):
+        return 'ClassScope({}, {})'.format(self.name, self.declared_at)
 
 
 class Region(Location):
@@ -108,7 +106,7 @@ class BuiltinScope(object):
 
 class SourceScope(Scope):
     def __init__(self, lines, filename=None):
-        Scope.__init__(self, BuiltinScope())
+        Scope.__init__(self, BuiltinScope(), self)
         self.filename = filename
         self.lines = lines
         self.flows = defaultdict(list)
@@ -255,7 +253,7 @@ class SourceScope(Scope):
             for name in itervalues(module.names):
                 if not name.name.startswith('_'):
                     flow.add_name(ImportedName(name.name, loc, declared_at,
-                                               mname, name.name, self, True))
+                                               mname, name.name, True))
 
         self._star_imports[:] = []
 

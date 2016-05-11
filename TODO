@@ -1,3 +1,8 @@
 * imports checker
 * hints to ignore lint errors/warnings
-* goto import declaration remote method
+* usage graph
+
+Bugs:
+
+invalid kwargs declared_at
+class declaration with decorators

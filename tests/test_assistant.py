@@ -1,4 +1,4 @@
-from supp.assistant import assist, location
+from supp.assistant import assist, location, _loc
 from supp.project import Project
 
 from .helpers import sp
@@ -227,11 +227,11 @@ def test_module_name_location():
         |boo
     ''')
 
-    loc, _ = tlocation(source, p1)
-    assert loc == (1, 0)
+    loc, = tlocation(source, p1)
+    assert loc['loc'] == (1, 0)
 
-    loc, _ = tlocation(source, p2)
-    assert loc == (2, 0)
+    loc, = tlocation(source, p2)
+    assert loc['loc'] == (2, 0)
 
 
 def test_imported_name_location(project):
@@ -239,45 +239,74 @@ def test_imported_name_location(project):
         boo = 20
     ''')
 
-    source, p1, p2, p3 = sp('''\
+    source, p1, p2, p3, p4 = sp('''\
         import testp.te|stm
         from testp.testm import b|oo
         bo|o
+        from . import tes|tm
     ''')
 
-    loc, fname = tlocation(source, p1, project, filename=project.get_m('testp.testm2'))
-    assert loc == (1, 0)
-    assert fname == project.get_m('testp.testm')
+    loc, = tlocation(source, p1, project, filename=project.get_m('testp.testm2'))
+    assert loc['loc'] == (1, 0)
+    assert loc['file'] == project.get_m('testp.testm')
 
-    loc, fname = tlocation(source, p2, project, filename=project.get_m('testp.testm2'))
-    assert loc == (1, 0)
-    assert fname == project.get_m('testp.testm')
+    loc, = tlocation(source, p2, project, filename=project.get_m('testp.testm2'))
+    assert loc['loc'] == (1, 0)
+    assert loc['file'] == project.get_m('testp.testm')
 
-    loc, fname = tlocation(source, p3, project, filename=project.get_m('testp.testm2'))
-    assert loc == (1, 0)
-    assert fname == project.get_m('testp.testm')
+    locs = tlocation(source, p3, project, filename=project.get_m('testp.testm2'))
+    assert locs == [_loc((2, 24), project.get_m('testp.testm2')),
+                    _loc((1, 0), project.get_m('testp.testm'))]
+
+    locs = tlocation(source, p4, project, filename=project.get_m('testp.testm2'))
+    assert locs == [_loc((1, 0), project.get_m('testp.testm'))]
 
 
 def test_imported_attr_location(project):
     project.add_m('testp.testm', '''\
+        bar = 10
+
         def boo():
             pass
+
+        foo = boo
     ''')
 
-    source, p1, p2 = sp('''\
+    source, p1, p2, p3, p4, p5 = sp('''\
+        import testp.testm
         from testp import testm
         from testp import testm as am
         testm.bo|o
         am.bo|o
+        testm.fo|o
+        testp.tes|tm.boo
+        from testp.tes|tm.boo import foo
     ''')
 
-    loc, fname = tlocation(source, p1, project, filename=project.get_m('testp.testm2'))
-    assert loc == (1, 0)
-    assert fname == project.get_m('testp.testm')
+    loc, = tlocation(source, p1, project, filename=project.get_m('testp.testm2'))
+    assert loc['loc'] == (3, 0)
+    assert loc['file'] == project.get_m('testp.testm')
 
-    loc, fname = tlocation(source, p2, project, filename=project.get_m('testp.testm2'))
-    assert loc == (1, 0)
-    assert fname == project.get_m('testp.testm')
+    loc, = tlocation(source, p2, project, filename=project.get_m('testp.testm2'))
+    assert loc['loc'] == (3, 0)
+    assert loc['file'] == project.get_m('testp.testm')
+
+    locs = tlocation(source, p3, project, filename=project.get_m('testp.testm2'))
+    assert locs == [
+        _loc((6, 0), project.get_m('testp.testm')),
+        _loc((3, 0), project.get_m('testp.testm')),
+    ]
+
+    locs = tlocation(source, p4, project, filename=project.get_m('testp.testm2'))
+    assert locs == [
+        _loc((0, 0), project.get_m('testp.testm2')),
+        _loc((1, 0), project.get_m('testp.testm')),
+    ]
+
+    locs = tlocation(source, p5, project, filename=project.get_m('testp.testm2'))
+    assert locs == [
+        _loc((1, 0), project.get_m('testp.testm')),
+    ]
 
 
 def test_recursive_imported_name(project):
@@ -327,4 +356,13 @@ def test_import_space():
 #     source = open(__file__.rstrip('c')).read()
 #     loc, fname = tlocation(source, (4, 23), project, filename=__file__)
 #     print loc, fname
+#     assert False
+
+
+# def test_boo():
+#     root = '/home/bobrov/zvooq/zvq-prod'
+#     project = Project([root])
+#     source = open(root + '/zvooq/db/__init__.py').read()
+#     locs = tlocation(source, (133, 18), project, filename=__file__)
+#     print locs
 #     assert False

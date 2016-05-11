@@ -134,6 +134,22 @@ class get_name_usages(object):
 
 
 @visitor
+class get_all_usages(object):
+    def process(self, node):
+        self.locations = []
+        self.visit(node)
+        return self.locations
+
+    def visit_Name(self, node):
+        if type(node.ctx) is Load:
+            self.locations.append(('name', node.id, np(node), node))
+
+    def visit_Attribute(self, node):
+        self.locations.append(('attr', node.attr, np(node), node))
+        self.visit(node.value)
+
+
+@visitor
 class get_marked_atribute(object):
     def process(self, node):
         try:
@@ -163,6 +179,30 @@ class get_marked_name(object):
             raise StopVisiting(unmark(node.id))
 
 
+def _join_level_pkg(level, package):
+    return '.' * level + (package and package or '')
+
+
+def join_pkg(package, module):
+    if package.endswith('.'):
+        return package + module
+    else:
+        return package + '.' + module
+
+
+def split_pkg(package):
+    if not package.strip('.'):
+        return package, ''
+
+    head, sep, tail = package.rpartition('.')
+    if not head:
+        if sep:
+            head = sep
+    elif head.endswith('.'):
+        head += '.'
+    return head, tail
+
+
 @visitor
 class get_marked_import(object):
     def process(self, node):
@@ -174,13 +214,16 @@ class get_marked_import(object):
     def visit_Import(self, node):
         for a in node.names:
             if marked(a.name):
-                raise StopVisiting((True, unmark(a.name)))
+                raise StopVisiting((unmark(a.name), None))
 
     def visit_ImportFrom(self, node):
+        if node.module and marked(node.module):
+            name = _join_level_pkg(node.level, unmark(node.module))
+            raise StopVisiting((name, None))
         for a in node.names:
             if marked(a.name):
-                raise StopVisiting((False,
-                                    '.' * node.level + (node.module or '') + '.' + unmark(a.name)))
+                name = _join_level_pkg(node.level, node.module)
+                raise StopVisiting((name, unmark(a.name)))
 
 
 def get_indexes_for_target(target, result, idx):
@@ -206,7 +249,11 @@ SOURCE_MARK = '__supp_mark__'
 
 def unmark(name):
     pos = name.find(SOURCE_MARK)
-    return name[:pos] + name[pos+len(SOURCE_MARK):]
+    result = name[:pos] + name[pos+len(SOURCE_MARK):]
+    dpos = result.find('.', pos)
+    if dpos >= 0:
+        result = result[:dpos]
+    return result
 
 
 def marked(name):
