@@ -99,33 +99,31 @@ class Environment(object):
         else:
             raise Exception(result[1])
 
-    def lint(self, project_path, source, filename, syntax_only=False):
-        return self._call('lint', project_path, source, filename, syntax_only)
+    def lint(self, source, filename, syntax_only=False):
+        return self._call('lint', source, filename, syntax_only)
 
-    def assist(self, project_path, source, position, filename):
+    def assist(self, source, position, filename):
         """Return completion match and list of completion proposals
 
-        :param project_path: absolute project path
         :param source: code source
         :param position: tuple of (line, column)
         :param filename: absolute path of file with source code
         :returns: tuple (completion match, sorted list of proposals)
         """
-        return self._call('assist', project_path, source, position, filename)
+        return self._call('assist', source, position, filename)
 
-    def location(self, project_path, source, position, filename):
+    def location(self, source, position, filename):
         """Return position and file path where name under cursor is defined
 
         If position is None location wasn't finded. If file path is None, defenition is located in
         the same source.
 
-        :param project_path: absolute project path
         :param source: code source
         :param position:  tuple of (line, column)
         :param filename: absolute path of file with source code
         :returns: tuple ((line, column), file path)
         """
-        return self._call('location', project_path, source, position, filename)
+        return self._call('location', source, position, filename)
 
     # def get_docstring(self, project_path, source, position, filename):
     #     """Return signature and docstring for current cursor call context
@@ -148,13 +146,12 @@ class Environment(object):
     #     """
     #     return self._call('get_docstring', project_path, source, position, filename)
 
-    def configure_project(self, project_path, config):
+    def configure(self, config):
         """Reconfigure project
 
-        :param project_path: absolute project path
         :param config: dict with config key/values
         """
-        return self._call('configure_project', project_path, config)
+        return self._call('configure', config)
 
     # def get_scope(self, project_path, source, lineno, filename, continous=True):
     #     """

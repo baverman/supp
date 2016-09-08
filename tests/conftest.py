@@ -6,7 +6,7 @@ from supp.project import Project
 
 @pytest.fixture
 def project(tmpdir):
-    project = Project(str(tmpdir))
+    project = Project([str(tmpdir)])
 
     def add_module(name, content=None, lazy=False):
         parts = name.split('.')

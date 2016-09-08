@@ -22,27 +22,9 @@ from supp import assistant, linter
 class Server(object):
     def __init__(self, conn):
         self.conn = conn
-        self.projects = {}
-        self.configs = {}
 
-    def configure_project(self, path, config):
-        self.configs[path] = config
-        self.projects[path] = self.create_project(path)
-
-    def create_project(self, path):
-        # config = self.configs.get(path, {})
-        # config.setdefault('hooks', []).insert(0, 'supplement.hooks.override')
-        p = Project(path)  # self.configs.get(path, {}))
-        return p
-
-    def get_project(self, path):
-        try:
-            return self.projects[path]
-        except KeyError:
-            pass
-
-        p = self.projects[path] = self.create_project(path)
-        return p
+    def configure(self, config):
+        self.project = Project(config['sources'])
 
     def process(self, name, args, kwargs):
         try:
@@ -55,20 +37,17 @@ class Server(object):
 
         return result, is_ok
 
-    def assist(self, path, source, position, filename):
-        project = self.get_project(path)
-        with project.check_changes():
-            return assistant.assist(project, source, tuple(position), filename)
+    def assist(self, source, position, filename):
+        with self.project.check_changes():
+            return assistant.assist(self.project, source, tuple(position), filename)
 
-    def location(self, path, source, position, filename):
-        project = self.get_project(path)
-        with project.check_changes():
-            return assistant.location(project, source, tuple(position), filename)
+    def location(self, source, position, filename):
+        with self.project.check_changes():
+            return assistant.location(self.project, source, tuple(position), filename)
 
-    def lint(self, path, source, filename, syntax_only=False):
-        project = self.get_project(path)
-        with project.check_changes():
-            return [r[:4] for r in linter.lint(project, source, filename)]
+    def lint(self, source, filename, syntax_only=False):
+        with self.project.check_changes():
+            return [r[:4] for r in linter.lint(self.project, source, filename)]
 
     def eval(self, source):
         ctx = {}

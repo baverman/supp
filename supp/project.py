@@ -12,14 +12,14 @@ suffixes = [s for s, _, _ in suffixes_full]
 
 
 class Project(object):
-    def __init__(self, src=None):
-        self.src = src or '.'
+    def __init__(self, sources=None):
+        self.sources = sources or ['.']
         self._norm_cache = {}
         self._module_cache = {}
         self._context_cache = {}
 
     def get_path(self):
-        return  [self.src] + sys.path
+        return  self.sources + sys.path
 
     def list_packages(self, root):
         modules = set()

@@ -1,3 +1,5 @@
+import logging
+
 from .util import Location, cached_property
 
 
@@ -93,6 +95,8 @@ class ImportedName(Name):
             try:
                 value = project.get_nmodule(self.module, self.top_scope.filename)
             except ImportError:
+                logging.getLogger('supp.import').error(
+                    'Failed import of %s from %s', self.module, self.top_scope.filename)
                 value = FailedImport(self.module)
             else:
                 if self.mname:
