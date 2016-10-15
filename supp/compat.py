@@ -14,6 +14,11 @@ if PY2:
     listkeys = lambda d: d.keys()
     listvalues = lambda d: d.values()
     listitems = lambda d: d.items()
+
+    def nstr(data):
+        if type(data) is unicode:
+            return data.encode('utf-8')
+        return data
 else:
     import builtins
     from functools import reduce
@@ -26,3 +31,8 @@ else:
     listkeys = lambda d: list(d.keys())
     listvalues = lambda d: list(d.values())
     listitems = lambda d: list(d.items())
+
+    def nstr(data):
+        if type(data) is bytes:
+            return data.decode()
+        return data

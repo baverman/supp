@@ -14,9 +14,10 @@ except ImportError:
     finally:
         sys.path = old_path
 
-from supp.umsgpack import dumps, loads
-from supp.project import Project
 from supp import assistant, linter
+from supp.umsgpack import loads, dumps
+from supp.project import Project
+from supp.compat import nstr
 
 
 class Server(object):
@@ -39,19 +40,19 @@ class Server(object):
 
     def assist(self, source, position, filename):
         with self.project.check_changes():
-            return assistant.assist(self.project, source, tuple(position), filename)
+            return assistant.assist(self.project, nstr(source), tuple(position), filename)
 
     def location(self, source, position, filename):
         with self.project.check_changes():
-            return assistant.location(self.project, source, tuple(position), filename)
+            return assistant.location(self.project, nstr(source), tuple(position), filename)
 
     def lint(self, source, filename, syntax_only=False):
         with self.project.check_changes():
-            return [r[:4] for r in linter.lint(self.project, source, filename)]
+            return [r[:4] for r in linter.lint(self.project, nstr(source), filename)]
 
     def eval(self, source):
         ctx = {}
-        source = '\n'.join('    ' + r for r in source.splitlines())
+        source = '\n'.join('    ' + r for r in nstr(source).splitlines())
         source = 'def boo():\n{}\nresult = boo()'.format(source)
         exec(source, ctx)
         return ctx['result']

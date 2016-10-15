@@ -10,5 +10,5 @@ def test_remote_assist():
         |
     ''')
     m, result = env.assist(source, p, 'boo.py')
-    assert m == ''
-    assert 'foo' in result
+    assert m == b''
+    assert b'foo' in result
