@@ -310,6 +310,19 @@ def test_class_scope():
     assert nvalues(scope.names_at(p4)) == {'a': 10, 'Boo': 'class'}
 
 
+def test_class_scope_reassign():
+    source, p1, p2 = sp('''\
+        boo = 10
+        class Boo:
+            boo = |boo
+            |
+    ''')
+
+    scope = create_scope(source)
+    assert nvalues(scope.names_at(p1)) == {'Boo': 'class', 'boo': 10}
+    assert nvalues(scope.names_at(p2)) == {'Boo': 'class', 'boo': 'boo'}
+
+
 def test_attr_assign():
     source, = sp('''\
         foo.boo = 10

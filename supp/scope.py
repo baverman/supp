@@ -312,10 +312,14 @@ class Flow(Location):
 
             return names
         else:
-            if self.scope.parent:
-                pnames = self.scope.parent.names
-                outer_names = set(pnames).difference(self.scope.locals)
-                return {n: pnames[n] for n in outer_names}
+            pscope = self.scope.parent
+            if pscope:
+                pnames = pscope.names
+                if isinstance(self.scope, ClassScope):
+                    return pnames.copy()
+                else:
+                    outer_names = set(pnames).difference(self.scope.locals)
+                    return {n: pnames[n] for n in outer_names}
             else:
                 return {}
 
