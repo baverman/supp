@@ -182,7 +182,7 @@ class get_marked_name(object):
 
     def visit_Name(self, node):
         if isinstance(node.ctx, Load) and marked(node.id):
-            raise StopVisiting(unmark(node.id))
+            raise StopVisiting(clone_node(node, id=unmark(node.id)))
 
 
 def _join_level_pkg(level, package):

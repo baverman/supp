@@ -85,12 +85,9 @@ def location(project, source, position, filename=None, debug=False):
 
         result = declarations(project, None, name, [])
     else:
-        mname = get_marked_name(e.tree)
-        if mname:
-            names = scope.names_at(position)
-            name = names.get(mname)
-            if name:
-                result = declarations(project, scope, name, [])
+        node = get_marked_name(e.tree)
+        if node:
+            result = declarations(project, scope, node, [])
         else:
             attr = get_marked_atribute(e.tree)
             result = declarations(project, scope, attr, [])
