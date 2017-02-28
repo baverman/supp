@@ -228,7 +228,7 @@ def test_module_name_location():
     ''')
 
     loc, = tlocation(source, p1)
-    assert loc['loc'] == (1, 0)
+    assert loc['loc'] == (1, 4)
 
     loc, = tlocation(source, p2)
     assert loc['loc'] == (2, 0)
@@ -284,17 +284,17 @@ def test_imported_attr_location(project):
     ''')
 
     loc, = tlocation(source, p1, project, filename=project.get_m('testp.testm2'))
-    assert loc['loc'] == (3, 0)
+    assert loc['loc'] == (3, 4)
     assert loc['file'] == project.get_m('testp.testm')
 
     loc, = tlocation(source, p2, project, filename=project.get_m('testp.testm2'))
-    assert loc['loc'] == (3, 0)
+    assert loc['loc'] == (3, 4)
     assert loc['file'] == project.get_m('testp.testm')
 
     locs = tlocation(source, p3, project, filename=project.get_m('testp.testm2'))
     assert locs == [
         _loc((6, 0), project.get_m('testp.testm')),
-        _loc((3, 0), project.get_m('testp.testm')),
+        _loc((3, 4), project.get_m('testp.testm')),
     ]
 
     locs = tlocation(source, p4, project, filename=project.get_m('testp.testm2'))

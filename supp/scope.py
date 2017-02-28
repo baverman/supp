@@ -31,12 +31,13 @@ class FuncScope(Scope, Location, FileScope):
     def __init__(self, parent, node, is_lambda=False, top=None):
         Scope.__init__(self, parent, top)
         self.args = []
-        self.declared_at = np(node)
         if is_lambda:
             self.name = 'lambda'
             self.location = np(node.body)
+            self.declared_at = np(node)
         else:
             self.name = node.name
+            self.declared_at = top.find_id_loc(' ' + node.name, np(node), 1, False)
             for n in node.body:
                 if n.col_offset >= 0:
                     self.location = np(n)
@@ -52,8 +53,7 @@ class FuncScope(Scope, Location, FileScope):
         for s, n in (('*', node.args.vararg), ('**', node.args.kwarg)):
             if n:
                 if PY2:
-                    declared_at = top.find_id_loc(s + n, np(node))
-                    declared_at = declared_at[0], declared_at[1] + len(s)
+                    declared_at = top.find_id_loc(s + n, np(node), len(s))
                     self.args.append(ArgumentName(n, self.location, declared_at, self))
                 else:
                     self.args.append(ArgumentName(n.arg, self.location, np(n), self))
@@ -74,7 +74,7 @@ class ClassScope(Scope, Location, FileScope):
     def __init__(self, parent, node, top=None):
         Scope.__init__(self, parent, top)
         self.name = node.name
-        self.declared_at = np(node)
+        self.declared_at = top.find_id_loc(' ' + node.name, np(node), 1, False)
         self.location = np(node.body[0])
         self.flow = Flow(self, self.location)
 
@@ -229,7 +229,7 @@ class SourceScope(Scope):
                 for name in flow._names:
                     yield flow, name
 
-    def find_id_loc(self, id, start):
+    def find_id_loc(self, id, start, shift=0, delimeters=True):
         sl, pos = start
         source = '\n'.join(self.lines[sl-1:sl+50])
         source_len = len(source)
@@ -238,10 +238,11 @@ class SourceScope(Scope):
             if pos < 0:
                 break
 
-            if pos == 0 or source[pos-1] in IMPORT_DELIMETERS:
+            if pos == 0 or not delimeters or source[pos-1] in IMPORT_DELIMETERS:
                 ep = pos + len(id)
-                if ep >= source_len or source[ep] in IMPORT_END_DELIMETERS:
-                    return sl + source.count('\n', 0, pos), pos - source.rfind('\n', 0, pos) - 1
+                if ep >= source_len or not delimeters or source[ep] in IMPORT_END_DELIMETERS:
+                    return (sl + source.count('\n', 0, pos),
+                            pos - source.rfind('\n', 0, pos) - 1 + shift)
 
         return start
 

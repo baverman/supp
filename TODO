@@ -1,7 +1,3 @@
+* usage graph
 * imports checker
 * hints to ignore lint errors/warnings
-* usage graph
-
-Bugs:
-
-class declaration with decorators

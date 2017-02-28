@@ -266,6 +266,7 @@ def test_try_except():
 def test_function_scope():
     source, p1, p2 = sp('''\
         a = 10
+        @some.foo
         def foo(b):
             c = 10
             |
@@ -275,6 +276,7 @@ def test_function_scope():
     scope = create_scope(source)
     assert nvalues(scope.names_at(p1)) == {'a': 10, 'b': 'foo.arg', 'c': 10, 'foo': 'func'}
     assert nvalues(scope.names_at(p2)) == {'a': 10, 'foo': 'func'}
+    assert scope.names['foo'].declared_at == (3, 4)
 
 
 def test_parent_scope_var_masking():
@@ -293,6 +295,7 @@ def test_parent_scope_var_masking():
 def test_class_scope():
     source, p1, p2, p3, p4 = sp('''\
         a = 10
+        @some.Boo
         class Boo:
             BOO = 10
             |
@@ -308,6 +311,7 @@ def test_class_scope():
     assert nvalues(scope.names_at(p2)) == {'a': 10, 'Boo': 'class', 'self': 'boo.arg', 'b': 10}
     assert nvalues(scope.names_at(p3)) == {'a': 10, 'Boo': 'class', 'boo': 'func', 'BOO': 10}
     assert nvalues(scope.names_at(p4)) == {'a': 10, 'Boo': 'class'}
+    assert scope.names['Boo'].declared_at == (3, 6)
 
 
 def test_class_scope_reassign():
