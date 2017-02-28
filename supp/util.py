@@ -2,11 +2,17 @@ from __future__ import print_function
 
 import sys
 from bisect import insort
-from ast import iter_fields, Store, Load, NodeVisitor, parse, Tuple, List
+from ast import iter_fields, Store, Load, NodeVisitor, parse, Tuple, List, AST
 
 from .compat import iteritems, string_types
 
 NESTED_INDEXED_NODES = Tuple, List
+
+
+def clone_node(obj, **kwargs):
+    new = AST.__new__(type(obj))
+    new.__dict__.update(obj.__dict__, **kwargs)
+    return new
 
 
 class cached_property(object):
@@ -157,11 +163,11 @@ class get_marked_atribute(object):
         except StopVisiting as e:
             return e.value
 
-        return None, None
+        return None
 
     def visit_Attribute(self, node):
         if marked(node.attr):
-            raise StopVisiting((unmark(node.attr), node.value))
+            raise StopVisiting(clone_node(node, attr=unmark(node.attr)))
 
         self.visit(node.value)
 

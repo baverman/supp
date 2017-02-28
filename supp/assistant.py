@@ -41,9 +41,9 @@ def assist(project, source, position, filename=None, debug=False):
     scope.resolve_star_imports(project)
 
     prefix = re.split(r'(\.|\s)', line)[-1]
-    _, expr = get_marked_atribute(e.tree)
-    if expr:
-        value = evaluate(project, scope, expr)
+    attr = get_marked_atribute(e.tree)
+    if attr:
+        value = evaluate(project, scope, attr.value)
         if value:
             names = value.names
         else:
@@ -92,10 +92,8 @@ def location(project, source, position, filename=None, debug=False):
             if name:
                 result = declarations(project, scope, name, [])
         else:
-            mname, expr = get_marked_atribute(e.tree)
-            value = evaluate(project, scope, expr)
-            name = value.names.get(mname)
-            result = declarations(project, value.scope.top, name, [])
+            attr = get_marked_atribute(e.tree)
+            result = declarations(project, scope, attr, [])
 
     locs = []
     for r in result:
@@ -119,7 +117,9 @@ def usages(project, source, filename=None):
             names = scope.names_at(np(node))
             value = names.get(node.id)
 
-        # value = evaluate(project, scope, node)
+        # print(scope, node)
+        value = declarations(project, scope, node, [])
+
         if value:
             print(nname, loc, value)
         else:

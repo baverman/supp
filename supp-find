@@ -22,7 +22,7 @@ for dname in args.dirs_and_files or [os.getcwd()]:
                 if not fname.endswith('.py'):
                     continue
                 fullname = os.path.join(root, fname)
-                assistant.usages(project, None, open(fullname).read(), fullname)
+                assistant.usages(project, open(fullname).read(), fullname)
     else:
         fullname = os.path.abspath(dname)
-        assistant.usages(project, None, open(fullname).read(), fullname)
+        assistant.usages(project, open(fullname).read(), fullname)

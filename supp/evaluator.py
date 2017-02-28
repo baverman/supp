@@ -58,7 +58,7 @@ def declarations(project, scope, node, result=[]):
     elif node_type is Attribute:
         value = evaluate(project, scope, node.value)
         if value:
-            cname = value.get(node.attr)
+            cname = value.names.get(node.attr)
     elif node_type is AssignedName:
         _append_declaration(result, node)
         return declarations(project, node.scope.top, node.value_node, result)
