@@ -66,6 +66,7 @@ def location(project, source, position, filename=None, debug=False):
     scope = e.process()
     scope.resolve_star_imports(project)
 
+    result = []
     marked_import = get_marked_import(e.tree)
     if marked_import:
         head, tail = marked_import
@@ -85,12 +86,9 @@ def location(project, source, position, filename=None, debug=False):
 
         result = declarations(project, None, name, [])
     else:
-        node = get_marked_name(e.tree)
+        node = get_marked_name(e.tree) or get_marked_atribute(e.tree)
         if node:
             result = declarations(project, scope, node, [])
-        else:
-            attr = get_marked_atribute(e.tree)
-            result = declarations(project, scope, attr, [])
 
     locs = []
     for r in result:
