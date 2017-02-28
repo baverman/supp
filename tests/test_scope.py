@@ -431,20 +431,26 @@ def test_scope_levels():
 
 def test_vargs():
     source, p = sp('''\
+        @vargs
         def boo(*vargs):
             |pass
     ''')
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p)) == {'vargs': 'boo.arg', 'boo': 'func'}
+    names = scope.names_at(p)
+    assert nvalues(names) == {'vargs': 'boo.arg', 'boo': 'func'}
+    assert names['vargs'].declared_at == (2, 9)
 
 
 def test_kwargs():
     source, p = sp('''\
+        @kwargs
         def boo(**kwargs):
             |pass
     ''')
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p)) == {'kwargs': 'boo.arg', 'boo': 'func'}
+    names = scope.names_at(p)
+    assert nvalues(names) == {'kwargs': 'boo.arg', 'boo': 'func'}
+    assert names['kwargs'].declared_at == (2, 10)
 
 
 def test_list_comprehension():

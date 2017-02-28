@@ -49,10 +49,12 @@ class FuncScope(Scope, Location, FileScope):
             else:
                 self.args.append(ArgumentName(n.arg, self.location, np(n), self))
 
-        for n in (node.args.vararg, node.args.kwarg):
+        for s, n in (('*', node.args.vararg), ('**', node.args.kwarg)):
             if n:
                 if PY2:
-                    self.args.append(ArgumentName(n, self.location, self.location, self))
+                    declared_at = top.find_id_loc(s + n, np(node))
+                    declared_at = declared_at[0], declared_at[1] + len(s)
+                    self.args.append(ArgumentName(n, self.location, declared_at, self))
                 else:
                     self.args.append(ArgumentName(n.arg, self.location, np(n), self))
 
