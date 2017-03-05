@@ -1,4 +1,3 @@
-* find location should traverse only one level deep for all names except imports
 * usage graph
 * imports checker
 * hints to ignore lint errors/warnings

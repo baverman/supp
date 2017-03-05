@@ -294,7 +294,6 @@ def test_imported_attr_location(project):
     locs = tlocation(source, p3, project, filename=project.get_m('testp.testm2'))
     assert locs == [
         _loc((6, 0), project.get_m('testp.testm')),
-        _loc((3, 4), project.get_m('testp.testm')),
     ]
 
     locs = tlocation(source, p4, project, filename=project.get_m('testp.testm2'))
