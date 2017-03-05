@@ -151,7 +151,8 @@ class get_all_usages(object):
             self.locations.append(('name', node.id, np(node), node))
 
     def visit_Attribute(self, node):
-        self.locations.append(('attr', node.attr, np(node), node))
+        if type(node.ctx) is Load:
+            self.locations.append(('attr', node.attr, np(node), node))
         self.visit(node.value)
 
 

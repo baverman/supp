@@ -46,7 +46,6 @@ def lint(project, source, filename=None):
 
             use_name(sname)
 
-
     for flow, name in scope.all_names:
         w = 'W01'
         message = 'Unused name: {}'

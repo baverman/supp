@@ -32,11 +32,6 @@ def evaluate(project, scope, node):
         return node
 
 
-def _append_declaration(result, name):
-    if hasattr(name, 'declared_at'):
-        result.append(name)
-
-
 def declarations(project, scope, node, result=[]):
     node_type = type(node)
     cname = None
@@ -47,24 +42,22 @@ def declarations(project, scope, node, result=[]):
         names = []
         for n in node.alt_names:
             if type(n) is not UndefinedName:
-                _append_declaration(names, n)
+                names.append(n)
 
         if names:
             if len(names) > 1:
                 result.append(names)
             else:
-                return declarations(project, None, names[0], result)
-        return result
+                cname = names[0]
     elif node_type is Attribute:
         value = evaluate(project, scope, node.value)
         if value:
             cname = value.names.get(node.attr)
     elif node_type is ImportedName:
-        _append_declaration(result, node)
-        cname = node.resolve(project)
-    elif hasattr(node, 'declared_at'):
         result.append(node)
-        return result
+        cname = node.resolve(project)
+    else:
+        result.append(node)
 
     if cname:
         return declarations(project, None, cname, result)

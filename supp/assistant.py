@@ -107,15 +107,11 @@ def usages(project, source, filename=None):
     scope.resolve_star_imports(project)
 
     for utype, nname, loc, node in get_all_usages(source.tree):
-        value = None
-        if utype == 'name':
-            names = scope.names_at(np(node))
-            value = names.get(node.id)
-
         # print(scope, node)
         value = declarations(project, scope, node, [])
 
         if value:
-            print(nname, loc, value)
+            if utype == 'attr':
+                print('GUT', utype, nname, loc, value)
         else:
-            print('!!', utype, nname, loc, node)
+            print('BAD', utype, nname, loc, vars(node))
