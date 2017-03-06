@@ -35,7 +35,7 @@ def assist(project, source, position, filename=None, debug=False):
         else:
             plist = list_packages(project, head, filename)
             module = project.get_nmodule(head, filename)
-            return tail, sorted(set(plist) | set(module.names))
+            return tail, sorted(set(plist) | set(module.attrs))
 
     scope = e.process()
     scope.resolve_star_imports(project)
@@ -45,7 +45,7 @@ def assist(project, source, position, filename=None, debug=False):
     if attr:
         value = evaluate(project, scope, attr.value)
         if value:
-            names = value.names
+            names = value.attrs
         else:
             names = {}
     else:
@@ -80,7 +80,7 @@ def location(project, source, position, filename=None, debug=False):
                 full = join_pkg(head, tail)
 
             module = project.get_nmodule(head, filename)
-            name = module.names.get(tail)
+            name = module.attrs.get(tail)
             if not name:
                 name = project.get_nmodule(full, filename)
 

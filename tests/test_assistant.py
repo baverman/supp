@@ -350,6 +350,42 @@ def test_import_space():
     assert 'Client' in result
 
 
+def test_class_attribute():
+    source, p = sp('''\
+        class Foo(object):
+            def foo(self):
+                pass
+
+        class Bar:
+            def bar(self):
+                pass
+
+        class Boo(Foo, Bar):
+            def boo(self):
+                pass
+
+        Boo.|
+    ''')
+    _, result = tassist(source, p)
+    assert 'boo' in result
+    assert 'foo' in result
+    assert 'bar' in result
+    assert '__doc__' in result
+
+
+def test_instance_attribute():
+    source, p = sp('''\
+        class Boo(object):
+            def boo(self):
+                pass
+
+        bar = Boo()
+        bar.|
+    ''')
+    _, result = tassist(source, p, debug=True)
+    assert 'boo' in result
+
+
 # def test_boo():
 #     project = Project(['/home/bobrov/work/supp'])
 #     source = open(__file__.rstrip('c')).read()

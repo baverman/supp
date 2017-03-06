@@ -1,6 +1,7 @@
 import logging
 
 from .util import Location, cached_property
+from .compat import iteritems
 
 
 class Name(Location):
@@ -53,10 +54,10 @@ class AdditionalNameWrapper(object):
         return self.value.declared_at
 
     @property
-    def names(self):
+    def attrs(self):
         names = self._names.copy()
         if self.value:
-            names.update(self.value.names)
+            names.update(self.value.attrs)
         return names
 
 
@@ -100,7 +101,7 @@ class ImportedName(Name):
                 value = FailedImport(self.module)
             else:
                 if self.mname:
-                    value = value.names.get(self.mname)
+                    value = value.attrs.get(self.mname)
 
         if not self.mname and value:
             prefix = self.module + '.'
@@ -120,6 +121,20 @@ class ImportedName(Name):
     def __repr__(self):
         return 'ImportedName({}, {}, {}, {}, {})'.format(
             self.name, self.location, self.declared_at, self.module, self.mname)
+
+
+class RuntimeName(Name):
+    def __init__(self, name, value):
+        self.name = name
+        self.value = value
+        self.location = (0, 0)
+
+    @cached_property
+    def attrs(self):
+        try:
+            return {k: RuntimeName(k, v) for k, v in iteritems(vars(self.value))}
+        except TypeError:
+            return {k: RuntimeName(k, getattr(self.value, k, None)) for k in dir(self.value)}
 
 
 class UndefinedName(str):

@@ -10,4 +10,4 @@ def test_norm_package(project):
 def test_import_of_compiled_modules():
     p = Project()
     m = p.get_module('datetime')
-    assert 'timedelta' in m.names
+    assert 'timedelta' in m.attrs
