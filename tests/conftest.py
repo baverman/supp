@@ -1,4 +1,7 @@
 from textwrap import dedent
+import logging
+
+logging.basicConfig(level='DEBUG')
 
 import pytest
 from supp.project import Project

@@ -205,6 +205,7 @@ class Extractor(NodeVisitor):
                 self.add_region(node.body[0])
             for n in node.body:
                 self.visit(n)
+            self.scope.last_flow = self.flow
 
     def visit_expr(self, node):
         self.add_region(node)

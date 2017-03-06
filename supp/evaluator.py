@@ -3,6 +3,17 @@ from ast import Name, Attribute
 from .util import np
 from .name import (ImportedName, AssignedName, MultiName, AdditionalNameWrapper,
                    UndefinedName)
+from .scope import ClassScope
+
+
+class ClassValue(object):
+    def __init__(self, project, scope):
+        bases = list(filter(None, (evaluate(project, scope.top, r) for r in scope.bases)))
+        attrs = {}
+        for b in reversed(bases):
+            attrs.update(b.attrs)
+        attrs.update(scope.attrs)
+        self.attrs = attrs
 
 
 def evaluate(project, scope, node):
@@ -18,17 +29,19 @@ def evaluate(project, scope, node):
             if type(n) is not UndefinedName:
                 v = evaluate(project, n.scope.top, n)
                 if v:
-                    names.update(v.names)
+                    names.update(v.attrs)
         return AdditionalNameWrapper(None, names)
     elif node_type is Attribute:
         value = evaluate(project, scope, node.value)
         if value:
-            return evaluate(project, scope, value.names.get(node.attr))
+            return evaluate(project, scope, value.attrs.get(node.attr))
     elif node_type is AssignedName:
         return evaluate(project, scope, node.value_node)
     elif node_type is ImportedName:
         return evaluate(project, node.scope, node.resolve(project))
-    elif hasattr(node, 'names'):
+    elif node_type is ClassScope:
+        return ClassValue(project, node)
+    elif hasattr(node, 'attrs'):
         return node
 
 
@@ -52,7 +65,7 @@ def declarations(project, scope, node, result=[]):
     elif node_type is Attribute:
         value = evaluate(project, scope, node.value)
         if value:
-            cname = value.names.get(node.attr)
+            cname = value.attrs.get(node.attr)
     elif node_type is ImportedName:
         result.append(node)
         cname = node.resolve(project)

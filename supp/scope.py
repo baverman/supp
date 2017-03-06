@@ -5,7 +5,8 @@ from collections import defaultdict
 
 from .util import Location, np, insert_loc, cached_property, get_indexes_for_target
 from .compat import PY2, itervalues, builtins, iteritems
-from .name import ArgumentName, MultiName, UndefinedName, Name, ImportedName
+from .name import (ArgumentName, MultiName, UndefinedName, Name, ImportedName,
+                   RuntimeName)
 from . import compat
 
 IMPORT_DELIMETERS = string.whitespace + '(,'
@@ -77,10 +78,16 @@ class ClassScope(Scope, Location, FileScope):
         self.declared_at = top.find_id_loc(' ' + node.name, np(node), 1, False)
         self.location = np(node.body[0])
         self.flow = Flow(self, self.location)
+        self.bases = node.bases
 
     @property
     def names(self):
         return self.parent.names
+
+    @property
+    def attrs(self):
+        names = self.last_flow.names
+        return {n: names[n] for n in self.locals}
 
     def __repr__(self):
         return 'ClassScope({}, {})'.format(self.name, self.declared_at)
@@ -99,16 +106,19 @@ class Region(Location):
 class BuiltinScope(object):
     @cached_property
     def names(self):
-        names = {k: Name(k, (0, 0)) for k in dir(builtins)}
-        names.update({k: Name(k, (0, 0))
-                      for k in dir(compat)
+        names = {k: RuntimeName(k, v) for k, v in iteritems(vars(builtins))}
+        names.update({k: RuntimeName(k, v)
+                      for k, v in iteritems(vars(compat))
                       if k.startswith('__')})
         return names
 
 
+builtin_scope = BuiltinScope()
+
+
 class SourceScope(Scope):
     def __init__(self, lines, filename=None):
-        Scope.__init__(self, BuiltinScope(), self)
+        Scope.__init__(self, builtin_scope, self)
         self.filename = filename
         self.lines = lines
         self.flows = defaultdict(list)
@@ -253,7 +263,7 @@ class SourceScope(Scope):
             except ImportError:
                 continue
 
-            for name in itervalues(module.names):
+            for name in itervalues(module.attrs):
                 if not name.name.startswith('_'):
                     flow.add_name(ImportedName(name.name, loc, declared_at,
                                                mname, name.name, True))
