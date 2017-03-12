@@ -37,6 +37,24 @@ class cached_property(object):
                 pass
 
 
+class AttributeException(Exception): pass
+
+
+def safe_attribute_error(func):
+    def inner(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except AttributeError as e:
+            raise AttributeException(str(e))
+
+    return inner
+
+
+class ValueResolver(object):
+    def resolve(self):
+        return self.value
+
+
 def insert_loc(locations, loc):
     if locations and locations[-1] < loc:
         locations.append(loc)
@@ -92,7 +110,7 @@ def print_dump(node):
 
 def visitor(cls):
     v = type(cls.__name__, (cls, NodeVisitor), {})
-    func = lambda node: v().process(node)
+    func = lambda *args, **kwargs: v().process(*args, **kwargs)
     func.visitor = v
     return func
 

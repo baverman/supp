@@ -3,7 +3,7 @@ from itertools import chain
 
 from supp import linter
 from supp.util import Source
-from supp.astwalk import Extractor
+from supp.astwalk import extract_scope
 from supp.compat import PY2
 
 
@@ -18,8 +18,7 @@ def pytest_generate_tests(metafunc):
 
 
 def test_scope(fname):
-    source = Source(open(fname).read(), fname)
-    Extractor(source).process()
+    extract_scope(None, Source(open(fname).read(), fname))
 
 
 def test_lint(fname):

@@ -1,7 +1,7 @@
 from .util import Source, get_name_usages
 from .name import MultiName, ArgumentName, ImportedName
 from .scope import SourceScope, ClassScope
-from .astwalk import Extractor
+from .astwalk import extract_scope
 from .compat import itervalues
 
 IGNORED_SCOPES = SourceScope, ClassScope
@@ -23,7 +23,7 @@ def lint(project, source, filename=None):
         return [('E01', e.msg, e.lineno, e.offset, None)]
 
     result = []
-    scope = Extractor(source).process()
+    scope = extract_scope(project, source)
     scope.resolve_star_imports(project)
 
     name_usages = get_name_usages(source.tree)

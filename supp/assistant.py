@@ -3,8 +3,8 @@ import re
 
 from .util import (Source, print_dump, get_marked_atribute, np, split_pkg,
                    get_marked_name, get_marked_import, get_all_usages, join_pkg)
-from .evaluator import evaluate, declarations
-from .astwalk import Extractor
+from .evaluator import declarations
+from .astwalk import extract_scope
 
 
 def list_packages(project, root, filename):
@@ -23,10 +23,9 @@ def assist(project, source, position, filename=None, debug=False):
             package += '.'
         return prefix, list_packages(project, package, filename)
 
-    e = Extractor(source)
-    debug and print_dump(e.tree)
+    debug and print_dump(source.tree)
 
-    marked_import = get_marked_import(e.tree)
+    marked_import = get_marked_import(source.tree)
     if marked_import:
         head, tail = marked_import
         if tail is None:
@@ -37,13 +36,13 @@ def assist(project, source, position, filename=None, debug=False):
             module = project.get_nmodule(head, filename)
             return tail, sorted(set(plist) | set(module.attrs))
 
-    scope = e.process()
+    scope = extract_scope(project, source)
     scope.resolve_star_imports(project)
 
     prefix = re.split(r'(\.|\s)', line)[-1]
-    attr = get_marked_atribute(e.tree)
+    attr = get_marked_atribute(source.tree)
     if attr:
-        value = evaluate(project, scope, attr.value)
+        value = scope.evaluate(attr.value)
         if value:
             names = value.attrs
         else:
@@ -61,13 +60,12 @@ def _loc(location, filename):
 def location(project, source, position, filename=None, debug=False):
     source = Source(source, filename, position)
 
-    e = Extractor(source)
-    debug and print_dump(e.tree)
-    scope = e.process()
+    debug and print_dump(source.tree)
+    scope = extract_scope(project, source)
     scope.resolve_star_imports(project)
 
     result = []
-    marked_import = get_marked_import(e.tree)
+    marked_import = get_marked_import(source.tree)
     if marked_import:
         head, tail = marked_import
         if tail is None:
@@ -86,7 +84,7 @@ def location(project, source, position, filename=None, debug=False):
 
         result = declarations(project, None, name, [])
     else:
-        node = get_marked_name(e.tree) or get_marked_atribute(e.tree)
+        node = get_marked_name(source.tree) or get_marked_atribute(source.tree)
         if node:
             result = declarations(project, scope, node, [])
 
@@ -102,8 +100,7 @@ def location(project, source, position, filename=None, debug=False):
 
 def usages(project, source, filename=None):
     source = Source(source, filename)
-    e = Extractor(source)
-    scope = e.process()
+    scope = extract_scope(project, source)
     scope.resolve_star_imports(project)
 
     for utype, nname, loc, node in get_all_usages(source.tree):

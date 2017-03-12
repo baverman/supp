@@ -3,8 +3,8 @@ from ast import Lambda, With, Call, Subscript, Dict
 from supp.compat import iteritems
 from supp.name import (AssignedName, UndefinedName, MultiName,
                        ImportedName, ArgumentName)
-from supp.scope import FuncScope, ClassScope
-from supp.astwalk import Extractor
+from supp.scope import FuncScope, ClassScope, SourceScope
+from supp.astwalk import extract
 from supp.project import Project
 from supp.util import Source, print_dump, dump_flows
 
@@ -12,10 +12,11 @@ from .helpers import sp
 
 
 def create_scope(source, filename=None, debug=False, flow_graph=False):
-    e = Extractor(Source(source, filename))
-    debug and print_dump(e.tree)
-    e.scope.parent = None
-    scope = e.process()
+    source = Source(source, filename)
+    debug and print_dump(source.tree)
+    scope = SourceScope(None, source.lines, source.filename)
+    scope.parent = None
+    extract(source.tree, scope)
     flow_graph and dump_flows(scope, '/tmp/scope-dump.dot')
     return scope
 

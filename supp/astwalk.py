@@ -5,13 +5,13 @@ from ast import NodeVisitor, Attribute, Subscript
 from .compat import PY2
 from .name import ImportedName, AssignedName
 from .scope import SourceScope, Flow, LoopFlow, ClassScope, FuncScope
-from .util import np, get_expr_end, get_indexes_for_target
+from .util import np, get_expr_end, get_indexes_for_target, visitor
 
 if PY2:
-    UNSUPPORTED_ASSIGMENTS = Attribute, Subscript
+    UNSUPPORTED_ASSIGMENTS = Subscript
 else:
     from ast import Starred
-    UNSUPPORTED_ASSIGMENTS = Attribute, Subscript, Starred
+    UNSUPPORTED_ASSIGMENTS = Subscript, Starred
 
 
 class Fork(object):
@@ -42,15 +42,13 @@ class Fork(object):
         self.forks.append(self.parent)
 
 
-class Extractor(NodeVisitor):
-    def __init__(self, source):
-        self.tree = source.tree
-        self.top = SourceScope(source.lines, source.filename)
-        self.scope = self.top
+@visitor
+class extract(object):
+    def process(self, tree, scope):
+        self.scope = self.top = scope
         self.flow = self.add_flow((1, 0))
 
-    def process(self):
-        for node in self.tree.body:
+        for node in tree.body:
             self.visit(node)
 
         return self.top
@@ -86,9 +84,13 @@ class Extractor(NodeVisitor):
         eend = get_expr_end(node.value)
         for targets in node.targets:
             for name, _ in get_indexes_for_target(targets, [], []):
-                if isinstance(name, UNSUPPORTED_ASSIGMENTS):
+                if isinstance(name, Attribute):
+                    pass
+                    # self.top.add_assign(name, node.value)
+                elif isinstance(name, UNSUPPORTED_ASSIGMENTS):
                     continue
-                self.flow.add_name(AssignedName(name.id, eend, np(name), node.value))
+                else:
+                    self.flow.add_name(AssignedName(name.id, eend, np(name), node.value))
         self.visit(node.value)
 
     def visit_If(self, node):
@@ -254,3 +256,8 @@ class Extractor(NodeVisitor):
 
     def visit_Global(self, node):
         self.scope.globals.update(node.names)
+
+
+def extract_scope(project, source):
+    return extract(source.tree,
+                   SourceScope(project, source.lines, source.filename))

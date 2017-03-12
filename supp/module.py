@@ -1,7 +1,7 @@
 from os.path import getmtime
 
 from .util import cached_property, Source
-from .astwalk import Extractor
+from .astwalk import extract_scope
 from .compat import iteritems
 from .name import RuntimeName
 
@@ -23,8 +23,8 @@ class SourceModule(object):
 
     @cached_property
     def scope(self):
-        e = Extractor(Source(open(self.filename).read(), self.filename))
-        scope = e.process()
+        source = Source(open(self.filename).read(), self.filename)
+        scope = extract_scope(self.project, source)
         scope.resolve_star_imports(self.project)
         return scope
 

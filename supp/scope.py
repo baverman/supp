@@ -2,11 +2,13 @@ from __future__ import print_function
 import string
 from bisect import bisect
 from collections import defaultdict
+from ast import Name as AstName, Attribute, Call
 
-from .util import Location, np, insert_loc, cached_property, get_indexes_for_target
-from .compat import PY2, itervalues, builtins, iteritems
+from .util import (Location, np, insert_loc, cached_property,
+                   get_indexes_for_target, ValueResolver, safe_attribute_error)
+from .compat import PY2, itervalues, builtins, iteritems, hasattr
 from .name import (ArgumentName, MultiName, UndefinedName, Name, ImportedName,
-                   RuntimeName)
+                   RuntimeName, AdditionalNameWrapper, AssignedName)
 from . import compat
 
 IMPORT_DELIMETERS = string.whitespace + '(,'
@@ -68,9 +70,9 @@ class FuncScope(Scope, Location, FileScope):
         return self.last_flow.names
 
 
-    def get_argument(self, project, arg):
+    def get_argument(self, arg):
         if arg.idx == [0] and isinstance(self.parent, ClassScope):
-            return self.parent
+            return self.parent.call()
 
     def __repr__(self):
         return 'FuncScope({}, {})'.format(self.name, self.declared_at)
@@ -90,12 +92,25 @@ class ClassScope(Scope, Location, FileScope):
         return self.parent.names
 
     @property
-    def attrs(self):
+    def _attrs(self):
         names = self.last_flow.names
         return {n: names[n] for n in self.locals}
 
+    @cached_property
+    @safe_attribute_error
+    def attrs(self):
+        bases = list(filter(None, (self.top.evaluate(r) for r in self.bases)))
+        attrs = {}
+        for b in reversed(bases):
+            attrs.update(b.attrs)
+        attrs.update(self._attrs)
+        return attrs
+
     def __repr__(self):
         return 'ClassScope({}, {})'.format(self.name, self.declared_at)
+
+    def call(self):
+        return self
 
 
 class Region(Location):
@@ -122,8 +137,9 @@ builtin_scope = BuiltinScope()
 
 
 class SourceScope(Scope):
-    def __init__(self, lines, filename=None):
+    def __init__(self, project, lines, filename=None):
         Scope.__init__(self, builtin_scope, self)
+        self.project = project
         self.filename = filename
         self.lines = lines
         self.flows = defaultdict(list)
@@ -274,6 +290,38 @@ class SourceScope(Scope):
                                                mname, name.name, True))
 
         self._star_imports[:] = []
+
+    def evaluate(self, node):
+        node_type = type(node)
+        if node_type is AstName:
+            names = self.names_at(np(node))
+            name = names.get(node.id)
+            if name:
+                return self.evaluate(name)
+        elif node_type is ImportedName:
+            return self.evaluate(node.resolve())
+        elif hasattr(node, 'resolve'):
+            return node.resolve()
+        if node_type is Call:
+            func = self.evaluate(node.func)
+            if func and hasattr(func, 'call'):
+                return func.call()
+        elif node_type is MultiName:
+            names = {}
+            for n in node.alt_names:
+                if type(n) is not UndefinedName:
+                    v = n.scope.top.evaluate(n)
+                    if v:
+                        names.update(v.attrs)
+            return AdditionalNameWrapper(None, names)
+        elif node_type is Attribute:
+            value = self.evaluate(node.value)
+            if value:
+                return self.evaluate(value.attrs.get(node.attr))
+        elif node_type is AssignedName:
+            return node.scope.top.evaluate(node.value_node)
+        elif hasattr(node, 'attrs'):
+            return node
 
 
 def resolved_parent_names(parents):

@@ -19,11 +19,19 @@ if PY2:
         if type(data) is unicode:
             return data.encode('utf-8')
         return data
+
+    def hasattr(obj, name):
+        try:
+            getattr(obj, name)
+            return True
+        except AttributeError:
+            return False
 else:
     import builtins
     from functools import reduce
     range = builtins.range
     string_types = (str, )
+    hasattr = builtins.hasattr
 
     iterkeys = lambda d: d.keys()
     itervalues = lambda d: d.values()

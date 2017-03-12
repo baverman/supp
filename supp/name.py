@@ -29,8 +29,8 @@ class ArgumentName(Name):
         return 'ArgumentName({}, {}, {})'.format(
             self.name, self.location, self.declared_at)
 
-    def resolve(self, project):
-        return self.func.get_argument(project, self)
+    def resolve(self):
+        return self.func.get_argument(self)
 
 
 class AssignedName(Name):
@@ -78,7 +78,7 @@ class ImportedName(Name):
         self.mname = mname
         self.is_star = is_star
 
-    def resolve(self, project):
+    def resolve(self):
         try:
             return self._ref
         except AttributeError:
@@ -92,13 +92,13 @@ class ImportedName(Name):
                 module = self.module + self.mname
 
             try:
-                value = project.get_nmodule(module, self.filename)
+                value = self.scope.top.project.get_nmodule(module, self.filename)
             except ImportError:
                 pass
 
         if value is None:
             try:
-                value = project.get_nmodule(self.module, self.filename)
+                value = self.scope.top.project.get_nmodule(self.module, self.filename)
             except ImportError:
                 logging.getLogger('supp.import').error(
                     'Failed import of %s from %s', self.module, self.filename)
