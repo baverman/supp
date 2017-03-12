@@ -382,6 +382,17 @@ def test_instance_attribute():
         bar = Boo()
         bar.|
     ''')
+    _, result = tassist(source, p)
+    assert 'boo' in result
+
+
+def test_basic_self():
+    source, p = sp('''\
+        class Boo(object):
+            def boo(self, ((a, b), bo)):
+                self.|
+    ''')
+
     _, result = tassist(source, p, debug=True)
     assert 'boo' in result
 

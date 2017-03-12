@@ -235,10 +235,10 @@ class get_marked_import(object):
 
 def get_indexes_for_target(target, result, idx):
     if isinstance(target, NESTED_INDEXED_NODES):
-        idx.append(0)
-        for r in target.elts:
-            get_indexes_for_target(r, result, idx)
-        idx.pop()
+        for i, r in enumerate(target.elts):
+            nidx = idx[:]
+            nidx.append(i)
+            get_indexes_for_target(r, result, nidx)
     else:
         result.append((target, idx[:]))
         if idx:

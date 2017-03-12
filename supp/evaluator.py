@@ -2,7 +2,7 @@ from ast import Name, Attribute, Call
 
 from .util import np
 from .name import (ImportedName, AssignedName, MultiName, AdditionalNameWrapper,
-                   UndefinedName)
+                   UndefinedName, ArgumentName)
 from .scope import ClassScope
 
 
@@ -30,6 +30,8 @@ def evaluate(project, scope, node):
         func = evaluate(project, scope, node.func)
         if func and hasattr(func, 'call'):
             return func.call(project)
+    elif node_type is ArgumentName:
+        return evaluate(project, None, node.resolve(project))
     elif node_type is MultiName:
         names = {}
         for n in node.alt_names:

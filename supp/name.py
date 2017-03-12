@@ -19,14 +19,18 @@ class Name(Location):
 
 
 class ArgumentName(Name):
-    def __init__(self, name, location, declared_at, func):
+    def __init__(self, idx, name, location, declared_at, func):
         Name.__init__(self, name, location)
         self.declared_at = declared_at
         self.func = func
+        self.idx = idx
 
     def __repr__(self):
         return 'ArgumentName({}, {}, {})'.format(
             self.name, self.location, self.declared_at)
+
+    def resolve(self, project):
+        return self.func.get_argument(project, self)
 
 
 class AssignedName(Name):

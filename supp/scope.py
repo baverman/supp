@@ -44,20 +44,20 @@ class FuncScope(Scope, Location, FileScope):
                     self.location = np(n)
                     break
 
-        for n in node.args.args:
+        for ni, n in enumerate(node.args.args):
             if PY2:
-                for nn, _idx in get_indexes_for_target(n, [], []):
-                    self.args.append(ArgumentName(nn.id, self.location, np(nn), self))
+                for nn, idx in get_indexes_for_target(n, [], []):
+                    self.args.append(ArgumentName([ni] + idx, nn.id, self.location, np(nn), self))
             else:
-                self.args.append(ArgumentName(n.arg, self.location, np(n), self))
+                self.args.append(ArgumentName([ni], n.arg, self.location, np(n), self))
 
         for s, n in (('*', node.args.vararg), ('**', node.args.kwarg)):
             if n:
                 if PY2:
                     declared_at = top.find_id_loc(s + n, np(node), len(s))
-                    self.args.append(ArgumentName(n, self.location, declared_at, self))
+                    self.args.append(ArgumentName([], n, self.location, declared_at, self))
                 else:
-                    self.args.append(ArgumentName(n.arg, self.location, np(n), self))
+                    self.args.append(ArgumentName([], n.arg, self.location, np(n), self))
 
         self.flow = Flow(self, self.location)
         for arg in self.args:
@@ -66,6 +66,11 @@ class FuncScope(Scope, Location, FileScope):
     @property
     def names(self):
         return self.last_flow.names
+
+
+    def get_argument(self, project, arg):
+        if arg.idx == [0] and isinstance(self.parent, ClassScope):
+            return self.parent
 
     def __repr__(self):
         return 'FuncScope({}, {})'.format(self.name, self.declared_at)
