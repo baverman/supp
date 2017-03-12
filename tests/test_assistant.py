@@ -389,7 +389,7 @@ def test_instance_attribute():
 def test_basic_self():
     source, p = sp('''\
         class Boo(object):
-            def boo(self, ((a, b), bo)):
+            def boo(self):
                 self.|
     ''')
 
