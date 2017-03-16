@@ -1,6 +1,7 @@
 from ast import Lambda, With, Call, Subscript, Dict
+import pytest
 
-from supp.compat import iteritems
+from supp.compat import iteritems, PY2
 from supp.name import (AssignedName, UndefinedName, MultiName,
                        ImportedName, ArgumentName)
 from supp.scope import FuncScope, ClassScope, SourceScope
@@ -278,6 +279,23 @@ def test_function_scope():
     assert nvalues(scope.names_at(p1)) == {'a': 10, 'b': 'foo.arg', 'c': 10, 'foo': 'func'}
     assert nvalues(scope.names_at(p2)) == {'a': 10, 'foo': 'func'}
     assert scope.names['foo'].declared_at == (3, 4)
+
+
+@pytest.mark.skipif(PY2, reason='py3 only')
+def test_async_function_scope():
+    source, p1, p2 = sp('''\
+        a = 10
+        @some.foo
+        async def foo(b):
+            c = 10
+            |
+        |
+    ''')
+
+    scope = create_scope(source, debug=True)
+    assert nvalues(scope.names_at(p1)) == {'a': 10, 'b': 'foo.arg', 'c': 10, 'foo': 'func'}
+    assert nvalues(scope.names_at(p2)) == {'a': 10, 'foo': 'func'}
+    assert scope.names['foo'].declared_at == (3, 10)
 
 
 def test_parent_scope_var_masking():

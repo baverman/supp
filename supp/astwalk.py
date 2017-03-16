@@ -190,6 +190,8 @@ class extract(object):
                 self.visit(n)
             self.scope.last_flow = self.flow
 
+    visit_AsyncFunctionDef = visit_FunctionDef
+
     def visit_Lambda(self, node):
         with self.nest():
             self.scope = FuncScope(self.scope, node, True, top=self.top)
