@@ -1,6 +1,6 @@
 import logging
 
-from .util import Location, cached_property
+from .util import Location, cached_property, safe_attribute_error
 from .compat import iteritems
 
 
@@ -140,6 +140,21 @@ class RuntimeName(Name):
         except TypeError:
             return {k: RuntimeName(k, getattr(self.value, k, None)) for k in dir(self.value)}
 
+    def call(self):
+        try:
+            return self._instance
+        except AttributeError:
+            pass
+
+        self._instance = None
+        if isinstance(self.value, type):
+            try:
+                self._instance = RuntimeName(None, self.value())
+            except TypeError:
+                pass
+
+        return self._instance
+
 
 class UndefinedName(str):
     location = (0, 0)
@@ -168,3 +183,37 @@ class MultiName(object):
 
     def __repr__(self):
         return 'MultiName({})'.format(self.alt_names)
+
+
+class AssignedAttribute(Name):
+    def __init__(self, scope, attr, value, declared_at):
+        self.name = attr.attr
+        self.location = 0, 0
+        self.attr = attr
+        self.declared_at = declared_at
+        self.scope = scope
+        self.value = value
+
+    def resolve(self):
+        return self.scope.evaluate(self.value)
+
+
+class MultiValue(object):
+    def __init__(self, value):
+        self.values = [value]
+
+    def add(self, value):
+        if isinstance(value, MultiValue):
+            self.values.extend(value.values)
+        else:
+            self.values.append(value)
+        return value
+
+    @cached_property
+    @safe_attribute_error
+    def attrs(self):
+        result = {}
+        for v in self.values:
+            val = v.resolve()
+            val and result.update(val.attrs)
+        return result

@@ -397,18 +397,59 @@ def test_basic_self():
     assert 'boo' in result
 
 
-def _test_instance_attributes():
+def test_instance_attributes():
     source, p = sp('''\
+        class Bar(object):
+            def foobar(self):
+                pass
+
         class Boo(object):
             def foo(self):
-                self.bar = 10
+                self.bar = Bar()
 
             def boo(self):
-                self.|
+                self.bar.|
     ''')
 
-    _, result = tassist(source, p, debug=True)
-    assert 'bar' in result
+    _, result = tassist(source, p)
+    assert 'foobar' in result
+
+
+def test_instance_attributes_locations():
+    source, p = sp('''\
+        class Boo(Bar):
+            def baz(self):
+                self.bar = 10
+
+            def foo(self):
+                self.bar = 20
+
+            def boo(self):
+                self.b|ar = 30
+    ''')
+
+    result = tlocation(source, p)
+    assert result == [[{'loc': (3, 8), 'file': '<string>'},
+                       {'loc': (6, 8), 'file': '<string>'}]]
+
+
+def test_inherited_instance_attributes():
+    source, p = sp('''\
+        class Bar(object):
+            def __init__(self):
+                self.foobar = 10
+
+        class Foo(object):
+            def foo(self):
+                self.bar = Bar()
+
+        class Boo(Foo):
+            def boo(self):
+                self.bar.|
+    ''')
+
+    _, result = tassist(source, p)
+    assert 'foobar' in result
 
 
 # def test_boo():

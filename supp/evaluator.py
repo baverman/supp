@@ -1,7 +1,7 @@
 from ast import Name, Attribute
 
 from .util import np
-from .name import ImportedName, MultiName, UndefinedName
+from .name import ImportedName, MultiName, UndefinedName, MultiValue
 
 
 def declarations(project, scope, node, result=[]):
@@ -15,6 +15,16 @@ def declarations(project, scope, node, result=[]):
         for n in node.alt_names:
             if type(n) is not UndefinedName:
                 names.append(n)
+
+        if names:
+            if len(names) > 1:
+                result.append(names)
+            else:
+                cname = names[0]
+    elif node_type is MultiValue:
+        names = []
+        for n in node.values:
+            names.append(n)
 
         if names:
             if len(names) > 1:

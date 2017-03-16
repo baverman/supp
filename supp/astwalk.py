@@ -85,8 +85,7 @@ class extract(object):
         for targets in node.targets:
             for name, _ in get_indexes_for_target(targets, [], []):
                 if isinstance(name, Attribute):
-                    pass
-                    # self.top.add_assign(name, node.value)
+                    self.top.add_attr_assign(self.scope, name, node.value)
                 elif isinstance(name, UNSUPPORTED_ASSIGMENTS):
                     continue
                 else:

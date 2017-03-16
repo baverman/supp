@@ -2,13 +2,14 @@ from __future__ import print_function
 import string
 from bisect import bisect
 from collections import defaultdict
-from ast import Name as AstName, Attribute, Call
+from ast import Name as AstName, Attribute, Call, dump
 
 from .util import (Location, np, insert_loc, cached_property,
                    get_indexes_for_target, ValueResolver, safe_attribute_error)
 from .compat import PY2, itervalues, builtins, iteritems, hasattr
 from .name import (ArgumentName, MultiName, UndefinedName, Name, ImportedName,
-                   RuntimeName, AdditionalNameWrapper, AssignedName)
+                   RuntimeName, AdditionalNameWrapper, AssignedName,
+                   MultiValue, AssignedAttribute)
 from . import compat
 
 IMPORT_DELIMETERS = string.whitespace + '(,'
@@ -69,7 +70,6 @@ class FuncScope(Scope, Location, FileScope):
     def names(self):
         return self.last_flow.names
 
-
     def get_argument(self, arg):
         if arg.idx == [0] and isinstance(self.parent, ClassScope):
             return self.parent.call()
@@ -85,7 +85,8 @@ class ClassScope(Scope, Location, FileScope):
         self.declared_at = top.find_id_loc(' ' + node.name, np(node), 1, False)
         self.location = np(node.body[0])
         self.flow = Flow(self, self.location)
-        self.bases = node.bases
+        self._bases = node.bases
+        self._instance = InstanceValue(self)
 
     @property
     def names(self):
@@ -98,10 +99,14 @@ class ClassScope(Scope, Location, FileScope):
 
     @cached_property
     @safe_attribute_error
+    def bases(self):
+        return list(filter(None, (self.top.evaluate(r) for r in self._bases)))
+
+    @cached_property
+    @safe_attribute_error
     def attrs(self):
-        bases = list(filter(None, (self.top.evaluate(r) for r in self.bases)))
         attrs = {}
-        for b in reversed(bases):
+        for b in reversed(self.bases):
             attrs.update(b.attrs)
         attrs.update(self._attrs)
         return attrs
@@ -110,7 +115,21 @@ class ClassScope(Scope, Location, FileScope):
         return 'ClassScope({}, {})'.format(self.name, self.declared_at)
 
     def call(self):
-        return self
+        return self._instance
+
+
+class InstanceValue(object):
+    def __init__(self, scope):
+        self.scope = scope
+
+    @cached_property
+    @safe_attribute_error
+    def attrs(self):
+        attrs = self.scope.attrs.copy()
+        for b in reversed(self.scope.bases):
+            attrs.update(b.call().attrs)
+        attrs.update(self.scope.top.assigns.get(self, {}))
+        return attrs
 
 
 class Region(Location):
@@ -149,6 +168,7 @@ class SourceScope(Scope):
         self._global_names = {}
         self._imports = []
         self._star_imports = []
+        self._attr_assigns = []
 
     def __repr__(self):
         return 'SourceScope({})'.format(self.filename)
@@ -188,6 +208,9 @@ class SourceScope(Scope):
 
     def add_global(self, name):
         self._global_names[name.name] = name
+
+    def add_attr_assign(self, scope, attr, value):
+        self._attr_assigns.append((scope, attr, value))
 
     @cached_property
     def names(self):
@@ -322,6 +345,27 @@ class SourceScope(Scope):
             return node.scope.top.evaluate(node.value_node)
         elif hasattr(node, 'attrs'):
             return node
+
+    @cached_property
+    @safe_attribute_error
+    def assigns(self):
+        # import logging
+        # logging.getLogger('supp.attr').error('Start assign')
+        result = {}
+        for scope, attr, value in self._attr_assigns:
+            # logging.getLogger('supp.attr').error('Get attr for %s %s',
+            #                                      scope, dump(attr, annotate_fields=False))
+            if type(attr.value) is AstName:
+                attr_val = self.evaluate(attr.value)
+                if attr_val:
+                    attrs = result.setdefault(attr_val, {})
+                    assigned_attr = AssignedAttribute(self, attr, value, np(attr))
+                    try:
+                        attrs[attr.attr].add(assigned_attr)
+                    except KeyError:
+                        attrs[attr.attr] = MultiValue(assigned_attr)
+
+        return result
 
 
 def resolved_parent_names(parents):
