@@ -1,6 +1,6 @@
 from __future__ import print_function
 from contextlib import contextmanager
-from ast import NodeVisitor, Attribute, Subscript
+from ast import Attribute, Subscript
 
 from .compat import PY2
 from .name import ImportedName, AssignedName
@@ -260,5 +260,7 @@ class extract(object):
 
 
 def extract_scope(project, source):
-    return extract(source.tree,
-                   SourceScope(project, source.lines, source.filename))
+    scope = extract(source.tree,
+                    SourceScope(project, source.lines, source.filename))
+    scope.resolve_star_imports()
+    return scope

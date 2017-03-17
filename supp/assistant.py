@@ -1,7 +1,7 @@
 from __future__ import print_function
 import re
 
-from .util import (Source, print_dump, get_marked_atribute, np, split_pkg,
+from .util import (Source, print_dump, get_marked_atribute, split_pkg,
                    get_marked_name, get_marked_import, get_all_usages, join_pkg)
 from .evaluator import declarations
 from .astwalk import extract_scope
@@ -37,7 +37,6 @@ def assist(project, source, position, filename=None, debug=False):
             return tail, sorted(set(plist) | set(module.attrs))
 
     scope = extract_scope(project, source)
-    scope.resolve_star_imports(project)
 
     prefix = re.split(r'(\.|\s)', line)[-1]
     attr = get_marked_atribute(source.tree)
@@ -62,7 +61,6 @@ def location(project, source, position, filename=None, debug=False):
 
     debug and print_dump(source.tree)
     scope = extract_scope(project, source)
-    scope.resolve_star_imports(project)
 
     result = []
     marked_import = get_marked_import(source.tree)
@@ -101,7 +99,6 @@ def location(project, source, position, filename=None, debug=False):
 def usages(project, source, filename=None):
     source = Source(source, filename)
     scope = extract_scope(project, source)
-    scope.resolve_star_imports(project)
 
     for utype, nname, loc, node in get_all_usages(source.tree):
         # print(scope, node)

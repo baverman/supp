@@ -4,7 +4,7 @@ import sys
 from bisect import insort
 from ast import iter_fields, Store, Load, NodeVisitor, parse, Tuple, List, AST
 
-from .compat import iteritems, string_types
+from .compat import iteritems, string_types, reraise
 
 NESTED_INDEXED_NODES = Tuple, List
 
@@ -45,7 +45,8 @@ def safe_attribute_error(func):
         try:
             return func(*args, **kwargs)
         except AttributeError as e:
-            raise AttributeException(str(e))
+            exc_info = sys.exc_info()
+            reraise(AttributeException, AttributeException(str(e)), exc_info[2])
 
     return inner
 

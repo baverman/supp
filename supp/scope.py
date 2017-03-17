@@ -2,12 +2,12 @@ from __future__ import print_function
 import string
 from bisect import bisect
 from collections import defaultdict
-from ast import Name as AstName, Attribute, Call, dump
+from ast import Name as AstName, Attribute, Call
 
 from .util import (Location, np, insert_loc, cached_property,
-                   get_indexes_for_target, ValueResolver, safe_attribute_error)
+                   get_indexes_for_target, safe_attribute_error)
 from .compat import PY2, itervalues, builtins, iteritems, hasattr
-from .name import (ArgumentName, MultiName, UndefinedName, Name, ImportedName,
+from .name import (ArgumentName, MultiName, UndefinedName, ImportedName,
                    RuntimeName, AdditionalNameWrapper, AssignedName,
                    MultiValue, AssignedAttribute)
 from . import compat
@@ -46,6 +46,8 @@ class FuncScope(Scope, Location, FileScope):
                 if n.col_offset >= 0:
                     self.location = np(n)
                     break
+            else:
+                self.location = np(node.body[0])[0], np(node)[1] + 4
 
         for ni, n in enumerate(node.args.args):
             if PY2:
@@ -300,10 +302,10 @@ class SourceScope(Scope):
 
         return start
 
-    def resolve_star_imports(self, project):
+    def resolve_star_imports(self):
         for loc, declared_at, mname, flow in self._star_imports:
             try:
-                module = project.get_nmodule(mname, self.filename)
+                module = self.project.get_nmodule(mname, self.filename)
             except ImportError:
                 continue
 

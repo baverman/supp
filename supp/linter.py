@@ -24,8 +24,6 @@ def lint(project, source, filename=None):
 
     result = []
     scope = extract_scope(project, source)
-    scope.resolve_star_imports(project)
-
     name_usages = get_name_usages(source.tree)
 
     for name, location in name_usages:

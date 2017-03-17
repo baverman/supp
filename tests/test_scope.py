@@ -281,6 +281,20 @@ def test_function_scope():
     assert scope.names['foo'].declared_at == (3, 4)
 
 
+def test_empty_function_scope():
+    source, p = sp('''\
+        def foo(boo):
+            """Empty
+
+            Boo
+            """
+        |
+    ''')
+
+    scope = create_scope(source, debug=True)
+    assert nvalues(scope.names_at(p)) == {'foo': 'func'}
+
+
 @pytest.mark.skipif(PY2, reason='py3 only')
 def test_async_function_scope():
     source, p1, p2 = sp('''\
@@ -744,7 +758,8 @@ def test_star_imports():
     ''')
 
     scope = create_scope(source)
-    scope.resolve_star_imports(Project())
+    scope.project = Project()
+    scope.resolve_star_imports()
     names = scope.names_at(p)
     assert 'join' in names
     assert 'abspath' in names
