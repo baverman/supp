@@ -624,7 +624,7 @@ def test_scope_shift_after_nested_flow():
                 pass
 
         boo = 10
-        return |boo
+        print(); |boo
     ''')
     scope = create_scope(source)
     assert nvalues(scope.names_at(p)) == {'boo': 10}

@@ -258,6 +258,10 @@ class extract(object):
     def visit_Global(self, node):
         self.scope.globals.update(node.names)
 
+    def visit_Return(self, node):
+        self.scope.returns.append(node.value)
+        self.generic_visit(node)
+
 
 def extract_scope(project, source):
     scope = extract(source.tree,

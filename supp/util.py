@@ -4,7 +4,7 @@ import sys
 from bisect import insort
 from ast import iter_fields, Store, Load, NodeVisitor, parse, Tuple, List, AST
 
-from .compat import iteritems, string_types, reraise
+from .compat import iteritems, string_types
 
 NESTED_INDEXED_NODES = Tuple, List
 
@@ -38,22 +38,6 @@ class cached_property(object):
 
 
 class AttributeException(Exception): pass
-
-
-def safe_attribute_error(func):
-    def inner(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except AttributeError as e:
-            exc_info = sys.exc_info()
-            reraise(AttributeException, AttributeException(str(e)), exc_info[2])
-
-    return inner
-
-
-class ValueResolver(object):
-    def resolve(self):
-        return self.value
 
 
 def insert_loc(locations, loc):

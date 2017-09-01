@@ -1,7 +1,19 @@
 import logging
 
-from .util import Location, cached_property, safe_attribute_error
+from .util import Location, cached_property
 from .compat import iteritems
+
+
+class Object(object):
+    pass
+
+
+class Callable(object):
+    pass
+
+
+class Resolvable(object):
+    pass
 
 
 class Name(Location):
@@ -18,7 +30,7 @@ class Name(Location):
         return self.scope and self.scope.top.filename
 
 
-class ArgumentName(Name):
+class ArgumentName(Name, Resolvable):
     def __init__(self, idx, name, location, declared_at, func):
         Name.__init__(self, name, location)
         self.declared_at = declared_at
@@ -44,7 +56,7 @@ class AssignedName(Name):
             self.name, self.location, self.declared_at)
 
 
-class AdditionalNameWrapper(object):
+class AdditionalNameWrapper(Object):
     def __init__(self, value, names):
         self.value = value
         self._names = names
@@ -69,7 +81,7 @@ class FailedImport(str):
     names = {}
 
 
-class ImportedName(Name):
+class ImportedName(Name, Resolvable):
     def __init__(self, name, location, declared_at, module,
                  mname=None, is_star=False):
         Name.__init__(self, name, location)
@@ -127,7 +139,7 @@ class ImportedName(Name):
             self.name, self.location, self.declared_at, self.module, self.mname)
 
 
-class RuntimeName(Name):
+class RuntimeName(Name, Object, Callable):
     def __init__(self, name, value):
         self.name = name
         self.value = value
@@ -140,7 +152,7 @@ class RuntimeName(Name):
         except TypeError:
             return {k: RuntimeName(k, getattr(self.value, k, None)) for k in dir(self.value)}
 
-    def call(self):
+    def call(self, info):
         try:
             return self._instance
         except AttributeError:
@@ -185,7 +197,7 @@ class MultiName(object):
         return 'MultiName({})'.format(self.alt_names)
 
 
-class AssignedAttribute(Name):
+class AssignedAttribute(Name, Resolvable):
     def __init__(self, scope, attr, value, declared_at):
         self.name = attr.attr
         self.location = 0, 0
@@ -198,7 +210,7 @@ class AssignedAttribute(Name):
         return self.scope.evaluate(self.value)
 
 
-class MultiValue(object):
+class MultiValue(Object):
     def __init__(self, value):
         self.values = [value]
 
@@ -210,7 +222,6 @@ class MultiValue(object):
         return value
 
     @cached_property
-    @safe_attribute_error
     def attrs(self):
         result = {}
         for v in self.values:

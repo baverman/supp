@@ -22,13 +22,6 @@ if PY2:
             return data.encode('utf-8')
         return data
 
-
-    def hasattr(obj, name):
-        try:
-            getattr(obj, name)
-            return True
-        except AttributeError:
-            return False
 else:
     import builtins
     from functools import reduce

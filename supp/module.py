@@ -1,12 +1,12 @@
 from os.path import getmtime
 
-from .util import cached_property, Source, safe_attribute_error
+from .util import cached_property, Source
 from .astwalk import extract_scope
 from .compat import iteritems
-from .name import RuntimeName
+from .name import RuntimeName, Object
 
 
-class SourceModule(object):
+class SourceModule(Object):
     def __init__(self, name, project, filename):
         self.project = project
         self.name = name
@@ -28,17 +28,15 @@ class SourceModule(object):
         return scope
 
     @property
-    @safe_attribute_error
     def attrs(self):
         return self.scope.exported_names
 
 
-class ImportedModule(object):
+class ImportedModule(Object):
     def __init__(self, module):
         self.module = module
         self.changed = False
 
     @cached_property
-    @safe_attribute_error
     def attrs(self):
         return {k: RuntimeName(k, v) for k, v in iteritems(vars(self.module))}
