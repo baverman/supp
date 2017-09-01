@@ -1,17 +1,20 @@
 from __future__ import print_function
 import string
+import logging
 from bisect import bisect
 from collections import defaultdict
-from ast import Name as AstName, Attribute, Call
+from ast import Name as AstName, Attribute, Call, Str
 
 from .util import (Location, np, insert_loc, cached_property,
-                   get_indexes_for_target, safe_attribute_error)
-from .compat import PY2, itervalues, builtins, iteritems, hasattr
+                   get_indexes_for_target)
+from .compat import PY2, itervalues, builtins, iteritems
 from .name import (ArgumentName, MultiName, UndefinedName, ImportedName,
                    RuntimeName, AdditionalNameWrapper, AssignedName,
-                   MultiValue, AssignedAttribute)
+                   MultiValue, AssignedAttribute, Object, Resolvable,
+                   Callable)
 from . import compat
 
+log = logging.getLogger('supp.scope')
 IMPORT_DELIMETERS = string.whitespace + '(,'
 IMPORT_END_DELIMETERS = string.whitespace + '),.;'
 
@@ -31,7 +34,7 @@ class FileScope(object):
             return self.top.filename
 
 
-class FuncScope(Scope, Location, FileScope):
+class FuncScope(Scope, Location, FileScope, Object, Callable):
     def __init__(self, parent, node, is_lambda=False, top=None):
         Scope.__init__(self, parent, top)
         self.args = []
@@ -68,19 +71,25 @@ class FuncScope(Scope, Location, FileScope):
         for arg in self.args:
             self.flow.add_name(arg)
 
+        self.returns = []
+
     @property
     def names(self):
         return self.last_flow.names
 
     def get_argument(self, arg):
         if arg.idx == [0] and isinstance(self.parent, ClassScope):
-            return self.parent.call()
+            return self.parent.call(None)
+
+    def call(self, info):
+        if len(self.returns) == 1:
+            return self.top.evaluate(self.returns[0])
 
     def __repr__(self):
         return 'FuncScope({}, {})'.format(self.name, self.declared_at)
 
 
-class ClassScope(Scope, Location, FileScope):
+class ClassScope(Scope, Location, FileScope, Object, Callable):
     def __init__(self, parent, node, top=None):
         Scope.__init__(self, parent, top)
         self.name = node.name
@@ -100,12 +109,10 @@ class ClassScope(Scope, Location, FileScope):
         return {n: names[n] for n in self.locals}
 
     @cached_property
-    @safe_attribute_error
     def bases(self):
         return list(filter(None, (self.top.evaluate(r) for r in self._bases)))
 
     @cached_property
-    @safe_attribute_error
     def attrs(self):
         attrs = {}
         for b in reversed(self.bases):
@@ -116,20 +123,19 @@ class ClassScope(Scope, Location, FileScope):
     def __repr__(self):
         return 'ClassScope({}, {})'.format(self.name, self.declared_at)
 
-    def call(self):
+    def call(self, info):
         return self._instance
 
 
-class InstanceValue(object):
+class InstanceValue(Object):
     def __init__(self, scope):
         self.scope = scope
 
     @cached_property
-    @safe_attribute_error
     def attrs(self):
         attrs = self.scope.attrs.copy()
         for b in reversed(self.scope.bases):
-            attrs.update(b.call().attrs)
+            attrs.update(b.call(None).attrs)
         attrs.update(self.scope.top.assigns.get(self, {}))
         return attrs
 
@@ -318,6 +324,7 @@ class SourceScope(Scope):
 
     def evaluate(self, node):
         node_type = type(node)
+        # import ipdb; ipdb.set_trace()
         if node_type is AstName:
             names = self.names_at(np(node))
             name = names.get(node.id)
@@ -325,12 +332,15 @@ class SourceScope(Scope):
                 return self.evaluate(name)
         elif node_type is ImportedName:
             return self.evaluate(node.resolve())
-        elif hasattr(node, 'resolve'):
+        elif isinstance(node, Resolvable):
             return node.resolve()
         if node_type is Call:
             func = self.evaluate(node.func)
-            if func and hasattr(func, 'call'):
-                return func.call()
+            if func:
+                if isinstance(func, Callable):
+                    return func.call(node.func)
+                else:
+                    log.warn('Non-callable %r %r', type(func), func)
         elif node_type is MultiName:
             names = {}
             for n in node.alt_names:
@@ -345,16 +355,19 @@ class SourceScope(Scope):
                 return self.evaluate(value.attrs.get(node.attr))
         elif node_type is AssignedName:
             return node.scope.top.evaluate(node.value_node)
-        elif hasattr(node, 'attrs'):
+        elif isinstance(node, Object):
             return node
+        elif node_type is Str:
+            return RuntimeName('__none__', node.s)
+        else:
+            log.warn('Unknown node type %r %r', node_type, node)
 
     @cached_property
-    @safe_attribute_error
     def assigns(self):
         # import logging
         # logging.getLogger('supp.attr').error('Start assign')
         result = {}
-        for scope, attr, value in self._attr_assigns:
+        for _scope, attr, value in self._attr_assigns:
             # logging.getLogger('supp.attr').error('Get attr for %s %s',
             #                                      scope, dump(attr, annotate_fields=False))
             if type(attr.value) is AstName:

@@ -452,6 +452,47 @@ def test_inherited_instance_attributes():
     assert 'foobar' in result
 
 
+def test_func_call_result():
+    source, p = sp('''\
+        def foo():
+            return ""
+
+        foo().|
+    ''')
+
+    _, result = tassist(source, p)
+    assert 'startswith' in result
+
+
+def _test_func_call_arg_result():
+    source, p = sp('''\
+        def foo(arg):
+            return arg
+
+        foo("").|
+    ''')
+
+    _, result = tassist(source, p, debug=True)
+    assert 'startswith' in result
+
+
+# def test_classmethod():
+#     source, p = sp('''\
+#         class Bar(object):
+#             @classmethod
+#             def bar(cls):
+#                 return cls
+#
+#             def foo(self):
+#                 pass
+#
+#         Bar.bar().|
+#     ''')
+#
+#     _, result = tassist(source, p)
+#     assert 'foo' in result
+
+
 # def test_boo():
 #     project = Project(['/home/bobrov/work/supp'])
 #     source = open(__file__.rstrip('c')).read()

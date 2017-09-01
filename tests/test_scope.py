@@ -291,7 +291,7 @@ def test_empty_function_scope():
         |
     ''')
 
-    scope = create_scope(source, debug=True)
+    scope = create_scope(source)
     assert nvalues(scope.names_at(p)) == {'foo': 'func'}
 
 
@@ -306,7 +306,7 @@ def test_async_function_scope():
         |
     ''')
 
-    scope = create_scope(source, debug=True)
+    scope = create_scope(source)
     assert nvalues(scope.names_at(p1)) == {'a': 10, 'b': 'foo.arg', 'c': 10, 'foo': 'func'}
     assert nvalues(scope.names_at(p2)) == {'a': 10, 'foo': 'func'}
     assert scope.names['foo'].declared_at == (3, 10)
@@ -624,7 +624,7 @@ def test_scope_shift_after_nested_flow():
                 pass
 
         boo = 10
-        return |boo
+        print(); |boo
     ''')
     scope = create_scope(source)
     assert nvalues(scope.names_at(p)) == {'boo': 10}
