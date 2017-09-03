@@ -28,7 +28,7 @@ def tmarked_import(source, filename, pos):
 def test_marked_import(project):
     project.add_m('testp.testm')
 
-    source, p1, p2, p3, p4, p5, p6, p7, p8 = sp('''\n
+    source, p = sp('''\n
         import b|oo
         import boo.f|oo
         from boo import fo|o
@@ -40,19 +40,19 @@ def test_marked_import(project):
     ''')
 
     fn = project.get_m('testp.testm')
-    assert tmarked_import(source, fn, p1) == ('boo', None)
-    assert tmarked_import(source, fn, p2) == ('boo.foo', None)
-    assert tmarked_import(source, fn, p3) == ('boo', 'foo')
-    assert tmarked_import(source, fn, p4) == ('boo', None)
-    assert tmarked_import(source, fn, p5) == ('.', 'boo')
-    assert tmarked_import(source, fn, p6) == ('.foo', 'boo')
-    assert tmarked_import(source, fn, p7) == ('.foo', None)
-    assert tmarked_import(source, fn, p8) == ('.', None)
+    assert tmarked_import(source, fn, p[0]) == ('boo', None)
+    assert tmarked_import(source, fn, p[1]) == ('boo.foo', None)
+    assert tmarked_import(source, fn, p[2]) == ('boo', 'foo')
+    assert tmarked_import(source, fn, p[3]) == ('boo', None)
+    assert tmarked_import(source, fn, p[4]) == ('.', 'boo')
+    assert tmarked_import(source, fn, p[5]) == ('.foo', 'boo')
+    assert tmarked_import(source, fn, p[6]) == ('.foo', None)
+    assert tmarked_import(source, fn, p[7]) == ('.', None)
 
-    source, p1  = sp('''\n
+    source, p  = sp('''\n
         import os.|
     ''')
-    assert tmarked_import(source, fn, p1) == ('os.', None)
+    assert tmarked_import(source, fn, p[0]) == ('os.', None)
 
 
 def test_split_pkg():

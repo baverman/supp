@@ -9,6 +9,6 @@ def test_remote_assist():
         foo = 10
         |
     ''')
-    m, result = env.assist(source, p, 'boo.py')
+    m, result = env.assist(source, p[0], 'boo.py')
     assert m == b''
     assert b'foo' in result

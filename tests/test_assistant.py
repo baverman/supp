@@ -17,7 +17,7 @@ def test_simple_from():
         from mul|
     ''')
 
-    m, result = tassist(source, p)
+    m, result = tassist(source, p[0])
     assert m == 'mul'
     assert 'multiprocessing' in result
 
@@ -26,7 +26,7 @@ def test_from_all():
     source, p = sp('''\
         from |
     ''')
-    m, result = tassist(source, p)
+    m, result = tassist(source, p[0])
     assert m == ''
     assert 'os' in result
     assert 'sys' in result
@@ -37,7 +37,7 @@ def test_from_with_parent_package():
         from multiprocessing.|
     ''')
 
-    m, result = tassist(source, p)
+    m, result = tassist(source, p[0])
     assert m == ''
     assert 'connection' in result
     assert 'process' in result
@@ -48,7 +48,7 @@ def test_dyn_from_with_parent_package():
         from os.|
     ''')
 
-    m, result = tassist(source, p)
+    m, result = tassist(source, p[0])
     assert m == ''
     assert 'path' in result
 
@@ -58,7 +58,7 @@ def test_from_src(project):
     source, p = sp('''\
         from testp.|
     ''')
-    m, result = tassist(source, p, project)
+    m, result = tassist(source, p[0], project)
     assert m == ''
     assert result == ['module']
 
@@ -68,14 +68,14 @@ def test_relative_from(project):
     source, p = sp('''\
         from .|
     ''')
-    m, result = tassist(source, p, project, project.get_m('testp.tmodule'))
+    m, result = tassist(source, p[0], project, project.get_m('testp.tmodule'))
     assert m == ''
     assert 'module' in result
 
     source, p = sp('''\
         from ..|
     ''')
-    m, result = tassist(source, p, project, project.get_m('testp.pkg.tmodule'))
+    m, result = tassist(source, p[0], project, project.get_m('testp.pkg.tmodule'))
     assert m == ''
     assert 'module' in result
 
@@ -84,7 +84,7 @@ def test_simple_import():
     source, p = sp('''\
         import mul|
     ''')
-    m, result = tassist(source, p)
+    m, result = tassist(source, p[0])
     assert m == 'mul'
     assert 'multiprocessing' in result
 
@@ -93,7 +93,7 @@ def test_comma_import():
     source, p = sp('''\
         import os, mul|
     ''')
-    m, result = tassist(source, p)
+    m, result = tassist(source, p[0])
     assert m == 'mul'
     assert 'multiprocessing' in result
 
@@ -102,7 +102,7 @@ def test_dotted_import():
     source, p = sp('''\
         import os.|
     ''')
-    m, result = tassist(source, p)
+    m, result = tassist(source, p[0])
     assert m == ''
     assert 'path' in result
 
@@ -111,7 +111,7 @@ def test_import_all():
     source, p = sp('''\
         import |
     ''')
-    m, result = tassist(source, p)
+    m, result = tassist(source, p[0])
     assert m == ''
     assert 'os' in result
     assert 'sys' in result
@@ -121,7 +121,7 @@ def test_import_from_simple1():
     source, p = sp('''\
         from multiprocessing import |
     ''')
-    m, result = tassist(source, p)
+    m, result = tassist(source, p[0])
     assert m == ''
     assert 'connection' in result
     assert 'pool' in result
@@ -133,7 +133,7 @@ def test_import_from_simple2(project):
     source, p = sp('''\
         from . import |
     ''')
-    m, result = tassist(source, p, project, project.get_m('testp.tmodule'))
+    m, result = tassist(source, p[0], project, project.get_m('testp.tmodule'))
     assert m == ''
     assert 'module' in result
 
@@ -143,7 +143,7 @@ def test_import_from_simple3(project):
     source, p = sp('''\
         from .module import |
     ''')
-    m, result = tassist(source, p, project, project.get_m('testp.tmodule'))
+    m, result = tassist(source, p[0], project, project.get_m('testp.tmodule'))
     assert m == ''
     assert 'submod' in result
 
@@ -157,13 +157,13 @@ def test_import_from_module_names(project):
     source, p = sp('''\
         from testp import |
     ''')
-    m, result = tassist(source, p, project, project.get_m('testp.tmodule'))
+    m, result = tassist(source, p[0], project, project.get_m('testp.tmodule'))
     assert m == ''
     assert 'module' in result
     assert 'foo' in result
 
     # test changed module cache
-    m, result = tassist(source, p, project, project.get_m('testp.tmodule'))
+    m, result = tassist(source, p[0], project, project.get_m('testp.tmodule'))
     assert m == ''
     assert 'module' in result
     assert 'foo' in result
@@ -175,7 +175,7 @@ def test_name_assist():
         foo = 20
         f|
     ''')
-    m, result = tassist(source, p)
+    m, result = tassist(source, p[0])
     assert m == 'f'
     assert 'foo' in result
     assert 'boo' in result
@@ -187,12 +187,12 @@ def test_dynamic_modules():
         from os.path import j|
     ''')
 
-    m, result = tassist(source, p, project)
+    m, result = tassist(source, p[0], project)
     assert m == 'j'
     assert 'join' in result
 
     # test changed module cache
-    m, result = tassist(source, p, project)
+    m, result = tassist(source, p[0], project)
     assert m == 'j'
     assert 'join' in result
 
@@ -214,23 +214,23 @@ def test_imported_name_modules():
         from multiprocessing import connection
         connection.Cl|
     ''')
-    m, result = tassist(source, p, project)
+    m, result = tassist(source, p[0], project)
     assert m == 'Cl'
     assert 'Client' in result
 
 
 def test_module_name_location():
-    source, p1, p2 = sp('''\
+    source, p = sp('''\
         def foo(): pass
         boo = 10
         f|oo
         |boo
     ''')
 
-    loc, = tlocation(source, p1)
+    loc, = tlocation(source, p[0])
     assert loc['loc'] == (1, 4)
 
-    loc, = tlocation(source, p2)
+    loc, = tlocation(source, p[1])
     assert loc['loc'] == (2, 0)
 
 
@@ -239,26 +239,26 @@ def test_imported_name_location(project):
         boo = 20
     ''')
 
-    source, p1, p2, p3, p4 = sp('''\
+    source, p = sp('''\
         import testp.te|stm
         from testp.testm import b|oo
         bo|o
         from . import tes|tm
     ''')
 
-    loc, = tlocation(source, p1, project, filename=project.get_m('testp.testm2'))
+    loc, = tlocation(source, p[0], project, filename=project.get_m('testp.testm2'))
     assert loc['loc'] == (1, 0)
     assert loc['file'] == project.get_m('testp.testm')
 
-    loc, = tlocation(source, p2, project, filename=project.get_m('testp.testm2'))
+    loc, = tlocation(source, p[1], project, filename=project.get_m('testp.testm2'))
     assert loc['loc'] == (1, 0)
     assert loc['file'] == project.get_m('testp.testm')
 
-    locs = tlocation(source, p3, project, filename=project.get_m('testp.testm2'))
+    locs = tlocation(source, p[2], project, filename=project.get_m('testp.testm2'))
     assert locs == [_loc((2, 24), project.get_m('testp.testm2')),
                     _loc((1, 0), project.get_m('testp.testm'))]
 
-    locs = tlocation(source, p4, project, filename=project.get_m('testp.testm2'))
+    locs = tlocation(source, p[3], project, filename=project.get_m('testp.testm2'))
     assert locs == [_loc((1, 0), project.get_m('testp.testm'))]
 
 
@@ -272,7 +272,7 @@ def test_imported_attr_location(project):
         foo = boo
     ''')
 
-    source, p1, p2, p3, p4, p5 = sp('''\
+    source, p = sp('''\
         import testp.testm
         from testp import testm
         from testp import testm as am
@@ -283,26 +283,26 @@ def test_imported_attr_location(project):
         from testp.tes|tm.boo import foo
     ''')
 
-    loc, = tlocation(source, p1, project, filename=project.get_m('testp.testm2'))
+    loc, = tlocation(source, p[0], project, filename=project.get_m('testp.testm2'))
     assert loc['loc'] == (3, 4)
     assert loc['file'] == project.get_m('testp.testm')
 
-    loc, = tlocation(source, p2, project, filename=project.get_m('testp.testm2'))
+    loc, = tlocation(source, p[1], project, filename=project.get_m('testp.testm2'))
     assert loc['loc'] == (3, 4)
     assert loc['file'] == project.get_m('testp.testm')
 
-    locs = tlocation(source, p3, project, filename=project.get_m('testp.testm2'))
+    locs = tlocation(source, p[2], project, filename=project.get_m('testp.testm2'))
     assert locs == [
         _loc((6, 0), project.get_m('testp.testm')),
     ]
 
-    locs = tlocation(source, p4, project, filename=project.get_m('testp.testm2'))
+    locs = tlocation(source, p[3], project, filename=project.get_m('testp.testm2'))
     assert locs == [
         _loc((0, 0), project.get_m('testp.testm2')),
         _loc((1, 0), project.get_m('testp.testm')),
     ]
 
-    locs = tlocation(source, p5, project, filename=project.get_m('testp.testm2'))
+    locs = tlocation(source, p[4], project, filename=project.get_m('testp.testm2'))
     assert locs == [
         _loc((1, 0), project.get_m('testp.testm')),
     ]
@@ -318,7 +318,7 @@ def test_recursive_imported_name(project):
         datetime.|
     ''')
 
-    _, result = tassist(source, p, project)
+    _, result = tassist(source, p[0], project)
     assert 'timedelta' in result
 
 
@@ -328,7 +328,7 @@ def test_assigned_imported_name():
         cn = connection
         cn.|
     ''')
-    _, result = tassist(source, p)
+    _, result = tassist(source, p[0])
     assert 'Client' in result
 
 
@@ -337,7 +337,7 @@ def test_deep_attribute():
         import os.path
         os.path.|
     ''')
-    _, result = tassist(source, p)
+    _, result = tassist(source, p[0])
     assert 'join' in result
 
 
@@ -346,7 +346,7 @@ def test_import_space():
         import multiprocessing.connection
         multiprocessing.connection.|
     ''')
-    _, result = tassist(source, p)
+    _, result = tassist(source, p[0])
     assert 'Client' in result
 
 
@@ -366,7 +366,7 @@ def test_class_attribute():
 
         Boo.|
     ''')
-    _, result = tassist(source, p)
+    _, result = tassist(source, p[0])
     assert 'boo' in result
     assert 'foo' in result
     assert 'bar' in result
@@ -382,7 +382,7 @@ def test_instance_attribute():
         bar = Boo()
         bar.|
     ''')
-    _, result = tassist(source, p)
+    _, result = tassist(source, p[0])
     assert 'boo' in result
 
 
@@ -393,7 +393,7 @@ def test_basic_self():
                 self.|
     ''')
 
-    _, result = tassist(source, p)
+    _, result = tassist(source, p[0])
     assert 'boo' in result
 
 
@@ -411,7 +411,7 @@ def test_instance_attributes():
                 self.bar.|
     ''')
 
-    _, result = tassist(source, p)
+    _, result = tassist(source, p[0])
     assert 'foobar' in result
 
 
@@ -428,7 +428,7 @@ def test_instance_attributes_locations():
                 self.b|ar = 30
     ''')
 
-    result = tlocation(source, p)
+    result = tlocation(source, p[0])
     assert result == [[{'loc': (3, 8), 'file': '<string>'},
                        {'loc': (6, 8), 'file': '<string>'}]]
 
@@ -448,7 +448,7 @@ def test_inherited_instance_attributes():
                 self.bar.|
     ''')
 
-    _, result = tassist(source, p)
+    _, result = tassist(source, p[0])
     assert 'foobar' in result
 
 
@@ -460,7 +460,7 @@ def test_func_call_result():
         foo().|
     ''')
 
-    _, result = tassist(source, p)
+    _, result = tassist(source, p[0])
     assert 'startswith' in result
 
 
@@ -472,7 +472,7 @@ def _test_func_call_arg_result():
         foo("").|
     ''')
 
-    _, result = tassist(source, p, debug=True)
+    _, result = tassist(source, p[0], debug=True)
     assert 'startswith' in result
 
 

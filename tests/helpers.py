@@ -14,4 +14,4 @@ def sp(source):
         column = pos - source.rfind('\n') - 1
         cursors.append((line, column))
 
-    return [type(source)('').join(parts)] + cursors
+    return type(source)('').join(parts), cursors

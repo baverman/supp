@@ -9,7 +9,7 @@ def tusages(source, project=None, filename=None):
 
 
 def test_simple():
-    source, = sp('''\
+    source, _p = sp('''\
         s = 'boo'
         while s:
             foo(s)
