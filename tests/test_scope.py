@@ -4,62 +4,12 @@ import pytest
 from supp.compat import iteritems, PY2
 from supp.name import (AssignedName, UndefinedName, MultiName,
                        ImportedName, ArgumentName)
-from supp.scope import FuncScope, ClassScope, SourceScope
-from supp.astwalk import extract
+from supp.scope import SourceScope, FuncScope, ClassScope
 from supp.project import Project
 from supp.util import Source, print_dump, dump_flows
+from supp.nast import extract, marked_flow
 
 from .helpers import sp
-
-
-def create_scope(source, filename=None, debug=False, flow_graph=False):
-    source = Source(source, filename)
-    debug and print_dump(source.tree)
-    scope = SourceScope(None, source.lines, source.filename)
-    scope.parent = None
-    extract(source.tree, scope)
-    flow_graph and dump_flows(scope, '/tmp/scope-dump.dot')
-    return scope
-
-
-def get_value(name):
-    if isinstance(name, AssignedName):
-        if isinstance(name.value_node, Lambda):
-            return 'lambda'
-        if isinstance(name.value_node, With):
-            return 'with'
-        if isinstance(name.value_node, Call):
-            return 'func()'
-        if isinstance(name.value_node, Subscript):
-            return 'item[]'
-        if isinstance(name.value_node, Dict):
-            return '{}'
-        if hasattr(name.value_node, 'elts'):
-            return 'listitem'
-        if hasattr(name.value_node, 'id'):
-            return name.value_node.id
-        return name.value_node.n
-    elif isinstance(name, UndefinedName):
-        return 'undefined'
-    elif isinstance(name, MultiName):
-        return set(get_value(r) for r in name.alt_names)
-    elif isinstance(name, ImportedName):
-        if name.mname:
-            return 'import:{0.module}:{0.mname}'.format(name)
-        else:
-            return 'import:{0.module}'.format(name)
-    elif isinstance(name, ArgumentName):
-        return '{}.arg'.format(name.func.name, name.name)
-    elif isinstance(name, FuncScope):
-        return 'func'
-    elif isinstance(name, ClassScope):
-        return 'class'
-    else:
-        raise Exception('Unknown name type', name)
-
-
-def nvalues(names):
-    return {k: get_value(v) for k, v in iteritems(names)}
 
 
 def test_simple_flow():
@@ -71,8 +21,8 @@ def test_simple_flow():
 
     scope = create_scope(source)
     assert nvalues(scope.names) == {'foo': 10, 'boo': 20}
-    assert nvalues(scope.names_at(p[0])) == {'foo': 10}
-    assert nvalues(scope.names_at(p[1])) == {'foo': 10, 'boo': 20}
+    assert nvalues(names_at(scope, p[0])) == {'foo': 10}
+    assert nvalues(names_at(scope, p[1])) == {'foo': 10, 'boo': 20}
 
 
 def test_value_override():
@@ -85,9 +35,9 @@ def test_value_override():
 
     scope = create_scope(source)
     assert nvalues(scope.names) == {'foo': 20}
-    assert nvalues(scope.names_at(p[0])) == {'foo': 10}
-    assert nvalues(scope.names_at(p[1])) == {'foo': 20}
-    assert nvalues(scope.names_at(p[2])) == {'foo': 20}
+    assert nvalues(names_at(scope, p[0])) == {'foo': 10}
+    assert nvalues(names_at(scope, p[1])) == {'foo': 20}
+    assert nvalues(names_at(scope, p[2])) == {'foo': 20}
 
 
 def test_simple_if():
@@ -100,8 +50,8 @@ def test_simple_if():
     ''')
 
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p[0])) == {'a': 10, 'b': 10}
-    assert nvalues(scope.names_at(p[1])) == {'a': 10, 'b': {10, 'undefined'}}
+    assert nvalues(names_at(scope, p[0])) == {'a': 10, 'b': 10}
+    assert nvalues(names_at(scope, p[1])) == {'a': 10, 'b': {10, 'undefined'}}
 
 
 def test_if():
@@ -121,11 +71,11 @@ def test_if():
     ''')
 
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p[0])) == {'a': 10, 'b': 10}
-    assert nvalues(scope.names_at(p[1])) == {'a': 10, 'b': 10, 'c': 10}
-    assert nvalues(scope.names_at(p[2])) == {'a': 30}
-    assert nvalues(scope.names_at(p[3])) == {'a': 30, 'b': 20}
-    assert nvalues(scope.names_at(p[4])) == {
+    assert nvalues(names_at(scope, p[0])) == {'a': 10, 'b': 10}
+    assert nvalues(names_at(scope, p[1])) == {'a': 10, 'b': 10, 'c': 10}
+    assert nvalues(names_at(scope, p[2])) == {'a': 30}
+    assert nvalues(names_at(scope, p[3])) == {'a': 30, 'b': 20}
+    assert nvalues(names_at(scope, p[4])) == {
         'a': {10, 30},
         'b': {10, 20, 'undefined'},
         'c': {10, 20, 'undefined'}
@@ -145,10 +95,10 @@ def test_for_without_break():
     ''')
 
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p[0])) == {'a': 'listitem', 'b': {10, 20}}
-    assert nvalues(scope.names_at(p[1])) == {'a': 'listitem', 'b': 20}
-    assert nvalues(scope.names_at(p[2])) == {'a': {'listitem', 'undefined'}, 'b': {10, 20}, 'c': 10}
-    assert nvalues(scope.names_at(p[3])) == {'a': {'listitem', 'undefined'}, 'b': {10, 20}, 'c': 10}
+    assert nvalues(names_at(scope, p[0])) == {'a': 'listitem', 'b': {10, 20}}
+    assert nvalues(names_at(scope, p[1])) == {'a': 'listitem', 'b': 20}
+    assert nvalues(names_at(scope, p[2])) == {'a': {'listitem', 'undefined'}, 'b': {10, 20}, 'c': 10}
+    assert nvalues(names_at(scope, p[3])) == {'a': {'listitem', 'undefined'}, 'b': {10, 20}, 'c': 10}
 
 
 def test_for_with_inner_try():
@@ -162,7 +112,7 @@ def test_for_with_inner_try():
     ''')
 
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p[0])) == {'name': 'listitem', 'boo': {10, 'undefined'}}
+    assert nvalues(names_at(scope, p[0])) == {'name': 'listitem', 'boo': {10, 'undefined'}}
 
 
 def test_while_without_break():
@@ -178,10 +128,10 @@ def test_while_without_break():
     ''')
 
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p[0])) == {'b': {10, 20}}
-    assert nvalues(scope.names_at(p[1])) == {'b': 20}
-    assert nvalues(scope.names_at(p[2])) == {'b': {10, 20}, 'c': 10}
-    assert nvalues(scope.names_at(p[3])) == {'b': {10, 20}, 'c': 10}
+    assert nvalues(names_at(scope, p[0])) == {'b': {10, 20}}
+    assert nvalues(names_at(scope, p[1])) == {'b': 20}
+    assert nvalues(names_at(scope, p[2])) == {'b': {10, 20}, 'c': 10}
+    assert nvalues(names_at(scope, p[3])) == {'b': {10, 20}, 'c': 10}
 
 
 def test_imports():
@@ -217,8 +167,8 @@ def test_oneliners():
     ''')
 
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p[0])) == {'traceback': 'import:traceback'}
-    assert nvalues(scope.names_at(p[1])) == {'traceback': 'import:traceback', 'a': 10}
+    assert nvalues(names_at(scope, p[0])) == {'traceback': 'import:traceback'}
+    assert nvalues(names_at(scope, p[1])) == {'traceback': 'import:traceback', 'a': 10}
 
 
 def test_simple_try_except():
@@ -231,8 +181,8 @@ def test_simple_try_except():
     ''')
 
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p[0])) == {}
-    assert nvalues(scope.names_at(p[1])) == {'a': {10, 20}}
+    assert nvalues(names_at(scope, p[0])) == {'a': {10, 'undefined'}}
+    assert nvalues(names_at(scope, p[1])) == {'a': {10, 20}}
 
 
 def test_try_except():
@@ -252,11 +202,11 @@ def test_try_except():
     ''')
 
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p[0])) == {'e': 'ValueError'}
-    assert nvalues(scope.names_at(p[1])) == {'a': 20, 'e': 'ValueError'}
-    assert nvalues(scope.names_at(p[2])) == {'b': 10, 'ee': 'Exception'}
-    assert nvalues(scope.names_at(p[3])) == {'a': 10, 'c': 10}
-    assert nvalues(scope.names_at(p[4])) == {
+    assert nvalues(names_at(scope, p[0])) == {'a': {10, 'undefined'}, 'e': 'ValueError'}
+    assert nvalues(names_at(scope, p[1])) == {'a': 20, 'e': 'ValueError'}
+    assert nvalues(names_at(scope, p[2])) == {'a': {10, 'undefined'}, 'b': 10, 'ee': 'Exception'}
+    assert nvalues(names_at(scope, p[3])) == {'a': 10, 'c': 10}
+    assert nvalues(names_at(scope, p[4])) == {
         'a': {10, 20, 'undefined'},
         'c': {10, 'undefined'},
         'b': {10, 'undefined'},
@@ -276,8 +226,8 @@ def test_function_scope():
     ''')
 
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p[0])) == {'a': 10, 'b': 'foo.arg', 'c': 10, 'foo': 'func'}
-    assert nvalues(scope.names_at(p[1])) == {'a': 10, 'foo': 'func'}
+    assert nvalues(names_at(scope, p[0])) == {'a': 10, 'b': 'foo.arg', 'c': 10, 'foo': 'func'}
+    assert nvalues(names_at(scope, p[1])) == {'a': 10, 'foo': 'func'}
     assert scope.names['foo'].declared_at == (3, 4)
 
 
@@ -292,7 +242,7 @@ def test_empty_function_scope():
     ''')
 
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p[0])) == {'foo': 'func'}
+    assert nvalues(names_at(scope, p[0])) == {'foo': 'func'}
 
 
 @pytest.mark.skipif(PY2, reason='py3 only')
@@ -307,8 +257,8 @@ def test_async_function_scope():
     ''')
 
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p[0])) == {'a': 10, 'b': 'foo.arg', 'c': 10, 'foo': 'func'}
-    assert nvalues(scope.names_at(p[1])) == {'a': 10, 'foo': 'func'}
+    assert nvalues(names_at(scope, p[0])) == {'a': 10, 'b': 'foo.arg', 'c': 10, 'foo': 'func'}
+    assert nvalues(names_at(scope, p[1])) == {'a': 10, 'foo': 'func'}
     assert scope.names['foo'].declared_at == (3, 10)
 
 
@@ -321,8 +271,8 @@ def test_parent_scope_var_masking():
     ''')
 
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p[0])) == {'foo': 'func'}
-    assert nvalues(scope.names_at(p[1])) == {'a': 10, 'foo': 'func'}
+    assert nvalues(names_at(scope, p[0])) == {'foo': 'func'}
+    assert nvalues(names_at(scope, p[1])) == {'a': 10, 'foo': 'func'}
 
 
 def test_class_scope():
@@ -340,10 +290,10 @@ def test_class_scope():
     ''')
 
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p[0])) == {'a': 10, 'Boo': 'class', 'BOO': 10}
-    assert nvalues(scope.names_at(p[1])) == {'a': 10, 'Boo': 'class', 'self': 'boo.arg', 'b': 10}
-    assert nvalues(scope.names_at(p[2])) == {'a': 10, 'Boo': 'class', 'boo': 'func', 'BOO': 10}
-    assert nvalues(scope.names_at(p[3])) == {'a': 10, 'Boo': 'class'}
+    assert nvalues(names_at(scope, p[0])) == {'a': 10, 'Boo': 'class', 'BOO': 10}
+    assert nvalues(names_at(scope, p[1])) == {'a': 10, 'Boo': 'class', 'self': 'boo.arg', 'b': 10}
+    assert nvalues(names_at(scope, p[2])) == {'a': 10, 'Boo': 'class', 'boo': 'func', 'BOO': 10}
+    assert nvalues(names_at(scope, p[3])) == {'a': 10, 'Boo': 'class'}
     assert scope.names['Boo'].declared_at == (3, 6)
 
 
@@ -356,8 +306,8 @@ def test_class_scope_reassign():
     ''')
 
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p[0])) == {'Boo': 'class', 'boo': 10}
-    assert nvalues(scope.names_at(p[1])) == {'Boo': 'class', 'boo': 'boo'}
+    assert nvalues(names_at(scope, p[0])) == {'Boo': 'class', 'boo': 10}
+    assert nvalues(names_at(scope, p[1])) == {'Boo': 'class', 'boo': 'boo'}
 
 
 def test_attr_assign():
@@ -381,7 +331,7 @@ def test_for_multiple_targest():
             |pass
     ''')
     scope = create_scope(source)
-    assert set(scope.names_at(p[0])) == set(('boo', 'foo'))
+    assert set(names_at(scope, p[0])) == set(('boo', 'foo'))
 
 
 def test_nested_funcs():
@@ -397,7 +347,7 @@ def test_nested_funcs():
                 b = 10
     ''')
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p[0])) == {
+    assert nvalues(names_at(scope, p[0])) == {
         'a': {10, 20},
         'b': 20,
         'boo': 'func',
@@ -413,8 +363,8 @@ def test_one_line_scopes():
         |
     ''')
     scope = create_scope(source)
-    assert set(scope.names_at(p[0])) == {'foo', 'boo', 'bar', 'baz'}
-    assert set(scope.names_at(p[1])) == {'foo', 'boo', 'bar'}
+    assert set(names_at(scope, p[0])) == {'foo', 'boo', 'bar', 'baz'}
+    assert set(names_at(scope, p[1])) == {'foo', 'boo', 'bar'}
 
 
 def test_multiline_expression():
@@ -425,7 +375,7 @@ def test_multiline_expression():
     ''')
 
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p[0])) == {'foo': 10}
+    assert nvalues(names_at(scope, p[0])) == {'foo': 10}
 
 
 def test_multiline_expression2():
@@ -436,7 +386,7 @@ def test_multiline_expression2():
     ''')
 
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p[0])) == {'arg': 'foo.arg', 'foo': 'func'}
+    assert nvalues(names_at(scope, p[0])) == {'arg': 'foo.arg', 'foo': 'func'}
 
 
 def test_lambda():
@@ -445,7 +395,7 @@ def test_lambda():
         f = lambda b: a + |a
     ''')
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p[0])) == {
+    assert nvalues(names_at(scope, p[0], debug=True)) == {
         'a': 10,
         'b': 'lambda.arg',
         'f': 'lambda'
@@ -463,7 +413,7 @@ def test_scope_levels():
                 |arg)
     ''')
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p[0])) == {'arg': 'foo.arg', 'foo': 'func', 'boo': 'func'}
+    assert nvalues(names_at(scope, p[0])) == {'arg': 'foo.arg', 'foo': 'func', 'boo': 'func'}
 
 
 def test_vargs():
@@ -473,7 +423,7 @@ def test_vargs():
             |pass
     ''')
     scope = create_scope(source)
-    names = scope.names_at(p[0])
+    names = names_at(scope, p[0])
     assert nvalues(names) == {'vargs': 'boo.arg', 'boo': 'func'}
     assert names['vargs'].declared_at == (2, 9)
 
@@ -485,7 +435,7 @@ def test_kwargs():
             |pass
     ''')
     scope = create_scope(source)
-    names = scope.names_at(p[0])
+    names = names_at(scope, p[0])
     assert nvalues(names) == {'kwargs': 'boo.arg', 'boo': 'func'}
     assert names['kwargs'].declared_at == (2, 10)
 
@@ -495,8 +445,8 @@ def test_list_comprehension():
         [|r for |r in (1, 2, 3)]
     ''')
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p[0])) == {'r': 'listitem'}
-    assert nvalues(scope.names_at(p[1])) == {}
+    assert nvalues(names_at(scope, p[0])) == {'r': 'listitem'}
+    assert nvalues(names_at(scope, p[1])) == {}
 
 
 def test_generator_comprehension():
@@ -504,7 +454,7 @@ def test_generator_comprehension():
         (|r for r in (1, 2, 3))
     ''')
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p[0])) == {'r': 'listitem'}
+    assert nvalues(names_at(scope, p[0])) == {'r': 'listitem'}
 
 
 def test_dict_comprehension():
@@ -512,7 +462,7 @@ def test_dict_comprehension():
         {1: |r for r in (1, 2, 3)}
     ''')
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p[0])) == {'r': 'listitem'}
+    assert nvalues(names_at(scope, p[0])) == {'r': 'listitem'}
 
 
 def test_set_comprehension():
@@ -520,7 +470,7 @@ def test_set_comprehension():
         {|r for r in (1, 2, 3)}
     ''')
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p[0])) == {'r': 'listitem'}
+    assert nvalues(names_at(scope, p[0])) == {'r': 'listitem'}
 
 
 def test_with():
@@ -529,7 +479,7 @@ def test_with():
             |pass
     ''')
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p[0])) == {'f': 'with'}
+    assert nvalues(names_at(scope, p[0])) == {'f': 'with'}
 
 
 def test_multi_assign():
@@ -538,7 +488,7 @@ def test_multi_assign():
         |
     ''')
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p[0])) == {'a': 10, 'b': 10}
+    assert nvalues(names_at(scope, p[0])) == {'a': 10, 'b': 10}
 
 
 def test_visit_value_node_in_unsupported_assignments():
@@ -546,7 +496,7 @@ def test_visit_value_node_in_unsupported_assignments():
         foo.boo = lambda a: |a + 1
     ''')
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p[0])) == {'a': 'lambda.arg'}
+    assert nvalues(names_at(scope, p[0])) == {'a': 'lambda.arg'}
 
 
 def test_if_in_try_except():
@@ -560,7 +510,7 @@ def test_if_in_try_except():
             break
     ''')
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p[0])) == {'e': 'Exception'}
+    assert nvalues(names_at(scope, p[0])) == {'e': 'Exception'}
 
 
 def test_global():
@@ -574,8 +524,8 @@ def test_global():
         |
     ''')
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p[0])) == {'foo': 'func', 'bar': 'func', 'boo': 10}
-    assert nvalues(scope.names_at(p[1])) == {'foo': 'func', 'bar': 'func'}
+    assert nvalues(names_at(scope, p[0])) == {'foo': 'func', 'bar': 'func', 'boo': 10}
+    assert nvalues(names_at(scope, p[1])) == {'foo': 'func', 'bar': 'func'}
 
 
 def test_deep_flow_shift():
@@ -593,7 +543,7 @@ def test_deep_flow_shift():
                 continue
     ''')
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p[0])) == {'boo': 'listitem'}
+    assert nvalues(names_at(scope, p[0])) == {'boo': 'listitem'}
 
 
 def test_nested_nest():
@@ -608,11 +558,11 @@ def test_nested_nest():
         |    |    |    |
     ''')
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p[3])) == {'a': 10, 'b': 10, 'c': 10}
-    assert nvalues(scope.names_at(p[2])) == {'a': 10, 'b': 10, 'c': {10, 'undefined'}}
-    assert nvalues(scope.names_at(p[1])) == {'a': 10, 'b': {10, 'undefined'},
+    assert nvalues(names_at(scope, p[3])) == {'a': 10, 'b': 10, 'c': 10}
+    assert nvalues(names_at(scope, p[2])) == {'a': 10, 'b': 10, 'c': {10, 'undefined'}}
+    assert nvalues(names_at(scope, p[1])) == {'a': 10, 'b': {10, 'undefined'},
                                            'c': {10, 'undefined'}}
-    assert nvalues(scope.names_at(p[0])) == {'a': {10, 'undefined'},
+    assert nvalues(names_at(scope, p[0])) == {'a': {10, 'undefined'},
                                            'b': {10, 'undefined'},
                                            'c': {10, 'undefined'}}
 
@@ -627,7 +577,7 @@ def test_scope_shift_after_nested_flow():
         print(); |boo
     ''')
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p[0])) == {'boo': 10}
+    assert nvalues(names_at(scope, p[0])) == {'boo': 10}
 
 
 def test_names_at_flow_start():
@@ -637,7 +587,7 @@ def test_names_at_flow_start():
                 pass
     ''')
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p[0])) == {'boo': 'foo.arg', 'foo': 'func'}
+    assert nvalues(names_at(scope, p[0])) == {'boo': 'foo.arg', 'foo': 'func'}
 
 
 def test_lambda_in_gen_expression():
@@ -645,7 +595,7 @@ def test_lambda_in_gen_expression():
         [i for i in filter(lambda r: |r, [1,2,3])]
     ''')
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p[0])) == {'r': 'lambda.arg'}
+    assert nvalues(names_at(scope, p[0])) == {'r': 'lambda.arg', 'i': {'func()', 'undefined'}}
 
 
 def test_top_expression_region():
@@ -660,7 +610,7 @@ def test_top_expression_region():
         }
     ''')
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p[0])) == {'boo': 10}
+    assert nvalues(names_at(scope, p[0])) == {'boo': 10}
 
 
 def test_multi_comprehensions():
@@ -668,9 +618,9 @@ def test_multi_comprehensions():
         [x for x in [] for y in |x if |y if |x]
     ''')
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p[0])) == {'x': 'listitem'}
-    assert nvalues(scope.names_at(p[1])) == {'x': 'listitem', 'y': 'x'}
-    assert nvalues(scope.names_at(p[2])) == {'x': 'listitem', 'y': 'x'}
+    assert nvalues(names_at(scope, p[0])) == {'x': 'listitem'}
+    assert nvalues(names_at(scope, p[1])) == {'x': 'listitem', 'y': 'x'}
+    assert nvalues(names_at(scope, p[2])) == {'x': 'listitem', 'y': 'x'}
 
 
 def test_nested_comprehensions():
@@ -678,8 +628,8 @@ def test_nested_comprehensions():
         [[|r for r in |x] for x in []]
     ''')
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p[0])) == {'x': 'listitem', 'r': 'x'}
-    assert nvalues(scope.names_at(p[1])) == {'x': 'listitem'}
+    assert nvalues(names_at(scope, p[0])) == {'x': 'listitem', 'r': 'x'}
+    assert nvalues(names_at(scope, p[1])) == {'x': 'listitem'}
 
 
 def test_visit_decorator():
@@ -689,7 +639,7 @@ def test_visit_decorator():
             pass
     ''')
     scope = create_scope(source)
-    assert nvalues(scope.names_at(p[0])) == {'r': 'listitem', 'foo': 'func'}
+    assert nvalues(names_at(scope, p[0])) == {'r': 'listitem'}
 
 
 def test_flow_position_shoud_ignore_fake_flows():
@@ -699,7 +649,7 @@ def test_flow_position_shoud_ignore_fake_flows():
             source = 'very long text to catch   region'.format(|source)
     ''')
     scope = create_scope(source)
-    result = scope.names_at(p[1])
+    result = names_at(scope, p[1])
     assert result['source'].declared_at == p[0]
 
 
@@ -711,7 +661,7 @@ def test_nested_expression_regions():
         ) for r in []}
     ''')
     scope = create_scope(source)
-    result = scope.names_at(p[0])
+    result = names_at(scope, p[0])
     assert nvalues(result) == {'r': 'listitem'}
 
 
@@ -737,7 +687,7 @@ def test_parent_names_through_loop():
         |
     ''')
     scope = create_scope(source)
-    names = scope.names_at(p[0])
+    names = names_at(scope, p[0])
     assert type(names['foo']) == AssignedName
 
 
@@ -747,11 +697,11 @@ def test_dotted_imports():
         |
     ''')
     scope = create_scope(source)
-    names = scope.names_at(p[0])
+    names = names_at(scope, p[0])
     assert nvalues(names) == {'os': 'import:os'}
 
 
-def test_star_imports():
+def _test_star_imports():
     source, p = sp('''\
         from os.path import *
         |
@@ -760,7 +710,7 @@ def test_star_imports():
     scope = create_scope(source)
     scope.project = Project()
     scope.resolve_star_imports()
-    names = scope.names_at(p[0])
+    names = names_at(scope, p[0])
     assert 'join' in names
     assert 'abspath' in names
 
@@ -769,3 +719,65 @@ def test_star_imports():
 #     scope = create_scope(open('/usr/lib/python2.7/posixpath.py').read())
 #     print scope.flows[0]
 #     assert False
+
+
+def create_scope(source, filename=None, debug=False, flow_graph=False):
+    source = Source(source, filename)
+    debug and print_dump(source.tree)
+    scope = SourceScope(None, source)
+    scope.parent = None
+    extract(source.tree, scope.flow)
+    flow_graph and dump_flows(scope, '/tmp/scope-dump.dot')
+    return scope
+
+
+def names_at(scope, p, debug=True):
+    scope = scope.with_mark(p, debug)
+    scope.parent = None
+    debug and print_dump(scope.source.tree)
+    extract(scope.source.tree, scope.flow)
+    flow = marked_flow(scope)
+    import os
+    if os.environ.get('PDB'):
+        import ipdb; ipdb.set_trace()
+    return flow.names_at(p)
+
+
+def get_value(name):
+    if isinstance(name, AssignedName):
+        if isinstance(name.value_node, Lambda):
+            return 'lambda'
+        if isinstance(name.value_node, With):
+            return 'with'
+        if isinstance(name.value_node, Call):
+            return 'func()'
+        if isinstance(name.value_node, Subscript):
+            return 'item[]'
+        if isinstance(name.value_node, Dict):
+            return '{}'
+        if hasattr(name.value_node, 'elts'):
+            return 'listitem'
+        if hasattr(name.value_node, 'id'):
+            return name.value_node.id
+        return name.value_node.n
+    elif isinstance(name, UndefinedName):
+        return 'undefined'
+    elif isinstance(name, MultiName):
+        return set(get_value(r) for r in name.alt_names)
+    elif isinstance(name, ImportedName):
+        if name.mname:
+            return 'import:{0.module}:{0.mname}'.format(name)
+        else:
+            return 'import:{0.module}'.format(name)
+    elif isinstance(name, ArgumentName):
+        return '{}.arg'.format(name.func.name, name.name)
+    elif isinstance(name, FuncScope):
+        return 'func'
+    elif isinstance(name, ClassScope):
+        return 'class'
+    else:
+        raise Exception('Unknown name type', name, type(name))
+
+
+def nvalues(names):
+    return {k: get_value(v) for k, v in iteritems(names)}

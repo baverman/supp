@@ -12,6 +12,7 @@ NESTED_INDEXED_NODES = Tuple, List
 def clone_node(obj, **kwargs):
     new = AST.__new__(type(obj))
     new.__dict__.update(obj.__dict__, **kwargs)
+    new._orig = obj
     return new
 
 
@@ -62,7 +63,7 @@ def dumptree(node, result, level):
     LW = '   '
     fields = [(k, v)
               for k, v in iter_fields(node)
-              if (hasattr(v, '_fields') and not isinstance(v, Store)) or
+              if (hasattr(v, '_fields') and not isinstance(v, Store) and not isinstance(v, Load)) or
                  (isinstance(v, list) and v and hasattr(v[0], '_fields'))]
     field_names = set(k for k, _ in fields)
 
@@ -75,7 +76,7 @@ def dumptree(node, result, level):
 
     for k, v in fields:
         if isinstance(v, list):
-            result.append('{} {}:'.format(LW * (level + 1), k))
+            result.append('{} {}[]: '.format(LW * (level + 1), k))
             for child in v:
                 dumptree(child, result, level + 2)
         else:
@@ -139,7 +140,7 @@ class get_name_usages(object):
 
     def visit_Name(self, node):
         if isinstance(node.ctx, Load):
-            self.locations.append((node.id, np(node)))
+            self.locations.append(node)
 
 
 @visitor
@@ -185,7 +186,20 @@ class get_marked_name(object):
             return e.value
 
     def visit_Name(self, node):
-        if isinstance(node.ctx, Load) and marked(node.id):
+        if type(node.ctx) == Load and marked(node.id):
+            raise StopVisiting(clone_node(node, id=unmark(node.id)))
+
+
+@visitor
+class get_any_marked_name(object):
+    def process(self, node):
+        try:
+            self.visit(node)
+        except StopVisiting as e:
+            return e.value
+
+    def visit_Name(self, node):
+        if marked(node.id):
             raise StopVisiting(clone_node(node, id=unmark(node.id)))
 
 
@@ -272,16 +286,22 @@ def marked(name):
 
 class Source(object):
     def __init__(self, source, filename=None, position=None):
+        self.orig_source = source
         self.filename = filename or '<string>'
         if position:
             ln, col = position
             lines = source.splitlines() or ['']
+            if ln > len(lines):
+                lines.append('')
             line = lines[ln-1]
             lines[ln-1] = line[:col] + SOURCE_MARK + line[col:]
             self.source = '\n'.join(lines)
             self.lines = lines
         else:
             self.source = source
+
+    def with_mark(self, position):
+        return Source(self.orig_source, self.filename, position)
 
     @cached_property
     def tree(self):
@@ -293,46 +313,46 @@ class Source(object):
 
 
 def dump_flows(scope, fd=None):
-    from .astwalk import LoopFlow
+    from functools import partial
+    from .scope import LoopFlow
 
     fd = fd or sys.stdout
     if isinstance(fd, string_types):
         fd = open(fd, 'w')
 
-    print('digraph G {', file=fd)
-    print('rankdir=BT;', file=fd)
-    print('node [shape=box];', file=fd)
+    pp = partial(print, file=fd)
+
+    pp('digraph G {')
+    pp('rankdir=BT;')
+    pp('node [shape=box];')
 
     scopes = {}
 
-    for level, flows in sorted(iteritems(scope.flows)):
+    for flow in scope._all_flows:
+        pp(r'{} [label="{}{}"];'.format(
+            id(flow),
+            flow.hint,
+            flow._names))
+        scopes.setdefault(flow.scope, []).append(flow)
+
+    def print_flows(scope, flows):
         for flow in flows:
-            try:
-                l = scope.lines[flow.location[0]-1].strip() + r'\n'
-            except IndexError:
-                l = ''
-            print(r'{} [label="{}\n{}{}"];'.format(
-                id(flow),
-                flow,
-                l,
-                flow._names), file=fd)
-            scopes.setdefault(flow.scope, []).append((level, flow))
+            if flow.parents:
+                for p in flow.parents:
+                    if isinstance(p, LoopFlow):
+                        pp('{} [label="loop"];'.format(id(p)))
+                        pp('{} -> {};'.format(id(p), id(p.parent)))
+                    pp('{} -> {};'.format(id(flow), id(p)))
+            elif scope.parent:
+                pp('{} -> {};'.format(id(flow), id(scope.parent.flow)))
 
-    def print_flows(flows):
-        for _, flow in flows:
-            for p in flow.parents:
-                if isinstance(p, LoopFlow):
-                    print('{} [label="loop"];'.format(id(p)), file=fd)
-                    print('{} -> {};'.format(id(p), id(p.parent)), file=fd)
-                print('{} -> {};'.format(id(flow), id(p)), file=fd)
-
-    print_flows(scopes[scope])
+    print_flows(scope, scopes[scope])
     for s, flows in iteritems(scopes):
         if s is scope:
             continue
-        print('subgraph {} {{'.format(id(s)), file=fd)
-        print_flows(flows)
-        print('}', file=fd)
+        pp('subgraph {} {{'.format(id(s)))
+        print_flows(s, flows)
+        pp('}')
 
-    print('}', file=fd)
+    pp('}')
     fd.flush()

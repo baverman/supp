@@ -4,7 +4,7 @@ import re
 from .util import (Source, print_dump, get_marked_atribute, split_pkg,
                    get_marked_name, get_marked_import, get_all_usages, join_pkg)
 from .evaluator import declarations
-from .astwalk import extract_scope
+from .nast import extract_scope
 
 
 def list_packages(project, root, filename):

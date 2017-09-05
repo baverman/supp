@@ -3,7 +3,7 @@ from itertools import chain
 
 from supp import linter
 from supp.util import Source
-from supp.astwalk import extract_scope
+from supp.nast import extract_scope
 from supp.compat import PY2
 
 

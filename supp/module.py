@@ -1,7 +1,7 @@
 from os.path import getmtime
 
 from .util import cached_property, Source
-from .astwalk import extract_scope
+from .nast import extract_scope
 from .compat import iteritems
 from .name import RuntimeName, Object
 
