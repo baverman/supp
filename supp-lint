@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+import logging
+logging.basicConfig(level='INFO')
 import os.path
 import argparse
 

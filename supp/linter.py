@@ -1,10 +1,13 @@
-from .util import Source, get_name_usages
+import logging
+
+from .util import Source, get_name_usages, np
 from .name import MultiName, ArgumentName, ImportedName
 from .scope import SourceScope, ClassScope
-from .astwalk import extract_scope
+from .nast import extract_scope
 from .compat import itervalues
 
 IGNORED_SCOPES = SourceScope, ClassScope
+log = logging.getLogger('supp.linter')
 
 
 def use_name(name):
@@ -23,21 +26,30 @@ def lint(project, source, filename=None):
         return [('E01', e.msg, e.lineno, e.offset, None)]
 
     result = []
-    scope = extract_scope(project, source)
+    scope = extract_scope(source)
     name_usages = get_name_usages(source.tree)
 
-    for name, location in name_usages:
-        snames = scope.names_at(location)
+    # from .util import print_dump
+    # print_dump(scope.source.tree)
+
+    for name in name_usages:
+        location = np(name)
         try:
-            sname = snames[name]
-            # print('!!!', name, sname)
+            flow = name.flow
+        except AttributeError:
+            result.append(('E42', 'UNKNOWN NAME: {}'.format(name.id),
+                           location[0], location[1], None))
+            continue
+
+        snames = flow.names_at(location)
+        try:
+            sname = snames[name.id]
+            # print('!!!', name.id, sname)
         except KeyError:
-            flow = scope.flow_at(location)
-            result.append(('E02', 'Undefined name: {}'.format(name),
+            result.append(('E02', 'Undefined name: {}'.format(name.id),
                            location[0], location[1], flow))
         else:
             if sname.name == 'locals' and sname.location == (0, 0):
-                flow = scope.flow_at(location)
                 for n in itervalues(flow.names_at(location)):
                     if getattr(n, 'scope', None) is flow.scope:
                         use_name(n)

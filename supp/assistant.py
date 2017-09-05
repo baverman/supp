@@ -3,8 +3,8 @@ import re
 
 from .util import (Source, print_dump, get_marked_atribute, split_pkg,
                    get_marked_name, get_marked_import, get_all_usages, join_pkg)
-from .evaluator import declarations
-from .astwalk import extract_scope
+from .evaluator import declarations, EvalCtx
+from .nast import extract_scope
 
 
 def list_packages(project, root, filename):
@@ -36,18 +36,20 @@ def assist(project, source, position, filename=None, debug=False):
             module = project.get_nmodule(head, filename)
             return tail, sorted(set(plist) | set(module.attrs))
 
-    scope = extract_scope(project, source)
+    scope = extract_scope(source)
 
     prefix = re.split(r'(\.|\s)', line)[-1]
     attr = get_marked_atribute(source.tree)
+    names = {}
     if attr:
-        value = scope.evaluate(attr.value)
+        ctx = EvalCtx(project, scope)
+        value = ctx.evaluate(attr.value)
         if value:
             names = value.attrs
-        else:
-            names = {}
     else:
-        names = scope.names_at(position)
+        name = get_marked_name(source.tree)
+        if name:
+            names = name.flow.names_at(position)
 
     return prefix, sorted(names)
 
@@ -98,7 +100,7 @@ def location(project, source, position, filename=None, debug=False):
 
 def usages(project, source, filename=None):
     source = Source(source, filename)
-    scope = extract_scope(project, source)
+    scope = extract_scope(source)
 
     for utype, nname, loc, node in get_all_usages(source.tree):
         # print(scope, node)

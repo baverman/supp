@@ -37,6 +37,58 @@ def test_name_usages():
     ]
 
 
+def test_default_args():
+    result = tlint('''\
+        baz = 10
+        def boo(foo=baz):
+            foo()
+    ''')
+
+    assert strip(result) == []
+
+
+def test_attribute_assign():
+    result = tlint('''\
+        n = 10
+        def boo():
+            n.attr = 10
+    ''')
+
+    assert strip(result) == []
+
+
+def test_names_in_except():
+    result = tlint('''\
+        def boo():
+            n = 10
+            try:
+                pass
+            except n:
+                pass
+    ''')
+
+    assert strip(result) == []
+
+
+def test_names_in_class_bases():
+    result = tlint('''\
+        boo = 10
+        class Boo(boo):
+            pass
+    ''')
+
+    assert strip(result) == []
+
+
+def test_names_in_dict_comprehension():
+    result = tlint('''\
+        def foo():
+            {k: v for k, v in {}}
+    ''')
+
+    assert strip(result) == []
+
+
 def test_usage_with_multiflows():
     result = tlint('''\
         def boo():
