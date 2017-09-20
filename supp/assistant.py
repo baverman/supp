@@ -3,7 +3,7 @@ import re
 
 from .util import (Source, print_dump, get_marked_atribute, split_pkg,
                    get_marked_name, get_marked_import, get_all_usages, join_pkg)
-from .evaluator import declarations, EvalCtx
+from .evaluator import EvalCtx
 from .nast import extract_scope
 
 
@@ -42,7 +42,7 @@ def assist(project, source, position, filename=None, debug=False):
     attr = get_marked_atribute(source.tree)
     names = {}
     if attr:
-        ctx = EvalCtx(project, scope)
+        ctx = EvalCtx(project)
         value = ctx.evaluate(attr.value)
         if value:
             names = value.attrs
@@ -62,10 +62,12 @@ def location(project, source, position, filename=None, debug=False):
     source = Source(source, filename, position)
 
     debug and print_dump(source.tree)
-    scope = extract_scope(project, source)
+    scope = extract_scope(source)
 
     result = []
     marked_import = get_marked_import(source.tree)
+    ctx = EvalCtx(project)
+
     if marked_import:
         head, tail = marked_import
         if tail is None:
@@ -82,11 +84,11 @@ def location(project, source, position, filename=None, debug=False):
             if not name:
                 name = project.get_nmodule(full, filename)
 
-        result = declarations(project, None, name, [])
+        result = ctx.declarations(name, [])
     else:
         node = get_marked_name(source.tree) or get_marked_atribute(source.tree)
         if node:
-            result = declarations(project, scope, node, [])
+            result = ctx.declarations(node, [])
 
     locs = []
     for r in result:
@@ -101,10 +103,11 @@ def location(project, source, position, filename=None, debug=False):
 def usages(project, source, filename=None):
     source = Source(source, filename)
     scope = extract_scope(source)
+    ctx = EvalCtx(project)
 
     for utype, nname, loc, node in get_all_usages(source.tree):
         # print(scope, node)
-        value = declarations(project, scope, node, [])
+        value = ctx.declarations(node, [])
 
         if value:
             if utype == 'attr':

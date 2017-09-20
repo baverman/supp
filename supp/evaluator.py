@@ -10,12 +10,12 @@ log = logging.getLogger('supp.evaluator')
 
 
 class EvalCtx(object):
-    def __init__(self, project, scope):
+    def __init__(self, project):
         self.project = project
-        self.scope = scope
 
     def evaluate(self, node):
         node_type = type(node)
+        # print node_type, node
         if node_type is AstName:
             names = node.flow.names_at(np(node))
             name = names.get(node.id)
@@ -50,48 +50,49 @@ class EvalCtx(object):
             return node
         elif node_type is Str:
             return RuntimeName('__none__', node.s)
+        elif isinstance(node, Callable):
+            return node
         else:
             log.warn('Unknown node type %r %r', node_type, node)
 
+    def declarations(self, node, result=[]):
+        node_type = type(node)
+        cname = None
+        if node_type is AstName:
+            names = node.flow.names_at(np(node))
+            cname = names.get(node.id)
+        elif node_type is MultiName:
+            names = []
+            for n in node.alt_names:
+                if type(n) is not UndefinedName:
+                    names.append(n)
 
-def declarations(project, scope, node, result=[]):
-    node_type = type(node)
-    cname = None
-    if node_type is AstName:
-        names = scope.names_at(np(node))
-        cname = names.get(node.id)
-    elif node_type is MultiName:
-        names = []
-        for n in node.alt_names:
-            if type(n) is not UndefinedName:
+            if names:
+                if len(names) > 1:
+                    result.append(names)
+                else:
+                    cname = names[0]
+        elif node_type is MultiValue:
+            names = []
+            for n in node.values:
                 names.append(n)
 
-        if names:
-            if len(names) > 1:
-                result.append(names)
-            else:
-                cname = names[0]
-    elif node_type is MultiValue:
-        names = []
-        for n in node.values:
-            names.append(n)
+            if names:
+                if len(names) > 1:
+                    result.append(names)
+                else:
+                    cname = names[0]
+        elif node_type is Attribute:
+            value = self.evaluate(node.value)
+            if value:
+                cname = value.attrs.get(node.attr)
+        elif node_type is ImportedName:
+            result.append(node)
+            cname = node.resolve(self)
+        else:
+            result.append(node)
 
-        if names:
-            if len(names) > 1:
-                result.append(names)
-            else:
-                cname = names[0]
-    elif node_type is Attribute:
-        value = scope.evaluate(node.value)
-        if value:
-            cname = value.attrs.get(node.attr)
-    elif node_type is ImportedName:
-        result.append(node)
-        cname = node.resolve()
-    else:
-        result.append(node)
+        if cname:
+            return self.declarations(cname, result)
 
-    if cname:
-        return declarations(project, None, cname, result)
-
-    return result
+        return result

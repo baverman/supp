@@ -27,7 +27,7 @@ class Name(Location):
 
     @property
     def filename(self):
-        return self.scope and self.scope.top.filename
+        return self.scope and self.scope.top.source.filename
 
 
 class ArgumentName(Name, Resolvable):

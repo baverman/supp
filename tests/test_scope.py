@@ -395,7 +395,7 @@ def test_lambda():
         f = lambda b: a + |a
     ''')
     scope = create_scope(source)
-    assert nvalues(names_at(scope, p[0], debug=True)) == {
+    assert nvalues(names_at(scope, p[0])) == {
         'a': 10,
         'b': 'lambda.arg',
         'f': 'lambda'
@@ -731,7 +731,7 @@ def create_scope(source, filename=None, debug=False, flow_graph=False):
     return scope
 
 
-def names_at(scope, p, debug=True):
+def names_at(scope, p, debug=False):
     scope = scope.with_mark(p, debug)
     scope.parent = None
     debug and print_dump(scope.source.tree)

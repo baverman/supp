@@ -25,6 +25,10 @@ class Scope(object):
         self.locals = set()
         self.globals = set()
 
+    @property
+    def filename(self):
+        return self.top.source.filename
+
 
 class Flow(object):
     def __init__(self, hint, scope, parents=None):
@@ -208,7 +212,7 @@ class SourceScope(Scope):
         self._star_imports[:] = []
 
 
-class FuncScope(Scope, Location, Object, Callable):
+class FuncScope(Scope, Location, Callable):
     def __init__(self, parent, node, is_lambda=False, top=None):
         Scope.__init__(self, parent, top)
         self.args = []
