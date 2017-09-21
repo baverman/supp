@@ -1,3 +1,4 @@
+from __future__ import print_function
 import logging
 from ast import Name as AstName, Attribute, Str, Call
 
@@ -12,10 +13,29 @@ log = logging.getLogger('supp.evaluator')
 class EvalCtx(object):
     def __init__(self, project):
         self.project = project
+        self.level = 0
+        self.nodes = set()
 
     def evaluate(self, node):
+        if node in self.nodes:
+            return None
+        self.nodes.add(node)
+        self.level += 1
+        result = self._evaluate(node)
+        self.level -= 1
+        self.nodes.remove(node)
+        return result
+
+    def _evaluate(self, node):
         node_type = type(node)
-        # print node_type, node
+
+        # if hasattr(node, 'scope'):
+        #     print('^^^' + '  '*self.level, node_type, node, node.scope.filename)
+        # elif isinstance(node, AstName):
+        #     print('^^^' + '  '*self.level, node_type, node.id, np(node), node.flow.scope.filename)
+        # else:
+        #     print('^^^' + '  '*self.level, node_type, node)
+
         if node_type is AstName:
             names = node.flow.names_at(np(node))
             name = names.get(node.id)
