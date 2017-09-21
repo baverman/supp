@@ -1,3 +1,4 @@
+import os
 from ast import Lambda, With, Call, Subscript, Dict
 import pytest
 
@@ -198,6 +199,8 @@ def test_try_except():
         else:
             c = 10
             |
+        finally:
+            d = 30
         |
     ''')
 
@@ -210,6 +213,7 @@ def test_try_except():
         'a': {10, 20, 'undefined'},
         'c': {10, 'undefined'},
         'b': {10, 'undefined'},
+        'd': 30,
         'e': {'ValueError', 'undefined'},
         'ee': {'Exception', 'undefined'},
     }
@@ -723,7 +727,7 @@ def _test_star_imports():
 
 def create_scope(source, filename=None, debug=False, flow_graph=False):
     source = Source(source, filename)
-    debug and print_dump(source.tree)
+    debug or os.environ.get('DEBUG') and print_dump(source.tree)
     scope = SourceScope(source)
     scope.parent = None
     extract(source.tree, scope.flow)

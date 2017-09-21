@@ -325,13 +325,17 @@ class MergedDict(object):
         for p in reversed(self._dicts):
             result.update(p)
 
-        return result.iteritems()
+        return iteritems(result)
+
+    items = iteritems
 
     def __iter__(self):
         return (r[0] for r in self.iteritems())
 
     def itervalues(self):
         return (r[1] for r in self.iteritems())
+
+    values = itervalues
 
     def get(self, key, default=None):
         try:

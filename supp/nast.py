@@ -141,7 +141,10 @@ class extract(object):
         for h in node.handlers:
             fh = self.make_flow('except', [cur, body])
             if h.name:
-                fh.add_name(AssignedName(h.name.id, np(h.body[0]), np(h), h.type))
+                if PY2:
+                    fh.add_name(AssignedName(h.name.id, np(h.body[0]), np(h), h.type))
+                else:
+                    fh.add_name(AssignedName(h.name, np(h.body[0]), np(h), h.type))
             if h.type:
                 self.visit(h.type)
             handlers.append(self.visit_in_flow(h.body, fh))
@@ -151,6 +154,10 @@ class extract(object):
 
         self.flow = self.make_flow('join', [orelse] + handlers)
         self.flow.scope.flow = self.flow
+        if hasattr(node, 'finalbody'):
+            self.visit_in_flow(node.finalbody, self.flow)
+
+    visit_Try = visit_TryExcept
 
     def visit_FunctionDef(self, node):
         for d in node.decorator_list:
@@ -164,6 +171,8 @@ class extract(object):
         cur.add_name(scope)
         self.visit_in_flow(node.body, scope.flow)
         self.flow = cur
+
+    visit_AsyncFunctionDef = visit_FunctionDef
 
     def visit_Lambda(self, node):
         cur = self.flow
