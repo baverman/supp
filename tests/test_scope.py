@@ -705,18 +705,34 @@ def test_dotted_imports():
     assert nvalues(names) == {'os': 'import:os'}
 
 
-def _test_star_imports():
+def test_star_imports():
     source, p = sp('''\
         from os.path import *
         |
     ''')
 
     scope = create_scope(source)
-    scope.project = Project()
-    scope.resolve_star_imports()
-    names = names_at(scope, p[0])
+    names = names_at(scope, p[0], project=Project())
     assert 'join' in names
     assert 'abspath' in names
+
+
+def test_star_imports_in_func_scope():
+    source, p = sp('''\
+        def foo():
+            from os.path import *
+            |
+        |
+    ''')
+
+    project = Project()
+    scope = create_scope(source)
+    names = names_at(scope, p[0], project=project)
+    assert 'join' in names
+    assert 'abspath' in names
+
+    names = names_at(scope, p[1], project=project)
+    assert 'abspath' not in names
 
 
 # def test_boo():
@@ -735,12 +751,14 @@ def create_scope(source, filename=None, debug=False, flow_graph=False):
     return scope
 
 
-def names_at(scope, p, debug=False):
+def names_at(scope, p, project=None, debug=False):
     scope = scope.with_mark(p, debug)
     scope.parent = None
     debug and print_dump(scope.source.tree)
     extract(scope.source.tree, scope.flow)
     flow = marked_flow(scope)
+    if project:
+        scope.resolve_star_imports(project)
     import os
     if os.environ.get('PDB'):
         import ipdb; ipdb.set_trace()

@@ -197,10 +197,10 @@ class SourceScope(Scope):
 
         return result
 
-    def resolve_star_imports(self):
+    def resolve_star_imports(self, project):
         for loc, declared_at, mname, flow in self._star_imports:
             try:
-                module = self.project.get_nmodule(mname, self.filename)
+                module = project.get_nmodule(mname, self.filename)
             except ImportError:
                 continue
 
@@ -319,6 +319,9 @@ class MergedDict(object):
                 pass
 
         raise KeyError(key)
+
+    def __contains__(self, key):
+        return any(key in p for p in self._dicts)
 
     def iteritems(self):
         result = {}

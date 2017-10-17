@@ -7,7 +7,8 @@ from .name import RuntimeName, Object
 
 
 class SourceModule(Object):
-    def __init__(self, name, filename):
+    def __init__(self, project, name, filename):
+        self.project = project
         self.name = name
         self.filename = filename
         self.mtime = getmtime(filename)
@@ -23,7 +24,7 @@ class SourceModule(Object):
     @cached_property
     def scope(self):
         source = Source(open(self.filename).read(), self.filename)
-        scope = extract_scope(source)
+        scope = extract_scope(source, self.project)
         return scope
 
     @property

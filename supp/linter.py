@@ -28,7 +28,7 @@ def lint(project, source, filename=None):
         return [('E01', e.msg, e.lineno, e.offset, None)]
 
     result = []
-    scope = extract_scope(source)
+    scope = extract_scope(source, project)
     name_usages = get_name_usages(source.tree)
 
     # from .util import print_dump
@@ -88,7 +88,7 @@ def lint(project, source, filename=None):
 
 def check_names(project, source, filename=None):
     source = Source(source, filename)
-    scope = extract_scope(source)
+    scope = extract_scope(source, project)
     ctx = EvalCtx(project)
 
     name_usages = get_name_usages(source.tree)

@@ -106,7 +106,7 @@ class Project(object):
                 module = ImportedModule(sys.modules[name])
         else:
             if ftype == imp.PY_SOURCE:
-                module = SourceModule(name, filename)
+                module = SourceModule(self, name, filename)
             else:
                 if name not in sys.modules:
                     __import__(name)

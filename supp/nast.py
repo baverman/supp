@@ -12,10 +12,10 @@ else:
     UNSUPPORTED_ASSIGMENTS = Subscript, Starred
 
 
-def extract_scope(source):
-    scope = SourceScope( source)
+def extract_scope(source, project):
+    scope = SourceScope(source)
     extract(source.tree, scope.flow)
-    # scope.resolve_star_imports()
+    scope.resolve_star_imports(project)
     return scope
 
 

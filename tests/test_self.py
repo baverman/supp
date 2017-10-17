@@ -2,6 +2,7 @@ import os
 from itertools import chain
 
 from supp import linter
+from supp.project import Project
 from supp.util import Source
 from supp.nast import extract_scope
 from supp.compat import PY2
@@ -18,7 +19,7 @@ def pytest_generate_tests(metafunc):
 
 
 def test_scope(fname):
-    extract_scope(Source(open(fname).read(), fname))
+    extract_scope(Source(open(fname).read(), fname), Project())
 
 
 def test_lint(fname):
