@@ -1,10 +1,13 @@
 from __future__ import print_function
 import re
+import logging
 
 from .util import (Source, print_dump, get_marked_atribute, split_pkg,
                    get_marked_name, get_marked_import, get_all_usages, join_pkg)
 from .evaluator import EvalCtx
 from .nast import extract_scope
+
+log = logging.getLogger('supp.assistant')
 
 
 def list_packages(project, root, filename):

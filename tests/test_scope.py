@@ -444,6 +444,18 @@ def test_kwargs():
     assert names['kwargs'].declared_at == (2, 10)
 
 
+@pytest.mark.skipif(PY2, reason='py3 only')
+def test_default_args_in_the_middle():
+    source, p = sp('''\
+        def boo(*args, foo=None, **kwargs):
+            |pass
+    ''')
+    scope = create_scope(source)
+    names = names_at(scope, p[0])
+    assert nvalues(names) == {'kwargs': 'boo.arg', 'boo': 'func',
+                              'foo': 'boo.arg', 'args': 'boo.arg'}
+
+
 def test_list_comprehension():
     source, p = sp('''\
         [|r for |r in (1, 2, 3)]

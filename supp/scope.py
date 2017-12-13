@@ -237,6 +237,10 @@ class FuncScope(Scope, Location, Callable):
             else:
                 self.args.append(ArgumentName([ni], n.arg, self.location, np(n), self))
 
+        if not PY2:
+            for n in node.args.kwonlyargs:
+                self.args.append(ArgumentName([], n.arg, self.location, np(n), self))
+
         for s, n in (('*', node.args.vararg), ('**', node.args.kwarg)):
             if n:
                 if PY2:
