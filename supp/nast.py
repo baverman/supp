@@ -166,6 +166,12 @@ class extract(object):
         for a in node.args.defaults:
             self.visit(a)
 
+        if not PY2:
+            for a in node.args.args:
+                a.annotation and self.visit(a.annotation)
+            for a in node.args.kwonlyargs:
+                a.annotation and self.visit(a.annotation)
+
         cur = self.flow
         scope = FuncScope(cur.scope, node, top=self.top)
         cur.add_name(scope)
