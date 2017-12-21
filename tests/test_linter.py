@@ -147,7 +147,8 @@ def test_annotations():
     result = tlint('''\
         foo = "10"
         boo = 20
-        def boo(bar:foo, *, baz:boo):
+        goo = 10
+        def boo(bar:foo, *, baz:boo) -> goo:
             print(bar, baz)
     ''')
     assert not result
