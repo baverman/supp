@@ -1,3 +1,5 @@
+import os
+import pytest
 from supp.assistant import assist, location, _loc
 from supp.project import Project
 
@@ -5,10 +7,12 @@ from .helpers import sp
 
 
 def tassist(source, pos, project=None, filename=None, debug=False):
+    debug = debug or os.environ.get('DEBUG')
     return assist(project or Project(), source, pos, filename, debug=debug)
 
 
 def tlocation(source, pos, project=None, filename=None, debug=False):
+    debug = debug or os.environ.get('DEBUG')
     return location(project or Project(), source, pos, filename, debug=debug)
 
 
@@ -197,17 +201,6 @@ def test_dynamic_modules():
     assert 'join' in result
 
 
-# def test_imported_name_attributes():
-#     project = Project()
-#     source, p = sp('''\
-#         from multiprocessing.connection import Client
-#         path.j|
-#     ''')
-#     m, result = tassist(source, p, project)
-#     assert m == 'j'
-#     assert 'join' in result
-
-
 def test_imported_name_modules():
     project = Project()
     source, p = sp('''\
@@ -357,7 +350,8 @@ def test_func_call_result():
     assert 'startswith' in result
 
 
-def _test_func_call_arg_result():
+@pytest.mark.xfail
+def test_func_call_arg_result():
     source, p = sp('''\
         def foo(arg):
             return arg
@@ -369,21 +363,25 @@ def _test_func_call_arg_result():
     assert 'startswith' in result
 
 
-# def test_classmethod():
-#     source, p = sp('''\
-#         class Bar(object):
-#             @classmethod
-#             def bar(cls):
-#                 return cls
-#
-#             def foo(self):
-#                 pass
-#
-#         Bar.bar().|
-#     ''')
-#
-#     _, result = tassist(source, p)
-#     assert 'foo' in result
+def test_classmethod():
+    source, p = sp('''\
+        class Bar(object):
+            @classmethod
+            def bar(cls):
+                cls.f|
+                return cls
+
+            def foo(self):
+                pass
+
+        Bar.bar().f|
+    ''')
+
+    _, result = tassist(source, p[0])
+    assert 'foo' in result
+
+    _, result = tassist(source, p[1])
+    assert 'foo' in result
 
 
 # def test_boo():
@@ -391,15 +389,6 @@ def _test_func_call_arg_result():
 #     source = open(__file__.rstrip('c')).read()
 #     loc, fname = tlocation(source, (4, 23), project, filename=__file__)
 #     print loc, fname
-#     assert False
-
-
-# def test_boo():
-#     root = '/home/bobrov/zvooq/zvq-prod'
-#     project = Project([root])
-#     source = open(root + '/zvooq/db/__init__.py').read()
-#     locs = tlocation(source, (133, 18), project, filename=__file__)
-#     print locs
 #     assert False
 
 
@@ -510,3 +499,12 @@ def test_imported_attr_location(project):
     ]
 
 
+def test_in_call_brackets():
+    source, p = sp('''\
+        boo = 10
+        foo(b|)
+    ''')
+
+    m, result = tassist(source, p[0])
+    assert 'boo' in result
+    assert m == 'b'

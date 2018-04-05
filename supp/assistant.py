@@ -41,7 +41,7 @@ def assist(project, source, position, filename=None, debug=False):
 
     scope = extract_scope(source, project)
 
-    prefix = re.split(r'(\.|\s)', line)[-1]
+    prefix = re.split(r'(\.|\s|\()', line)[-1]
     attr = get_marked_atribute(source.tree)
     names = {}
     if attr:
