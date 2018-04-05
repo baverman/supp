@@ -12,6 +12,10 @@ from supp.nast import extract, marked_flow
 
 from .helpers import sp
 
+if not PY2:
+    from ast import AsyncWith
+    With = With, AsyncWith
+
 
 def test_simple_flow():
     source, p = sp('''\
@@ -100,6 +104,18 @@ def test_for_without_break():
     assert nvalues(names_at(scope, p[1])) == {'a': 'listitem', 'b': 20}
     assert nvalues(names_at(scope, p[2])) == {'a': {'listitem', 'undefined'}, 'b': {10, 20}, 'c': 10}
     assert nvalues(names_at(scope, p[3])) == {'a': {'listitem', 'undefined'}, 'b': {10, 20}, 'c': 10}
+
+
+@pytest.mark.skipif(PY2, reason='py3 only')
+def test_async_for():
+    source, p = sp('''\
+        async def foo():
+            async for a in [1, 2, 3]:
+                |
+                pass
+    ''')
+    scope = create_scope(source)
+    assert nvalues(names_at(scope, p[0])) == {'a': 'listitem', 'foo': 'func'}
 
 
 def test_for_with_inner_try():
@@ -496,6 +512,17 @@ def test_with():
     ''')
     scope = create_scope(source)
     assert nvalues(names_at(scope, p[0])) == {'f': 'with'}
+
+
+@pytest.mark.skipif(PY2, reason='py3 only')
+def test_async_with():
+    source, p = sp('''\
+        async def foo():
+            async with open('boo') as f:
+                |pass
+    ''')
+    scope = create_scope(source)
+    assert nvalues(names_at(scope, p[0])) == {'f': 'with', 'foo': 'func'}
 
 
 def test_multi_assign():

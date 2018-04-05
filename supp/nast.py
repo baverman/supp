@@ -93,6 +93,8 @@ class extract(object):
         self.flow = self.make_flow('join', [orelse])
         self.flow.scope.flow = self.flow
 
+    visit_AsyncFor = visit_For
+
     def visit_While(self, node):
         self.visit(node.test)
         cur = self.flow
@@ -238,6 +240,8 @@ class extract(object):
                     self.flow.add_name(AssignedName(nn.id, np(node.body[0]), np(nn), node))
 
         self.generic_visit(node)
+
+    visit_AsyncWith = visit_With
 
     def visit_Global(self, node):
         self.flow.scope.globals.update(node.names)
