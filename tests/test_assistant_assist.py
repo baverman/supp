@@ -402,3 +402,21 @@ def test_property():
 
     _, result = tassist(source, p[0])
     assert 'startswith' in result
+
+
+def test_cached_property():
+    source, p = sp('''\
+        class cached_property(object):
+            def __get__(self, cls, obj):
+                pass
+
+        class Boo:
+            @cached_property
+            def boo(self):
+                return ''
+
+        Boo().boo.s|
+    ''')
+
+    _, result = tassist(source, p[0])
+    assert 'startswith' in result
