@@ -17,6 +17,7 @@ def list_packages(project, root, filename):
 
 def assist(project, source, position, filename=None, debug=False):
     source = Source(source, filename, position)
+    ctx = EvalCtx(project)
     ln, col = position
     line = source.lines[ln - 1][:col]
     if line.lstrip().startswith('from ') and ' import ' not in line:
@@ -37,7 +38,7 @@ def assist(project, source, position, filename=None, debug=False):
         else:
             plist = list_packages(project, head, filename)
             module = project.get_nmodule(head, filename)
-            return tail, sorted(set(plist) | set(module.attrs))
+            return tail, sorted(set(plist) | set(module.attr_list(ctx)))
 
     scope = extract_scope(source, project)
 
@@ -45,10 +46,9 @@ def assist(project, source, position, filename=None, debug=False):
     attr = get_marked_atribute(source.tree)
     names = {}
     if attr:
-        ctx = EvalCtx(project)
         value = ctx.evaluate(attr.value)
         if value:
-            names = value.attrs
+            names = value.attr_list(ctx)
     else:
         name = get_marked_name(source.tree)
         if name:
@@ -83,7 +83,7 @@ def location(project, source, position, filename=None, debug=False):
                 full = join_pkg(head, tail)
 
             module = project.get_nmodule(head, filename)
-            name = module.attrs.get(tail)
+            name = module.get_attr(ctx, tail)
             if not name:
                 name = project.get_nmodule(full, filename)
 

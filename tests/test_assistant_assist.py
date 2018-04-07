@@ -354,7 +354,7 @@ def test_func_call_arg_result():
         foo("").|
     ''')
 
-    _, result = tassist(source, p[0], debug=True)
+    _, result = tassist(source, p[0])
     assert 'startswith' in result
 
 

@@ -204,7 +204,7 @@ class SourceScope(Scope):
             except ImportError:
                 continue
 
-            for name in itervalues(module.attrs):
+            for name in itervalues(module._attrs):
                 if not name.name.startswith('_'):
                     flow.add_name(ImportedName(name.name, loc, declared_at,
                                                mname, name.name, True))
@@ -277,7 +277,7 @@ class FuncScope(Scope, Location, Resolvable, Callable):
             v = ctx.evaluate(d)
             if isinstance(v, RuntimeName) and v.is_builtin and v.name == 'property':
                 return self.call(ctx)
-            if isinstance(v, ClassObject) and '__get__' in v.attrs:
+            if isinstance(v, ClassObject) and '__get__' in v._attrs:
                 return self.call(ctx)
 
         return self

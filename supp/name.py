@@ -5,7 +5,11 @@ from .compat import iteritems
 
 
 class Object(object):
-    pass
+    def attr_list(self, ctx):
+        return self._attrs
+
+    def get_attr(self, ctx, name):
+        return self._attrs.get(name)
 
 
 class Callable(object):
@@ -70,12 +74,32 @@ class AdditionalNameWrapper(Object):
     def declared_at(self):
         return self.value.declared_at
 
-    @property
-    def attrs(self):
-        names = self._names.copy()
+    def attr_list(self, ctx):
         if self.value:
-            names.update(self.value.attrs)
-        return names
+            return set(self._names) | set(self.value.attr_list(ctx))
+        else:
+            return self._names
+
+    def get_attr(self, ctx, name):
+        if self.value:
+            return self.value.get_attr(ctx, name) or self._names.get(name)
+
+
+class CompositeValue(Object):
+    def __init__(self, values):
+        self.values = values
+
+    def attr_list(self, ctx):
+        result = set()
+        for v in self.values:
+            result.update(v.attr_list(ctx))
+        return result
+
+    def get_attr(self, ctx, name):
+        for v in self.values:
+            result = v.get_attr(ctx, name)
+            if result is not None:
+                return result
 
 
 class FailedImport(str):
@@ -119,7 +143,7 @@ class ImportedName(Name, Resolvable):
                 value = FailedImport(self.module)
             else:
                 if self.mname:
-                    value = value.attrs.get(self.mname)
+                    value = value.get_attr(ctx, self.mname)
 
         if not self.mname and value:
             prefix = self.module + '.'
@@ -149,7 +173,7 @@ class RuntimeName(Name, Object, Callable):
         self.is_builtin = is_builtin
 
     @cached_property
-    def attrs(self):
+    def _attrs(self):
         try:
             return {k: RuntimeName(k, v) for k, v in iteritems(vars(self.value))}
         except TypeError:
@@ -214,7 +238,7 @@ class AssignedAttribute(Name, Resolvable):
         return ctx.evaluate(self.value)
 
 
-class MultiValue(Object, Resolvable):
+class MultiValue(Object):
     def __init__(self, value):
         self.values = [value]
 
@@ -225,13 +249,27 @@ class MultiValue(Object, Resolvable):
             self.values.append(value)
         return value
 
-    @context_property
-    def resolve(self, ctx):
-        result = {}
-        for v in self.values:
-            val = v.resolve(ctx)
-            val and result.update(val.attrs)
-        return AttrObject(result)
+    def get_rvalues(self, ctx):
+        try:
+            return self._rvalues
+        except AttributeError:
+            pass
+
+        result = self._rvalues = list(filter(None, (
+            v.resolve(ctx) for v in self.values)))
+        return result
+
+    def attr_list(self, ctx):
+        result = set()
+        for v in self.get_rvalues(ctx):
+            result.update(v.attr_list(ctx))
+        return result
+
+    def get_attr(self, ctx, name):
+        for v in self.get_rvalues(ctx):
+            result = v.get_attr(ctx, name)
+            if result is not None:
+                return result
 
 
 class ClassObject(Object, Callable):
@@ -240,7 +278,7 @@ class ClassObject(Object, Callable):
         self.scope = scope
 
     @property
-    def _attrs(self):
+    def _cls_attrs(self):
         names = self.scope.flow.names
         return {n: names[n] for n in self.scope.locals}
 
@@ -249,11 +287,11 @@ class ClassObject(Object, Callable):
         return list(filter(None, (self.ctx.evaluate(r) for r in self.scope._bases)))
 
     @cached_property
-    def attrs(self):
+    def _attrs(self):
         attrs = {}
         for b in reversed(self.bases):
-            attrs.update(b.attrs)
-        attrs.update(self._attrs)
+            attrs.update(b._attrs)
+        attrs.update(self._cls_attrs)
         return attrs
 
     @context_property
@@ -267,14 +305,14 @@ class InstanceValue(Object):
         self.cls = cls
 
     @cached_property
-    def attrs(self):
-        attrs = self.cls.attrs.copy()
+    def _attrs(self):
+        attrs = self.cls._attrs.copy()
         for b in reversed(self.cls.bases):
-            attrs.update(b.call(self.ctx).attrs)
+            attrs.update(b.call(self.ctx)._attrs)
         attrs.update(self.cls.scope.top.assigns(self.ctx).get(self, {}))
         return attrs
 
 
 class AttrObject(Object):
     def __init__(self, attrs):
-        self.attrs = attrs
+        self._attrs = attrs

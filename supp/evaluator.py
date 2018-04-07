@@ -4,8 +4,8 @@ from ast import Name as AstName, Attribute, Str, Call
 
 from .util import np
 from .name import (ImportedName, MultiName, UndefinedName, MultiValue, Object,
-                   RuntimeName, Resolvable, AssignedName, AdditionalNameWrapper,
-                   Callable)
+                   RuntimeName, Resolvable, AssignedName, Callable,
+                   CompositeValue)
 
 log = logging.getLogger('supp.evaluator')
 
@@ -48,15 +48,15 @@ class EvalCtx(object):
         elif node_type is Attribute:
             value = self.evaluate(node.value)
             if value:
-                return self.evaluate(value.attrs.get(node.attr))
+                return self.evaluate(value.get_attr(self, node.attr))
         elif node_type is MultiName:
-            names = {}
+            values = []
             for n in node.alt_names:
                 if type(n) is not UndefinedName:
                     v = self.evaluate(n)
                     if v:
-                        names.update(v.attrs)
-            return AdditionalNameWrapper(None, names)
+                        values.append(v)
+            return CompositeValue(values)
         elif node_type is Call:
             func = self.evaluate(node.func)
             if func:
@@ -105,7 +105,7 @@ class EvalCtx(object):
         elif node_type is Attribute:
             value = self.evaluate(node.value)
             if value:
-                cname = value.attrs.get(node.attr)
+                cname = value.get_attr(self, node.attr)
         elif node_type is ImportedName:
             result.append(node)
             cname = node.resolve(self)
