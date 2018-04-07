@@ -142,10 +142,11 @@ class ImportedName(Name, Resolvable):
 
 
 class RuntimeName(Name, Object, Callable):
-    def __init__(self, name, value):
+    def __init__(self, name, value, is_builtin=False):
         self.name = name
         self.value = value
         self.location = (0, 0)
+        self.is_builtin = is_builtin
 
     @cached_property
     def attrs(self):

@@ -212,10 +212,11 @@ class SourceScope(Scope):
         self._star_imports[:] = []
 
 
-class FuncScope(Scope, Location, Callable):
+class FuncScope(Scope, Location, Resolvable, Callable):
     def __init__(self, parent, node, is_lambda=False, top=None):
         Scope.__init__(self, parent, top)
         self.args = []
+        self.node = node
         if is_lambda:
             self.name = 'lambda'
             self.location = np(node.body)
@@ -268,6 +269,17 @@ class FuncScope(Scope, Location, Callable):
         if len(self.returns) == 1:
             return ctx.evaluate(self.returns[0])
 
+    def resolve(self, ctx):
+        if not isinstance(self.parent, ClassScope):
+            return self
+
+        for d in self.node.decorator_list:
+            v = ctx.evaluate(d)
+            if isinstance(v, RuntimeName) and v.is_builtin and v.name == 'property':
+                return self.call(ctx)
+
+        return self
+
     def __repr__(self):
         return 'FuncScope({}, {})'.format(self.name, self.declared_at)
 
@@ -296,7 +308,7 @@ class ClassScope(Scope, Location, Resolvable):
 class BuiltinScope(object):
     @cached_property
     def names(self):
-        names = {k: RuntimeName(k, v) for k, v in iteritems(vars(builtins))}
+        names = {k: RuntimeName(k, v, True) for k, v in iteritems(vars(builtins))}
         names.update({k: RuntimeName(k, v)
                       for k, v in iteritems(vars(compat))
                       if k.startswith('__')})
