@@ -4,6 +4,11 @@ import sys
 from bisect import insort
 from ast import iter_fields, Store, Load, NodeVisitor, parse, Tuple, List, AST
 
+try:
+    from ast import Starred
+except ImportError:
+    class Starred: pass
+
 from .compat import iteritems, string_types
 
 NESTED_INDEXED_NODES = Tuple, List
@@ -274,6 +279,8 @@ def get_indexes_for_target(target, result, idx):
             nidx.append(i)
             get_indexes_for_target(r, result, nidx)
     else:
+        if type(target) is Starred:
+            target = target.value
         result.append((target, idx[:]))
         if idx:
             idx[-1] += 1

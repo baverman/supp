@@ -27,13 +27,13 @@ def lint(project, source, filename=None, debug=False):
     except SyntaxError as e:
         return [('E01', e.msg, e.lineno, e.offset, None)]
 
+    if debug:
+        from .util import print_dump
+        print_dump(source.tree)
+
     result = []
     scope = extract_scope(source, project)
     name_usages = get_name_usages(source.tree)
-
-    if debug:
-        from .util import print_dump
-        print_dump(scope.source.tree)
 
     for name in name_usages:
         location = np(name)

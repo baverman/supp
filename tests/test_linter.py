@@ -160,3 +160,11 @@ def test_annotations():
             print(bar, baz)
     ''')
     assert not result
+
+
+@pytest.mark.skipif(PY2, reason='py3 only')
+def test_start_deconstruct():
+    result = tlint('''\
+        result = {boo: foo for *boo, foo in ['123']}
+    ''')
+    assert not result
