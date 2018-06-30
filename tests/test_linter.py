@@ -1,3 +1,4 @@
+import os
 import pytest
 
 from supp.project import Project
@@ -8,7 +9,7 @@ from .helpers import dedent
 
 
 def tlint(source, project=None):
-    return lint(project, dedent(source))
+    return lint(project, dedent(source), debug='DEBUG' in os.environ)
 
 
 def strip(result):
@@ -138,6 +139,13 @@ def test_locals_usage():
         def boo():
             bar = 10
             return locals()
+    ''')
+    assert not result
+
+
+def test_lambda_with_default_args():
+    result = tlint('''\
+        lambda min=None: min
     ''')
     assert not result
 

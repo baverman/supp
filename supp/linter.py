@@ -20,7 +20,7 @@ def use_name(name):
         name.used = True
 
 
-def lint(project, source, filename=None):
+def lint(project, source, filename=None, debug=False):
     source = Source(source, filename)
     try:
         source.tree
@@ -31,8 +31,9 @@ def lint(project, source, filename=None):
     scope = extract_scope(source, project)
     name_usages = get_name_usages(source.tree)
 
-    # from .util import print_dump
-    # print_dump(scope.source.tree)
+    if debug:
+        from .util import print_dump
+        print_dump(scope.source.tree)
 
     for name in name_usages:
         location = np(name)

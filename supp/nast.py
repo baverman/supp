@@ -184,6 +184,15 @@ class extract(object):
     visit_AsyncFunctionDef = visit_FunctionDef
 
     def visit_Lambda(self, node):
+        for a in node.args.defaults:
+            self.visit(a)
+
+        if not PY2:
+            for a in node.args.args:
+                a.annotation and self.visit(a.annotation)
+            for a in node.args.kwonlyargs:
+                a.annotation and self.visit(a.annotation)
+
         cur = self.flow
         scope = FuncScope(cur.scope, node, True, top=self.top)
         self.visit_in_flow(node.body, scope.flow)
