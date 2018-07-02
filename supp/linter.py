@@ -34,6 +34,7 @@ def lint(project, source, filename=None, debug=False):
     result = []
     scope = extract_scope(source, project)
     name_usages = get_name_usages(source.tree)
+    qualified_imports = set()
 
     for name in name_usages:
         location = np(name)
@@ -45,6 +46,7 @@ def lint(project, source, filename=None, debug=False):
             continue
 
         snames = flow.names_at(location)
+
         try:
             sname = snames[name.id]
             # print('!!!', name.id, sname)
@@ -56,8 +58,11 @@ def lint(project, source, filename=None, debug=False):
                 for n in itervalues(flow.names_at(location)):
                     if getattr(n, 'scope', None) is flow.scope:
                         use_name(n)
+            else:
+                if type(sname) is ImportedName and sname.qualified:
+                    qualified_imports.add(sname.name)
 
-            use_name(sname)
+                use_name(sname)
 
     for flow, name in scope.all_names:
         w = 'W01'
@@ -70,10 +75,12 @@ def lint(project, source, filename=None, debug=False):
             continue
         if isinstance(flow.scope, IGNORED_SCOPES):
             if isinstance(name, ImportedName):
-                w = 'W02'
-                message = 'Unused import: {}'
                 if name.module == '__future__':
                     continue
+                if name.name in qualified_imports:
+                    continue
+                w = 'W02'
+                message = 'Unused import: {}'
             else:
                 continue
         if (isinstance(name, ArgumentName) and

@@ -150,6 +150,22 @@ def test_lambda_with_default_args():
     assert not result
 
 
+def test_qualified_imports():
+    result = tlint('''\
+        import logging.config
+        import logging.handlers
+    ''')
+    assert strip(result) == [('W02', 'Unused import: logging', 1, 7),
+                             ('W02', 'Unused import: logging', 2, 7)]
+
+    result = tlint('''\
+        import logging.config
+        import logging.handlers
+        logging.foo()
+    ''')
+    assert not result
+
+
 @pytest.mark.skipif(PY2, reason='py3 only')
 def test_annotations():
     result = tlint('''\

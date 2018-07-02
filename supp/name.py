@@ -108,12 +108,13 @@ class FailedImport(str):
 
 class ImportedName(Name, Resolvable):
     def __init__(self, name, location, declared_at, module,
-                 mname=None, is_star=False):
+                 mname=None, is_star=False, qualified=False):
         Name.__init__(self, name, location)
         self.declared_at = declared_at
         self.module = module
         self.mname = mname
         self.is_star = is_star
+        self.qualified = qualified
 
     def resolve(self, ctx):
         try:

@@ -113,16 +113,19 @@ class extract(object):
         loc = get_expr_end(node)
         start = np(node)
         for a in node.names:
+            qualified = False
             if a.asname:
                 name = a.asname
                 iname = a.name
             else:
-                name = a.name.partition('.')[0]
+                name, sep, _ = a.name.partition('.')
+                qualified = bool(sep)
                 iname = name
                 self.top._imports.append(a.name)
 
             declared_at = self.top.find_id_loc(name, start)
-            self.flow.add_name(ImportedName(name, loc, declared_at, iname, None))
+            self.flow.add_name(ImportedName(name, loc, declared_at, iname, None,
+                                            qualified=qualified))
 
     def visit_ImportFrom(self, node):
         loc = get_expr_end(node)
