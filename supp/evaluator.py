@@ -1,6 +1,6 @@
 from __future__ import print_function
 import logging
-from ast import Name as AstName, Attribute, Str, Call
+from ast import Name as AstName, Attribute, Str, Call, Bytes
 
 from .util import np
 from .name import (ImportedName, MultiName, UndefinedName, MultiValue, Object,
@@ -8,6 +8,11 @@ from .name import (ImportedName, MultiName, UndefinedName, MultiValue, Object,
                    CompositeValue)
 
 log = logging.getLogger('supp.evaluator')
+
+try:
+    from ast import Constant
+except ImportError:
+    class Constant: pass
 
 
 class EvalCtx(object):
@@ -70,6 +75,10 @@ class EvalCtx(object):
             return node
         elif node_type is Str:
             return RuntimeName('__none__', node.s)
+        elif node_type is Bytes:
+            return RuntimeName('__none__', node.s)
+        elif node_type is Constant:
+            return RuntimeName('__none__', node.value)
         elif isinstance(node, Callable):
             return node
         else:

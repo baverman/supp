@@ -2,7 +2,7 @@ from __future__ import print_function
 import string
 import logging
 from bisect import bisect
-from ast import Name as AstName, Attribute, Call, Str
+from ast import Name as AstName, Attribute, Call, Str, FunctionDef, ClassDef
 
 from .util import (Location, np, insert_loc, cached_property,
                    get_indexes_for_target, context_property)
@@ -212,6 +212,18 @@ class SourceScope(Scope):
         self._star_imports[:] = []
 
 
+def get_first_body_node_loc(body):
+    if not body:
+        return
+
+    if type(body[0]) in (FunctionDef, ClassDef) and body[0].decorator_list:
+        return body[0].decorator_list[0].lineno, body[0].col_offset
+
+    for n in body:
+        if n.col_offset >= 0:
+            return np(n)
+
+
 class FuncScope(Scope, Location, Resolvable, Callable):
     def __init__(self, parent, node, is_lambda=False, top=None):
         Scope.__init__(self, parent, top)
@@ -224,12 +236,7 @@ class FuncScope(Scope, Location, Resolvable, Callable):
         else:
             self.name = node.name
             self.declared_at = top.find_id_loc(' ' + node.name, np(node), 1, False)
-            for n in node.body:
-                if n.col_offset >= 0:
-                    self.location = np(n)
-                    break
-            else:
-                self.location = np(node.body[0])[0], np(node)[1] + 4
+            self.location = get_first_body_node_loc(node.body) or (np(node.body[0])[0], np(node)[1] + 4)
 
         for ni, n in enumerate(node.args.args):
             if PY2:

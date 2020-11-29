@@ -685,6 +685,18 @@ def test_visit_decorator():
     assert nvalues(names_at(scope, p[0])) == {'r': 'listitem'}
 
 
+def test_param_in_decorator():
+    source, p = sp('''\
+        def decorator(func):
+            @wraps(|func)
+            def inner():
+                pass
+            return inner
+    ''')
+    scope = create_scope(source, flow_graph=False)
+    assert nvalues(names_at(scope, p[0])) == {'decorator': 'func', 'func': 'decorator.arg'}
+
+
 def test_flow_position_shoud_ignore_fake_flows():
     source, p = sp('''\
         def foo(source):
@@ -786,7 +798,7 @@ def create_scope(source, filename=None, debug=False, flow_graph=False):
     scope = SourceScope(source)
     scope.parent = None
     extract(source.tree, scope.flow)
-    flow_graph and dump_flows(scope, '/tmp/scope-dump.dot')
+    flow_graph or os.environ.get('FLOW_GRAPH') and dump_flows(scope, '/tmp/scope-dump.dot')
     return scope
 
 

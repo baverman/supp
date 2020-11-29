@@ -9,7 +9,7 @@ from supp.compat import PY2
 
 
 def pytest_generate_tests(metafunc):
-    if 'fname' in metafunc.funcargnames:
+    if 'fname' in metafunc.fixturenames:
         fnames = []
         for top, _, files in chain(os.walk('supp'), os.walk('tests')):
             for fname in files:
