@@ -2,7 +2,7 @@ import os
 from ast import Lambda, With, Call, Subscript, Dict
 import pytest
 
-from supp.compat import iteritems, PY2
+from supp.compat import iteritems, PY2, HAS_VAR_TYPE_HINTS
 from supp.name import (AssignedName, UndefinedName, MultiName,
                        ImportedName, ArgumentName)
 from supp.scope import SourceScope, FuncScope, ClassScope
@@ -786,6 +786,17 @@ def test_star_imports_in_func_scope():
     assert 'abspath' not in names
 
 
+@pytest.mark.skipif(not HAS_VAR_TYPE_HINTS, reason='python>=3.6')
+def test_var_type_hits():
+    source, p = sp('''\
+        foo: int = 10
+        |
+    ''')
+
+    scope = create_scope(source)
+    assert nvalues(scope.names) == {'foo': 10}
+
+
 # def test_boo():
 #     scope = create_scope(open('/usr/lib/python2.7/posixpath.py').read())
 #     print scope.flows[0]
@@ -794,7 +805,7 @@ def test_star_imports_in_func_scope():
 
 def create_scope(source, filename=None, debug=False, flow_graph=False):
     source = Source(source, filename)
-    debug or os.environ.get('DEBUG') and print_dump(source.tree)
+    (debug or os.environ.get('DEBUG')) and print_dump(source.tree)
     scope = SourceScope(source)
     scope.parent = None
     extract(source.tree, scope.flow)

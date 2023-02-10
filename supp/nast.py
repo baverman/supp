@@ -70,6 +70,13 @@ class extract(object):
 
         self.generic_visit(node)
 
+    def visit_AnnAssign(self, node):
+        eend = get_expr_end(node.value)
+        name = node.target
+        name.flow = self.flow
+        self.flow.add_name(AssignedName(name.id, eend, np(name), node.value))
+        self.generic_visit(node)
+
     def visit_If(self, node):
         self.visit(node.test)
         cur = self.flow
@@ -92,6 +99,7 @@ class extract(object):
 
         self.flow = self.make_flow('join', [orelse])
         self.flow.scope.flow = self.flow
+
 
     visit_AsyncFor = visit_For
 

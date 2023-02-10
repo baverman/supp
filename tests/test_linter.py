@@ -22,7 +22,9 @@ def test_check_syntax():
             pass
     ''')
 
-    assert strip(result) == [('E01', 'invalid syntax', 1, 10)]
+    result = strip(result)
+    assert (result == [('E01', 'invalid syntax', 1, 10)]
+           or result == [('E01', "expected ':'", 1, 10)])
 
 
 def test_name_usages():

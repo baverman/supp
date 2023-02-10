@@ -1,6 +1,6 @@
 from __future__ import print_function
 import logging
-from ast import Name as AstName, Attribute, Str, Call, Bytes
+from ast import Name as AstName, Attribute, Str, Call
 
 from .util import np
 from .name import (ImportedName, MultiName, UndefinedName, MultiValue, Object,
@@ -13,6 +13,11 @@ try:
     from ast import Constant
 except ImportError:
     class Constant: pass
+
+try:
+    from ast import Bytes
+except ImportError:
+    class Bytes: pass
 
 
 class EvalCtx(object):

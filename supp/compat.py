@@ -1,6 +1,7 @@
 import sys
 
 PY2 = sys.version_info[0] == 2
+VER = sys.version_info[:2]
 
 if PY2:
     import __builtin__ as builtins
@@ -47,3 +48,5 @@ else:
         if value.__traceback__ is not tb:
             raise value.with_traceback(tb)
         raise value
+
+HAS_VAR_TYPE_HINTS = VER >= (3, 6)

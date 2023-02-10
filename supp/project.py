@@ -1,14 +1,19 @@
 import os
 import sys
-import imp
 
 from contextlib import contextmanager
 
 from .compat import range, reduce
 from .module import SourceModule, ImportedModule
 
-suffixes_full = imp.get_suffixes()
-suffixes = [s for s, _, _ in suffixes_full]
+try:
+    import importlib.machinery
+    SUFFIXES = importlib.machinery.all_suffixes()
+except:
+    import imp
+    SUFFIXES = [s for s, _, _ in imp.get_suffixes()]
+
+SOURCE_SUFFIXES = ('.py',)
 
 
 class Project(object):
@@ -42,7 +47,7 @@ class Project(object):
                 continue
 
             for name in dlist:
-                for s in suffixes:
+                for s in SUFFIXES:
                     if name.endswith(s):
                         mname = name[:-len(s)]
                         if mname == '__init__':
@@ -81,20 +86,20 @@ class Project(object):
 
         path = self.get_path()
         filename = None
-        ftype = None
+        is_source = False
         for p in path:
             mpath = os.path.join(p, *name.split('.'))
-            for s, _, t in suffixes_full:
+            for s in SUFFIXES:
                 fname = mpath + s
                 if os.path.exists(fname):
                     filename = fname
-                    ftype = t
+                    is_source = s in SOURCE_SUFFIXES
                     break
             else:
                 fname = os.path.join(mpath, '__init__.py')
                 if os.path.exists(fname):
                     filename = fname
-                    ftype = imp.PY_SOURCE
+                    is_source = True
                     break
 
             if filename:
@@ -105,7 +110,7 @@ class Project(object):
             if name in sys.modules:
                 module = ImportedModule(sys.modules[name])
         else:
-            if ftype == imp.PY_SOURCE:
+            if is_source:
                 module = SourceModule(self, name, filename)
             else:
                 if name not in sys.modules:
