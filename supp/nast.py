@@ -71,10 +71,18 @@ class extract(object):
         self.generic_visit(node)
 
     def visit_AnnAssign(self, node):
-        eend = get_expr_end(node.value)
+        if node.value:
+            eend = get_expr_end(node.value)
+        else:
+            eend = get_expr_end(node)
         name = node.target
-        name.flow = self.flow
-        self.flow.add_name(AssignedName(name.id, eend, np(name), node.value))
+        if isinstance(name, Attribute):
+            self.top.add_attr_assign(self.flow.scope, name, node.value)
+        elif isinstance(name, UNSUPPORTED_ASSIGMENTS):
+            pass
+        else:
+            name.flow = self.flow
+            self.flow.add_name(AssignedName(name.id, eend, np(name), node.value))
         self.generic_visit(node)
 
     def visit_If(self, node):

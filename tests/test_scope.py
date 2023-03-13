@@ -794,7 +794,26 @@ def test_var_type_hits():
     ''')
 
     scope = create_scope(source)
-    assert nvalues(scope.names) == {'foo': 10}
+    names = names_at(scope, p[0])
+    assert nvalues(names) == {'foo': 10}
+
+
+@pytest.mark.skipif(not HAS_VAR_TYPE_HINTS, reason='python>=3.6')
+def test_class_attr_type_hits():
+    source, p = sp('''\
+        class Foo:
+            foo: int = 10
+            |
+            boo: str
+            |
+    ''')
+
+    scope = create_scope(source)
+    names = names_at(scope, p[0])
+    assert nvalues(names) == {'foo': 10, 'Foo': 'class'}
+
+    names = names_at(scope, p[1])
+    assert nvalues(names) == {'boo': 'none', 'Foo': 'class', 'foo': 10}
 
 
 # def test_boo():
@@ -839,6 +858,8 @@ def get_value(name):
             return 'item[]'
         if isinstance(name.value_node, Dict):
             return '{}'
+        if name.value_node is None:
+            return 'none'
         if hasattr(name.value_node, 'elts'):
             return 'listitem'
         if hasattr(name.value_node, 'id'):
