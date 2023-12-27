@@ -17,11 +17,12 @@ SOURCE_SUFFIXES = ('.py',)
 
 
 class Project(object):
-    def __init__(self, sources=None):
+    def __init__(self, sources=None, dyn_modules=None):
         self.sources = sources or ['.']
         self._norm_cache = {}
         self._module_cache = {}
         self._context_cache = {}
+        self.dyn_modules = set(dyn_modules or [])
 
     def get_path(self):
         return  self.sources + sys.path
@@ -110,12 +111,12 @@ class Project(object):
             if name in sys.modules:
                 module = ImportedModule(sys.modules[name])
         else:
-            if is_source:
-                module = SourceModule(self, name, filename)
-            else:
+            if name in self.dyn_modules or not is_source:
                 if name not in sys.modules:
                     __import__(name)
                 module = ImportedModule(sys.modules[name])
+            else:
+                module = SourceModule(self, name, filename)
 
         if not module:
             raise ImportError(name)

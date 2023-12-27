@@ -25,7 +25,7 @@ class Server(object):
         self.conn = conn
 
     def configure(self, config):
-        self.project = Project(config['sources'])
+        self.project = Project(config['sources'], dyn_modules=config.get('dyn_modules'))
 
     def process(self, name, args, kwargs):
         try:
