@@ -192,6 +192,10 @@ class extract(object):
                 a.annotation and self.visit(a.annotation)
             for a in node.args.kwonlyargs:
                 a.annotation and self.visit(a.annotation)
+            if node.args.vararg and node.args.vararg.annotation:
+                self.visit(node.args.vararg.annotation)
+            if node.args.kwarg and node.args.kwarg.annotation:
+                self.visit(node.args.kwarg.annotation)
             node.returns and self.visit(node.returns)
 
         cur = self.flow

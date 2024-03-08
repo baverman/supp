@@ -186,3 +186,13 @@ def test_start_deconstruct():
         result = {boo: foo for *boo, foo in ['123']}
     ''')
     assert not result
+
+
+@pytest.mark.skipif(PY2, reason='py3 only')
+def test_args_kwarrgs_annotations():
+    result = tlint('''\
+        from module import T, P
+        def boo(*args: T, **kwargs: P):
+            print(args, kwargs)
+    ''')
+    assert not result
