@@ -2,7 +2,7 @@ import os
 from ast import Lambda, With, Call, Subscript, Dict
 import pytest
 
-from supp.compat import iteritems, PY2, HAS_VAR_TYPE_HINTS
+from supp.compat import iteritems, PY2, HAS_VAR_TYPE_HINTS, HAS_WALRUS
 from supp.name import (AssignedName, UndefinedName, MultiName,
                        ImportedName, ArgumentName)
 from supp.scope import SourceScope, FuncScope, ClassScope
@@ -814,6 +814,18 @@ def test_class_attr_type_hits():
 
     names = names_at(scope, p[1])
     assert nvalues(names) == {'boo': 'none', 'Foo': 'class', 'foo': 10}
+
+
+@pytest.mark.skipif(not HAS_WALRUS, reason='python>=3.6')
+def test_walrus():
+    source, p = sp('''\
+        if boo := 10:
+            |
+            pass
+    ''')
+    scope = create_scope(source)
+    names = names_at(scope, p[0])
+    assert nvalues(names) == {'boo': 10}
 
 
 # def test_boo():

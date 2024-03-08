@@ -281,3 +281,10 @@ class extract(object):
     def visit_Name(self, node):
         if type(node.ctx) is Load:
             node.flow = self.flow
+
+    def visit_NamedExpr(self, node):
+        eend = get_expr_end(node.value)
+        name = node.target
+        name.flow = self.flow
+        self.flow.add_name(AssignedName(name.id, eend, np(name), node.value))
+        self.generic_visit(node)
