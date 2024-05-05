@@ -790,6 +790,7 @@ def test_star_imports_in_func_scope():
 def test_var_type_hits():
     source, p = sp('''\
         foo: int = 10
+        boo: str
         |
     ''')
 
@@ -813,7 +814,7 @@ def test_class_attr_type_hits():
     assert nvalues(names) == {'foo': 10, 'Foo': 'class'}
 
     names = names_at(scope, p[1])
-    assert nvalues(names) == {'boo': 'none', 'Foo': 'class', 'foo': 10}
+    assert nvalues(names) == {'Foo': 'class', 'foo': 10}
 
 
 @pytest.mark.skipif(not HAS_WALRUS, reason='python>=3.6')

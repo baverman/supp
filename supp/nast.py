@@ -80,7 +80,7 @@ class extract(object):
             self.top.add_attr_assign(self.flow.scope, name, node.value)
         elif isinstance(name, UNSUPPORTED_ASSIGMENTS):
             pass
-        else:
+        elif node.value:
             name.flow = self.flow
             self.flow.add_name(AssignedName(name.id, eend, np(name), node.value))
         self.generic_visit(node)
