@@ -7,7 +7,7 @@ from threading import Thread, Lock
 from .umsgpack import dumps, loads
 from . import umsgpack
 
-umsgpack.compatibility = True
+# umsgpack.compatibility = True
 
 
 class Environment(object):

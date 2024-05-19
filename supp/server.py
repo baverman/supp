@@ -36,6 +36,7 @@ class Server(object):
             is_ok = False
             result = e.__class__.__name__, str(e)
 
+        # logger.error('PROCESS %r %r %r: %r', name, args, kwargs, result)
         return result, is_ok
 
     def assist(self, source, position, filename):
