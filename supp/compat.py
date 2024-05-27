@@ -6,7 +6,6 @@ VER = sys.version_info[:2]
 if PY2:
     import __builtin__ as builtins
     range = builtins.xrange
-    reduce = builtins.reduce
     string_types = (str, unicode)
 
     iterkeys = lambda d: d.iterkeys()
@@ -25,7 +24,6 @@ if PY2:
 
 else:
     import builtins
-    from functools import reduce
     range = builtins.range
     string_types = (str, )
     hasattr = builtins.hasattr

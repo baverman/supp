@@ -43,6 +43,27 @@ def test_name_usages():
     ]
 
 
+@pytest.mark.xfail
+def test_possible_undefined_name():
+    result = tlint('''\
+        if True:
+            baz = 10
+        print(baz)
+    ''')
+    assert result
+
+
+def test_escape_flow():
+    result = tlint('''\
+        try:
+            baz = 10
+        except:
+            raise
+        print(baz)
+    ''')
+    assert not result
+
+
 def test_default_args():
     result = tlint('''\
         baz = 10

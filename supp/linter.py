@@ -49,11 +49,15 @@ def lint(project, source, filename=None, debug=False):
 
         try:
             sname = snames[name.id]
-            # print('!!!', name.id, sname)
+            # print('@@', name.id, sname)
         except KeyError:
             result.append(('E02', 'Undefined name: {}'.format(name.id),
                            location[0], location[1], flow))
         else:
+            # if type(sname) is MultiName and sname.has_undefined:
+            #     use_name(sname)
+            #     result.append(('E02', 'Undefined name: {}'.format(name.id),
+            #                    location[0], location[1], flow))
             if sname.name == 'locals' and sname.location == (0, 0):
                 for n in itervalues(flow.names_at(location)):
                     if getattr(n, 'scope', None) is flow.scope:

@@ -20,14 +20,22 @@ from supp.project import Project
 from supp.compat import nstr
 
 
+if False:
+    import typing as t
+    from multiprocessing.connection import _ConnectionBase
+
+
 class Server(object):
     def __init__(self, conn):
+        # type: (_ConnectionBase) -> None
         self.conn = conn
 
     def configure(self, config):
+        # type: (dict[str, t.Any]) -> None
         self.project = Project(config['sources'], dyn_modules=config.get('dyn_modules'))
 
     def process(self, name, args, kwargs):
+        # type: (str, tuple[t.Any], dict[str, t.Any]) -> tuple[t.Any, bool]
         try:
             is_ok = True
             result = getattr(self, name)(*args, **kwargs)
@@ -40,6 +48,7 @@ class Server(object):
         return result, is_ok
 
     def assist(self, source, position, filename):
+        # type: (str, list[int], str) -> t.TODO
         with self.project.check_changes():
             return assistant.assist(self.project, nstr(source), tuple(position), filename)
 
