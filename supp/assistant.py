@@ -1,3 +1,4 @@
+# type: ignore
 from __future__ import print_function
 import re
 import logging

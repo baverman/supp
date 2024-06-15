@@ -2,7 +2,7 @@ from __future__ import print_function
 import string
 import logging
 from bisect import bisect
-from ast import Name as AstName, Attribute, Call, Str, FunctionDef, ClassDef, Lambda
+from ast import Name as AstName, Attribute, Call, FunctionDef, ClassDef, Lambda
 
 from .util import (Location, np, insert_loc, cached_property,
                    get_indexes_for_target, context_property)

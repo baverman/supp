@@ -1,3 +1,4 @@
+# type: ignore
 import logging
 
 from .util import Source, get_name_usages, np

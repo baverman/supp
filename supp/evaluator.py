@@ -1,26 +1,27 @@
 from __future__ import print_function
 import logging
-from ast import Name as AstName, Attribute, Str, Call, AST
+from ast import Name as AstName, Attribute, Call
 
 from .util import np
+from .compat import HAS_CONSTANTS
 from .name import (ImportedName, MultiName, MultiValue, Object,
                    RuntimeName, Resolvable, AssignedName, Callable,
                    CompositeValue)
 
 log = logging.getLogger('supp.evaluator')
 
-try:
+if HAS_CONSTANTS:
     from ast import Constant
-except ImportError:
+    class Str: pass
+    class Bytes: pass
+else:
+    from ast import Str, Bytes  # type: ignore[assignment]
     class Constant: pass  # type: ignore[no-redef]
 
-try:
-    from ast import Bytes
-except ImportError:
-    class Bytes: pass  # type: ignore[no-redef]
 
 if False:
     import typing as t
+    from ast import AST
     from .project import Project
     from .name import Name
 

@@ -80,7 +80,10 @@ def get_value(name):
             return 'listitem'
         if hasattr(name.value_node, 'id'):
             return name.value_node.id
-        return name.value_node.n
+        if PY2:
+            return name.value_node.n
+        else:
+            return name.value_node.value
     elif isinstance(name, UndefinedName):
         return 'undefined'
     elif isinstance(name, MultiName):

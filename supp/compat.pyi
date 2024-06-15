@@ -9,6 +9,7 @@ builtins: object
 string_types = (str,)
 
 PY2: bool
+HAS_CONSTANTS: bool
 
 def iteritems(data: t.Mapping[K, V]) -> t.Iterable[tuple[K, V]]:
     ...

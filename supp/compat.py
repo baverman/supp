@@ -49,3 +49,4 @@ else:
 
 HAS_VAR_TYPE_HINTS = VER >= (3, 6)
 HAS_WALRUS = VER >= (3, 8)
+HAS_CONSTANTS = VER >= (3, 8)

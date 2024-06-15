@@ -14,7 +14,7 @@ from .compat import iteritems, string_types
 if False:
     import typing as t, abc
     from .scope import Scope, Flow, SourceScope
-    from ast import ImportFrom, Import, Name as AstName, Attribute, Subscript
+    from ast import ImportFrom, Import, Name as AstName, Attribute, Subscript, Constant
     from functools import cached_property as cached_property
 
     T = t.TypeVar('T')
@@ -171,6 +171,10 @@ class get_expr_end_visitor(NodeVisitor):
     def visit_Load(self, node):
         # type: (AST) -> None
         pass
+
+    def visit_Constant(self, node):
+        # type: (Constant) -> None
+        self.last_loc = node.lineno, node.col_offset + 1
 
     def __getattr__(self, name):
         # type: (str) -> t.Callable[[AST], None]

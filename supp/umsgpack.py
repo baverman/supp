@@ -1,3 +1,4 @@
+# type: ignore
 # u-msgpack-python v2.0 - vsergeev at gmail
 # https://github.com/vsergeev/u-msgpack-python
 #
