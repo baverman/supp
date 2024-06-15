@@ -310,7 +310,7 @@ class FuncScope(Scope, Location, Resolvable):
                 for nn, idx in get_indexes_for_target(n, [], []):
                     self.args.append(ArgumentName([ni] + idx, nn.id, self.location, np(nn), self))
             else:
-                self.args.append(ArgumentName([ni], n.arg, self.location, np(n), self))
+                self.args.append(ArgumentName([ni], n.arg, self.location, np(n), self, n.annotation))
 
         if not PY2:
             for n in node.args.kwonlyargs:
@@ -339,6 +339,10 @@ class FuncScope(Scope, Location, Resolvable):
         # type: (EvalCtx, ArgumentName) -> Object | None
         if arg.idx == [0] and isinstance(self.parent, ClassScope):
             return self.parent.resolve(ctx).call(ctx)
+        if arg.annotation:
+            obj = ctx.evaluate(arg.annotation)
+            if obj and isinstance(obj, Callable):
+                return obj.call(ctx)
         return None
 
     def resolve(self, ctx):

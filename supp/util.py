@@ -160,7 +160,7 @@ class StopVisiting(Exception):
 class get_expr_end_visitor(NodeVisitor):
     def process(self, node):
         # type: (AST) -> loc_t
-        self.last_loc = node.lineno, node.col_offset + 1
+        self.last_loc = node.lineno, node.col_offset + 1  # type: ignore[attr-defined]
         self.visit(node)
         return self.last_loc
 
@@ -181,7 +181,7 @@ class get_expr_end_visitor(NodeVisitor):
         def inner(node):
             # type: (AST) -> None
             try:
-                self.last_loc = node.lineno, node.col_offset + 1
+                self.last_loc = node.lineno, node.col_offset + 1 # type: ignore[attr-defined]
             except AttributeError:
                 pass
             self.generic_visit(node)
@@ -320,7 +320,7 @@ def get_indexes_for_target(target, result, idx):
 
 def np(node):
     # type: (AST) -> loc_t
-    return node.lineno, node.col_offset
+    return node.lineno, node.col_offset  # type: ignore[attr-defined]
 
 
 SOURCE_MARK = '__supp_mark__'

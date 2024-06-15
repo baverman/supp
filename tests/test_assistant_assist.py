@@ -420,3 +420,27 @@ def test_cached_property():
 
     _, result = tassist(source, p[0])
     assert 'startswith' in result
+
+
+def test_annotated_arg():
+    source, p = sp('''\
+        class Boo:
+            def foo(self):
+                pass
+
+        def foo(arg: Boo):
+            arg.f|
+    ''')
+    _, result = tassist(source, p[0], debug=True)
+    assert 'foo' in result
+
+
+# def test_test():
+#     project = Project(['/home/bobrov/work/sdl_line'], dyn_modules=['sdl3'])
+#     source, p = sp('''\
+#         import sdl3
+#         sdl3.SDL_|
+#     ''')
+#     _, result = tassist(source, p[0], debug=True, project=project)
+#     print(result)
+#     assert False

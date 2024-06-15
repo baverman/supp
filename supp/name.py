@@ -70,12 +70,13 @@ class Name(Location):
 
 
 class ArgumentName(Name, Resolvable):
-    def __init__(self, idx, name, location, declared_at, func):
-        # type: (list[int], str, loc_t, loc_t, FuncScope) -> None
+    def __init__(self, idx, name, location, declared_at, func, annotation=None):
+        # type: (list[int], str, loc_t, loc_t, FuncScope, ast.exp | None) -> None
         Name.__init__(self, name, location)
         self.declared_at = declared_at
         self.func = func
         self.idx = idx
+        self.annotation = annotation
 
     def __repr__(self):
         # type: () -> str

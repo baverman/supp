@@ -1,3 +1,8 @@
+# Annotations
+* Class[...]
+* Optional
+* Union
+
 * usage graph
 * imports checker
 * hints to ignore lint errors/warnings

@@ -97,7 +97,7 @@ class EvalCtx(object):
             log.warn('Unknown node type %r %r', node_type, node)
 
     def declarations(self, node, result=[]):
-        # type: (Name | AstName | MultiName | MultiValue | Attribute | ImportedName, list[Name]) -> list[Name]
+        # type: (Name | AstName | MultiName | MultiValue | Attribute | ImportedName, list[Name | list[Name]]) -> list[Name | list[Name]]
         node_type = type(node)
         cname = None
         if node_type is AstName:
