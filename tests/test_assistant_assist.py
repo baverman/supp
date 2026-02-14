@@ -1,4 +1,5 @@
 import os
+import sys
 import pytest
 from supp.assistant import assist
 from supp.project import Project
@@ -435,6 +436,144 @@ def test_annotated_arg():
     assert 'foo' in result
 
 
+def test_annotated_arg_union():
+    source, p = sp('''\
+        from typing import Union
+
+        class A:
+            def foo(self):
+                pass
+
+        class B:
+            def bar(self):
+                pass
+
+        def boo(arg: Union[A, B]):
+            arg.|
+    ''')
+    _, result = tassist(source, p[0], debug=True)
+    assert 'foo' in result
+    assert 'bar' in result
+
+
+def test_annotated_arg_union_alias():
+    source, p = sp('''\
+        from typing import Union
+
+        class A:
+            def foo(self):
+                pass
+
+        class B:
+            def bar(self):
+                pass
+
+        Arg = Union[A, B]
+        ArgA = A[B]
+
+        def boo(arg1: Arg, arg2: ArgA):
+            arg1.f|
+            arg1.b|
+            arg2.f|
+    ''')
+
+    _, result = tassist(source, p[0])
+    assert 'foo' in result
+
+    _, result = tassist(source, p[1])
+    assert 'bar' in result
+
+    _, result = tassist(source, p[2], debug=True)
+    assert 'foo' in result
+
+
+def test_annotated_arg_union_import_alias():
+    source, p = sp('''\
+        from typing import Union as U
+
+        class A:
+            def foo(self):
+                pass
+
+        class B:
+            def bar(self):
+                pass
+
+        def boo(arg: U[A, B]):
+            arg.|
+    ''')
+    _, result = tassist(source, p[0], debug=True)
+    assert 'foo' in result
+    assert 'bar' in result
+
+
+def test_annotated_arg_optional():
+    source, p = sp('''\
+        from typing import Optional
+
+        class A:
+            def foo(self):
+                pass
+
+        def boo(arg: Optional[A]):
+            arg.f|
+    ''')
+    _, result = tassist(source, p[0], debug=True)
+    assert 'foo' in result
+
+
+@pytest.mark.skipif(sys.version_info < (3, 10), reason='py3.10+ syntax')
+def test_annotated_arg_pep604_union():
+    source, p = sp('''\
+        class A:
+            def foo(self):
+                pass
+
+        class B:
+            def bar(self):
+                pass
+
+        def boo(arg: A | B):
+            arg.@
+    ''', marker='@')
+    _, result = tassist(source, p[0], debug=True)
+    assert 'foo' in result
+    assert 'bar' in result
+
+
+def test_annotated_arg_type():
+    source, p = sp('''\
+        from typing import Type
+
+        class A:
+            value = 10
+
+            @classmethod
+            def make(cls):
+                pass
+
+        def boo(arg: Type[A]):
+            arg.m|
+    ''')
+    _, result = tassist(source, p[0], debug=True)
+    assert 'make' in result
+
+
+def test_annotated_arg_with_forward_refs():
+    source, p = sp('''\
+        from __future__ import annotations
+
+        def foo(arg: Boo):
+            arg.f|
+
+        class Boo:
+            def foo(self):
+                pass
+    ''')
+    _, result = tassist(source, p[0], debug=True)
+    assert 'foo' in result
+
+
 # def test_test():
 #     project = Project(['/home/bobrov/work/sdl_line'], dyn_modules=['sdl3'])
 #     source, p = sp('''\
@@ -442,5 +581,14 @@ def test_annotated_arg():
 #         sdl3.SDL_|
 #     ''')
 #     _, result = tassist(source, p[0], debug=True, project=project)
+#     print(result)
+#     assert False
+
+# def test_real_file():
+#     pdir = '/home/bobrov/work/diagen'
+#     fname = '/home/bobrov/work/diagen/diagen/nodes.py'
+#     project = Project([pdir])
+#     source, p = sp(open(fname).read(), marker='$')
+#     _, result = tassist(source, p[0], project=project, filename=fname)
 #     print(result)
 #     assert False

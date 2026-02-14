@@ -1,8 +1,8 @@
-from __future__ import print_function, annotations
+from __future__ import annotations
 
 import logging
 import typing as t
-from ast import Name as AstName, Attribute, Call, AST
+from ast import Name as AstName, Attribute, Call, AST, BinOp, BitOr, Subscript, Tuple
 
 from .util import np
 from .compat import HAS_CONSTANTS
@@ -92,7 +92,7 @@ class EvalCtx(object):
                 if isinstance(func, Callable):
                     return func.call(self)  # type: ignore[attr-defined]
                 else:
-                    log.warn("Non-callable %r %r", type(func), func)
+                    log.warning("Non-callable %r %r", type(func), func)
         elif isinstance(node, Resolvable):
             return node.resolve(self)  # type: ignore[attr-defined]
         elif isinstance(node, Object):
@@ -106,12 +106,12 @@ class EvalCtx(object):
         elif isinstance(node, Callable):
             return node
         else:
-            log.warn("Unknown node type %r %r", node_type, node)
+            log.warning("Unknown node type %r %r", node_type, node)
 
     def declarations(
         self,
         node: Name | AstName | MultiName | MultiValue | Attribute | ImportedName,
-        result: list[Name | list[Name]] = [],
+        result: list[Name | list[Name]],
     ) -> list[Name | list[Name]]:
         node_type = type(node)
         cname = None
@@ -154,3 +154,81 @@ class EvalCtx(object):
             return self.declarations(cname, result)
 
         return result
+
+
+class MarkerObject(Object):
+    def __init__(self, typ: str) -> None:
+        self.type = typ
+
+    def __repr__(self):
+        return f'MarkerObject({self.type!r})'
+
+
+class TypeWrapper(Object):
+    def __init__(self, obj: Object) -> None:
+        self.object = obj
+
+    def __repr__(self):
+        return f'Type({self.object})'
+
+
+class EvalAnnotationCtx(EvalCtx):
+    def _evaluate(self, node: AST) -> Object | None:
+        node_type = type(node)
+        # print('@@', node)
+        if node_type is AstName:
+            names = node.flow.names_at(np(node))
+            name = names.get(node.id)
+            if not name:
+                name = node.flow.names.get(node.id)
+            if name:
+                return self.evaluate(name)
+        elif node_type is AssignedName:
+            return self.evaluate(node.value_node)
+        elif node_type is ImportedName:
+            if node.module == 'typing':
+                return MarkerObject(node.mname)
+            return self.evaluate(node.resolve(self))
+        elif isinstance(node, Resolvable):
+            return node.resolve(self)  # type: ignore[attr-defined]
+        elif isinstance(node, Object):
+            return node
+        elif node_type is Subscript:
+            obj = self.evaluate(node.value)
+            obj_type = type(obj)
+            # print('!!', obj)
+            if obj_type is MarkerObject:
+                if obj.type == 'Union':
+                    if hasattr(node.slice, 'elts'):
+                        return self.make_composite(node.slice.elts)
+                    else:
+                        return self.make_composite([node.slice])
+                elif obj.type == 'Optional':
+                    return self.evaluate(node.slice)
+                elif obj.type == 'Type':
+                    o = self.evaluate(node.slice)
+                    if o is not None:
+                        return TypeWrapper(o)
+            else:
+                return obj
+        elif node_type is BinOp:
+            return self.make_composite([node.left, node.right])
+        else:
+            log.warning("Unknown node type %r %r", node_type, node)
+
+    def make_composite(self, values) -> CompositeValue | None:
+        rvalues = []
+        for it in values:
+            o = self.evaluate(it)
+            if o is None:
+                continue
+            if type(o) is CompositeValue:
+                rvalues.extend(o.values)
+            else:
+                rvalues.append(o)
+
+        if rvalues:
+            return CompositeValue(rvalues)
+
+        return None
+

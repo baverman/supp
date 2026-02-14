@@ -17,10 +17,10 @@ else:
     from ast import AsyncWith
 
 
-def sp(source):
+def sp(source, marker='|'):
     source = dedent(source)
     cursors = []
-    parts = source.split(type(source)('|'))
+    parts = source.split(type(source)(marker))
     pos = 0
     source = ''
     for p in parts[:-1]:

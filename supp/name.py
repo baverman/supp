@@ -154,9 +154,8 @@ class CompositeValue(Object):
 
 
 class ImportedName(Name, Resolvable):
-    if False:
-        _ref: Object | None = None
-        scope: SourceScope = None
+    _ref: Object | None
+    scope: SourceScope
 
     def __init__(
         self,
@@ -229,8 +228,7 @@ class ImportedName(Name, Resolvable):
 
 
 class RuntimeName(Name, Object, Callable):
-    if False:
-        _instance: Object | None = None
+    _instance: Object | None
 
     def __init__(self, name: str, value: t.Any, is_builtin: bool = False) -> None:
         self.name = name
@@ -321,8 +319,7 @@ class AssignedAttribute(Name, Resolvable):
 
 
 class MultiValue(Object):
-    if False:
-        _rvalues: list[Object] = None
+    _rvalues: list[Object]
 
     def __init__(self, value: AssignedAttribute) -> None:
         self.values = [value]

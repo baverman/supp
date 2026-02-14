@@ -1,4 +1,4 @@
-from __future__ import print_function, annotations
+from __future__ import annotations
 import string
 import logging
 from bisect import bisect
@@ -10,9 +10,11 @@ from .compat import PY2, itervalues, builtins, iteritems, iterkeys
 from .name import (ArgumentName, MultiName, UndefinedName, ImportedName,
                    RuntimeName, AdditionalNameWrapper, AssignedName,
                    MultiValue, AssignedAttribute, Object, Resolvable,
-                   Callable, ClassObject, AttrObject, FuncObject, first_name)
+                   Callable, ClassObject, AttrObject, FuncObject, CompositeValue,
+                   first_name)
 from .merged_dict import MergedDict
 from . import compat
+from .evaluator import EvalAnnotationCtx, TypeWrapper
 
 if False:
     from ast import stmt, AST
@@ -311,9 +313,24 @@ class FuncScope(Scope, Location, Resolvable):
         if arg.idx == [0] and isinstance(self.parent, ClassScope):
             return self.parent.resolve(ctx).call(ctx)
         if arg.annotation:
-            obj = ctx.evaluate(arg.annotation)
-            if isinstance(obj, Callable):
-                return obj.call(ctx)
+            actx = EvalAnnotationCtx(ctx.project)
+            obj = actx.evaluate(arg.annotation)
+            if obj is None:
+                return None
+            if type(obj) is CompositeValue:
+                values = obj.values
+            else:
+                values = [obj]
+            rvalues = []
+            for it in values:
+                if type(it) is TypeWrapper:
+                    rvalues.append(it.object)
+                elif isinstance(it, Callable):
+                    rvalues.append(it.call(ctx))
+            if len(rvalues) > 1:
+                return CompositeValue(rvalues)
+            elif rvalues:
+                return rvalues[0]
         return None
 
     def resolve(self, ctx: EvalCtx) -> Object | None:

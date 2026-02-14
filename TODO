@@ -1,7 +1,8 @@
 # Annotations
-* Class[...]
-* Optional
-* Union
+* str references
+* class annotations (class var)
+* inline attribute variable annotations
+* ? multiple locations
 
 * usage graph
 * imports checker
