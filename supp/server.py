@@ -1,7 +1,9 @@
 # type: ignore
+from __future__ import annotations
 import sys
 import os.path
 import logging
+import typing as t
 
 logger = logging.getLogger('server')
 
@@ -21,22 +23,18 @@ from supp.project import Project
 from supp.compat import nstr
 
 
-if False:
-    import typing as t
+if t.TYPE_CHECKING:
     from multiprocessing.connection import _ConnectionBase
 
 
 class Server(object):
-    def __init__(self, conn):
-        # type: (_ConnectionBase) -> None
+    def __init__(self, conn: _ConnectionBase) -> None:
         self.conn = conn
 
-    def configure(self, config):
-        # type: (dict[str, t.Any]) -> None
+    def configure(self, config: dict[str, t.Any]) -> None:
         self.project = Project(config['sources'], dyn_modules=config.get('dyn_modules'))
 
-    def process(self, name, args, kwargs):
-        # type: (str, tuple[t.Any], dict[str, t.Any]) -> tuple[t.Any, bool]
+    def process(self, name: str, args: tuple[t.Any], kwargs: dict[str, t.Any]) -> tuple[t.Any, bool]:
         try:
             is_ok = True
             result = getattr(self, name)(*args, **kwargs)
@@ -48,8 +46,7 @@ class Server(object):
         # logger.error('PROCESS %r %r %r: %r', name, args, kwargs, result)
         return result, is_ok
 
-    def assist(self, source, position, filename):
-        # type: (str, list[int], str) -> t.TODO
+    def assist(self, source: str, position: list[int], filename: str) -> t.TODO:
         with self.project.check_changes():
             return assistant.assist(self.project, nstr(source), tuple(position), filename)
 

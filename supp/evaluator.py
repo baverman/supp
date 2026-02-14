@@ -1,40 +1,52 @@
-from __future__ import print_function
+from __future__ import print_function, annotations
+
 import logging
-from ast import Name as AstName, Attribute, Call
+import typing as t
+from ast import Name as AstName, Attribute, Call, AST
 
 from .util import np
 from .compat import HAS_CONSTANTS
-from .name import (ImportedName, MultiName, MultiValue, Object,
-                   RuntimeName, Resolvable, AssignedName, Callable,
-                   CompositeValue)
+from .name import (
+    ImportedName,
+    MultiName,
+    MultiValue,
+    Object,
+    RuntimeName,
+    Resolvable,
+    AssignedName,
+    Callable,
+    CompositeValue,
+)
 
-log = logging.getLogger('supp.evaluator')
+log = logging.getLogger("supp.evaluator")
 
 if HAS_CONSTANTS:
     from ast import Constant
-    class Str: pass
-    class Bytes: pass
+
+    class Str:
+        pass
+
+    class Bytes:
+        pass
 else:
     from ast import Str, Bytes  # type: ignore[assignment]
-    class Constant: pass  # type: ignore[no-redef]
+
+    class Constant:  # type: ignore[no-redef]
+        pass
 
 
-if False:
-    import typing as t
-    from ast import AST
+if t.TYPE_CHECKING:
     from .project import Project
     from .name import Name
 
 
 class EvalCtx(object):
-    def __init__(self, project):
-        # type: (Project) -> None
+    def __init__(self, project: Project) -> None:
         self.project = project
         self.level = 0
-        self.nodes = set()  # type: set[t.Hashable]
+        self.nodes: set[t.Hashable] = set()
 
-    def evaluate(self, node):
-        # type: (AST | Object | Name | None) -> Object | None
+    def evaluate(self, node: AST | Object | Name | None) -> Object | None:
         if node is None or node in self.nodes:
             return None
         self.nodes.add(node)
@@ -80,32 +92,35 @@ class EvalCtx(object):
                 if isinstance(func, Callable):
                     return func.call(self)  # type: ignore[attr-defined]
                 else:
-                    log.warn('Non-callable %r %r', type(func), func)
+                    log.warn("Non-callable %r %r", type(func), func)
         elif isinstance(node, Resolvable):
             return node.resolve(self)  # type: ignore[attr-defined]
         elif isinstance(node, Object):
             return node
         elif node_type is Str:
-            return RuntimeName('__none__', node.s)
+            return RuntimeName("__none__", node.s)
         elif node_type is Bytes:
-            return RuntimeName('__none__', node.s)
+            return RuntimeName("__none__", node.s)
         elif node_type is Constant:
-            return RuntimeName('__none__', node.value)
+            return RuntimeName("__none__", node.value)
         elif isinstance(node, Callable):
             return node
         else:
-            log.warn('Unknown node type %r %r', node_type, node)
+            log.warn("Unknown node type %r %r", node_type, node)
 
-    def declarations(self, node, result=[]):
-        # type: (Name | AstName | MultiName | MultiValue | Attribute | ImportedName, list[Name | list[Name]]) -> list[Name | list[Name]]
+    def declarations(
+        self,
+        node: Name | AstName | MultiName | MultiValue | Attribute | ImportedName,
+        result: list[Name | list[Name]] = [],
+    ) -> list[Name | list[Name]]:
         node_type = type(node)
         cname = None
         if node_type is AstName:
-            ast_name = node  # type: AstName # type: ignore[assignment]
+            ast_name: AstName = node  # type: ignore[assignment]
             names = ast_name.flow.names_at(np(ast_name))  # type: ignore[attr-defined]
             cname = names.get(ast_name.id)
         elif node_type is MultiName:
-            mname = node  # type: MultiName # type: ignore[assignment]
+            mname: MultiName = node  # type: ignore[assignment]
             names = mname.valid_names
             if names:
                 if len(names) > 1:
@@ -113,7 +128,7 @@ class EvalCtx(object):
                 else:
                     cname = names[0]
         elif node_type is MultiValue:
-            mvalue = node  # type: MultiValue # type: ignore[assignment]
+            mvalue: MultiValue = node  # type: ignore[assignment]
             names = []
             for n in mvalue.values:
                 names.append(n)
@@ -124,12 +139,12 @@ class EvalCtx(object):
                 else:
                     cname = names[0]
         elif node_type is Attribute:
-            ast_attr = node  # type: Attribute # type: ignore[assignment]
+            ast_attr: Attribute = node  # type: ignore[assignment]
             value = self.evaluate(ast_attr.value)
             if value:
                 cname = value.get_attr(self, ast_attr.attr)
         elif node_type is ImportedName:
-            iname = node  # type: ImportedName # type: ignore[assignment]
+            iname: ImportedName = node  # type: ignore[assignment]
             result.append(iname)
             cname = iname.resolve(self)
         else:

@@ -1,4 +1,4 @@
-from __future__ import print_function
+from __future__ import print_function, annotations
 import string
 import logging
 from bisect import bisect
@@ -35,42 +35,36 @@ UNRESOLVED = Unresolved()
 
 class BaseScope(object):
     @property
-    def names(self):
-        # type: () -> t.Mapping[str, Name | MultiName]
+    def names(self) -> t.Mapping[str, Name | MultiName]:
         raise NotImplementedError
 
 
 class Scope(BaseScope):
     if False:
-        flow = None  # type: 'Flow'
+        flow: 'Flow' = None
 
-    def __init__(self, parent, top):
-        # type: ('Scope', 'SourceScope') -> None
+    def __init__(self, parent: 'Scope', top: 'SourceScope') -> None:
         self.parent = parent
         self.top = top
-        self.locals = set()   # type: set[str]
-        self.globals = set()  # type: set[str]
+        self.locals: set[str] = set()
+        self.globals: set[str] = set()
 
     @property
-    def filename(self):
-        # type: () -> str
+    def filename(self) -> str:
         return self.top.source.filename
 
 
 class Flow(object):
-    def __init__(self, hint, scope, parents=None):
-        # type: (str, Scope, t.MutableSequence[Flow | LoopFlow] | None) -> None
+    def __init__(self, hint: str, scope: Scope, parents: t.MutableSequence[Flow | LoopFlow] | None = None) -> None:
         self.hint = hint
         self.scope = scope
-        self._names = []  # type: list[Name]
-        self.parents = parents or []  # type: t.MutableSequence[Flow | LoopFlow]
+        self._names: list[Name] = []
+        self.parents: t.MutableSequence[Flow | LoopFlow] = parents or []
 
-    def __repr__(self):
-        # type: () -> str
+    def __repr__(self) -> str:
         return 'Flow({}, {})'.format(self.hint, self._names)
 
-    def add_name(self, name):
-        # type: (Name) -> None
+    def add_name(self, name: Name) -> None:
         name.scope = self.scope
         if name.name in self.scope.globals:
             self.scope.top.add_global(name)
@@ -79,20 +73,18 @@ class Flow(object):
             insert_loc(self._names, name)
 
     @cached_property
-    def names(self):
-        # type: () -> t.Mapping[str, Name | MultiName]
+    def names(self) -> t.Mapping[str, Name | MultiName]:
         return MergedDict({n.name: n for n in self._names}, self.parent_names)
 
     @cached_property
-    def parent_names(self):
-        # type: () -> t.Mapping[str, Name | MultiName ]
+    def parent_names(self) -> t.Mapping[str, Name | MultiName ]:
         if len(self.parents) == 1:
             return self.parents[0].names  # type: ignore[return-value]
         elif len(self.parents) > 1:
-            names = {}  # type: dict[str, Name | MultiName]
-            nameset = set()  # type: set[str]
-            pnames = [p.names for p in self.parents
-                      if p.names is not UNRESOLVED]  # type: list[t.Mapping[str, Name]] # type: ignore[misc]
+            names: dict[str, Name | MultiName] = {}
+            nameset: set[str] = set()
+            pnames: list[t.Mapping[str, Name]] = [p.names for p in self.parents # type: ignore[misc]
+                      if p.names is not UNRESOLVED]
             for p in pnames:
                 nameset.update(p)
             for n in nameset:
@@ -115,28 +107,24 @@ class Flow(object):
             else:
                 return {}
 
-    def names_at(self, loc):
-        # type: (loc_t) -> t.Mapping[str, Name | MultiName]
+    def names_at(self, loc: loc_t) -> t.Mapping[str, Name | MultiName]:
         idx = bisect(self._names, Location(loc))
         return MergedDict({n.name: n for n in self._names[:idx]}, self.parent_names)
 
-    def loop(self, to):
-        # type: (Flow) -> None
+    def loop(self, to: Flow) -> None:
         self.parents.append(LoopFlow(to))
 
 
 class LoopFlow(object):
     if False:
-        _names = None  # type: t.Mapping[str, Name | MultiName]
+        _names: t.Mapping[str, Name | MultiName] = None
 
-    def __init__(self, parent):
-        # type: (Flow) -> None
+    def __init__(self, parent: Flow) -> None:
         self.parent = parent
         self._resolving = False
 
     @property
-    def names(self):
-        # type: () -> t.Mapping[str, Name | MultiName] | Unresolved
+    def names(self) -> t.Mapping[str, Name | MultiName] | Unresolved:
         if self._resolving:
             return UNRESOLVED
 
@@ -156,15 +144,14 @@ class LoopFlow(object):
 
 class SourceScope(Scope):
     if False:
-        _imports = None  # type: list[str]
-        _global_names = None  # type: dict[str, Name]
-        _attr_assigns = None  # type: list[tuple[Scope, Attribute, AST]]
-        _star_imports = None  # type: list[tuple[loc_t, loc_t, str, Flow]]
-        _unvisited = None     # type: list[tuple[Flow, AST]]
-        source = None         # type: Source
+        _imports: list[str] = None
+        _global_names: dict[str, Name] = None
+        _attr_assigns: list[tuple[Scope, Attribute, AST]] = None
+        _star_imports: list[tuple[loc_t, loc_t, str, Flow]] = None
+        _unvisited: list[tuple[Flow, AST]] = None
+        source: Source = None
 
-    def __init__(self, source):
-        # type: (Source) -> None
+    def __init__(self, source: Source) -> None:
         Scope.__init__(self, builtin_scope, self)  # type: ignore[arg-type]
         self.source = source
         self.flow = Flow('top', self)
@@ -175,40 +162,33 @@ class SourceScope(Scope):
         self._attr_assigns = []
         self._global_names = {}
 
-    def __repr__(self):
-        # type: () -> str
+    def __repr__(self) -> str:
         return 'SourceScope({})'.format(self.source.filename)
 
     @property
-    def names(self):
-        # type: () -> t.Mapping[str, Name | MultiName]
+    def names(self) -> t.Mapping[str, Name | MultiName]:
         return MergedDict(self.flow.names, self._global_names)
 
     @property
-    def exported_names(self):
-        # type: () -> dict[str, Name]
+    def exported_names(self) -> dict[str, Name]:
         return {k: first_name(v)
                 for k, v in iteritems(self.names)
                 if getattr(v, 'location', None) != (0, 0)}
 
     @property
-    def all_names(self):
-        # type: () -> t.Iterable[tuple[Flow, Name]]
+    def all_names(self) -> t.Iterable[tuple[Flow, Name]]:
         for flow in self._all_flows:
             for name in flow._names:
                 yield flow, name
 
-    def add_unvisited(self, flow, node):
-        # type: (Flow, AST) -> None
+    def add_unvisited(self, flow: Flow, node: AST) -> None:
         self._unvisited.append((flow, node))
 
-    def with_mark(self, position, debug=False):
-        # type: (tuple[int, int], bool) -> 'SourceScope'
+    def with_mark(self, position: tuple[int, int], debug: bool = False) -> 'SourceScope':
         source = self.source.with_mark(position)
         return SourceScope(source)
 
-    def find_id_loc(self, id, start, shift=0, delimeters=True):
-        # type: (str, loc_t, int, bool) -> loc_t
+    def find_id_loc(self, id: str, start: loc_t, shift: int = 0, delimeters: bool = True) -> loc_t:
         sl, pos = start
         source = '\n'.join(self.source.lines[sl-1:sl+50])
         source_len = len(source)
@@ -225,23 +205,19 @@ class SourceScope(Scope):
 
         return start
 
-    def add_attr_assign(self, scope, attr, value):
-        # type: (Scope, Attribute, AST) -> None
+    def add_attr_assign(self, scope: Scope, attr: Attribute, value: AST) -> None:
         self._attr_assigns.append((scope, attr, value))
 
-    def add_global(self, name):
-        # type: (Name) -> None
+    def add_global(self, name: Name) -> None:
         self._global_names[name.name] = name
 
-    def add_flow(self, flow):
-        # type: (Flow) -> Flow
+    def add_flow(self, flow: Flow) -> Flow:
         self._all_flows.append(flow)
         return flow
 
     @context_property
-    def assigns(self, ctx):
-        # type: (EvalCtx) -> dict[Object, dict[str, MultiValue]]
-        result = {}  # type: dict[Object, dict[str, MultiValue]]
+    def assigns(self, ctx: EvalCtx) -> dict[Object, dict[str, MultiValue]]:
+        result: dict[Object, dict[str, MultiValue]] = {}
         for _scope, attr, value in self._attr_assigns:
             # logging.getLogger('supp.attr').error('Get attr for %s %s',
             #                                      scope, dump(attr, annotate_fields=False))
@@ -257,8 +233,7 @@ class SourceScope(Scope):
 
         return result
 
-    def resolve_star_imports(self, project):
-        # type: (Project) -> None
+    def resolve_star_imports(self, project: Project) -> None:
         for loc, declared_at, mname, flow in self._star_imports:
             try:
                 module = project.get_nmodule(mname, self.filename)
@@ -272,8 +247,7 @@ class SourceScope(Scope):
         self._star_imports[:] = []
 
 
-def get_first_body_node_loc(body):
-    # type: (list[stmt]) -> loc_t | None
+def get_first_body_node_loc(body: list[stmt]) -> loc_t | None:
     if not body:
         return None
 
@@ -288,8 +262,7 @@ def get_first_body_node_loc(body):
 
 
 class FuncScope(Scope, Location, Resolvable):
-    def __init__(self, parent, node, top):
-        # type: (Scope, FunctionDef | Lambda, SourceScope) -> None
+    def __init__(self, parent: Scope, node: FunctionDef | Lambda, top: SourceScope) -> None:
         Scope.__init__(self, parent, top)
         self.args = []
         self.node = node
@@ -299,7 +272,7 @@ class FuncScope(Scope, Location, Resolvable):
             self.declared_at = np(node)
             self.decorator_list = []
         else:
-            fnode = node  # type: FunctionDef  # type: ignore[assignment]
+            fnode: FunctionDef = node  # type: ignore[assignment]
             self.name = fnode.name
             self.declared_at = top.find_id_loc(' ' + fnode.name, np(fnode), 1, False)
             self.location = get_first_body_node_loc(fnode.body) or (np(fnode.body[0])[0], np(fnode)[1] + 4)
@@ -328,25 +301,22 @@ class FuncScope(Scope, Location, Resolvable):
         for arg in self.args:
             self.flow.add_name(arg)
 
-        self.returns = []  # type: list[AST]
+        self.returns: list[AST] = []
 
     @property
-    def names(self):
-        # type: () -> t.Mapping[str, Name | MultiName]
+    def names(self) -> t.Mapping[str, Name | MultiName]:
         return self.flow.names
 
-    def get_argument(self, ctx, arg):
-        # type: (EvalCtx, ArgumentName) -> Object | None
+    def get_argument(self, ctx: EvalCtx, arg: ArgumentName) -> Object | None:
         if arg.idx == [0] and isinstance(self.parent, ClassScope):
             return self.parent.resolve(ctx).call(ctx)
         if arg.annotation:
             obj = ctx.evaluate(arg.annotation)
-            if obj and isinstance(obj, Callable):
+            if isinstance(obj, Callable):
                 return obj.call(ctx)
         return None
 
-    def resolve(self, ctx):
-        # type: (EvalCtx) -> Object | None
+    def resolve(self, ctx: EvalCtx) -> Object | None:
         o = FuncObject(self)
         if not isinstance(self.parent, ClassScope):
             return o
@@ -360,14 +330,12 @@ class FuncScope(Scope, Location, Resolvable):
 
         return o
 
-    def __repr__(self):
-        # type: () -> str
+    def __repr__(self) -> str:
         return 'FuncScope({}, {})'.format(self.name, self.declared_at)
 
 
 class ClassScope(Scope, Location, Resolvable):
-    def __init__(self, parent, node, top):
-        # type: (Scope, ClassDef, SourceScope) -> None
+    def __init__(self, parent: Scope, node: ClassDef, top: SourceScope) -> None:
         Scope.__init__(self, parent, top)
         self.name = node.name
         self.declared_at = top.find_id_loc(' ' + node.name, np(node), 1, False)
@@ -376,24 +344,20 @@ class ClassScope(Scope, Location, Resolvable):
         self._bases = node.bases
 
     @property
-    def names(self):
-        # type: () -> t.Mapping[str, Name | MultiName]
+    def names(self) -> t.Mapping[str, Name | MultiName]:
         return self.parent.names
 
     @context_property
-    def resolve(self, ctx):
-        # type: (EvalCtx) -> ClassObject
+    def resolve(self, ctx: EvalCtx) -> ClassObject:
         return ClassObject(ctx, self)
 
-    def __repr__(self):
-        # type: () -> str
+    def __repr__(self) -> str:
         return 'ClassScope({}, {})'.format(self.name, self.declared_at)
 
 
 class BuiltinScope(BaseScope):
     @cached_property
-    def names(self):
-        # type: () -> dict[str, Name]
+    def names(self) -> dict[str, Name]:
         names = {k: RuntimeName(k, v, True) for k, v in iteritems(vars(builtins))}
         names.update({k: RuntimeName(k, v)
                       for k, v in iteritems(vars(compat))

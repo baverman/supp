@@ -1,8 +1,11 @@
-from __future__ import print_function
+from __future__ import print_function, annotations
 
 import sys
 from bisect import insort
 from ast import iter_fields, Store, Load, NodeVisitor, parse, Tuple, List, AST
+import typing as t, abc
+from ast import ImportFrom, Import, Name as AstName, Attribute, Subscript, Constant
+from functools import cached_property as cached_property
 
 try:
     from ast import Starred
@@ -11,35 +14,31 @@ except ImportError:
 
 from .compat import iteritems, string_types
 
-if False:
-    import typing as t, abc
+if t.TYPE_CHECKING:
     from .scope import Scope, Flow, SourceScope
-    from ast import ImportFrom, Import, Name as AstName, Attribute, Subscript, Constant
-    from functools import cached_property as cached_property
 
-    T = t.TypeVar('T')
-    R = t.TypeVar('R', covariant=True)
-    P = t.ParamSpec('P')
-    loc_t = tuple[int, int]
+T = t.TypeVar('T')
+R = t.TypeVar('R', covariant=True)
+P = t.ParamSpec('P')
+loc_t = tuple[int, int]
 
-    Targets = AstName | Attribute | Subscript
+Targets = AstName | Attribute | Subscript
 
-    class Comparable(t.Protocol):
-        def __lt__(self, other: t.Any) -> bool:
-            ...
+class Comparable(t.Protocol):
+    def __lt__(self, other: t.Any) -> bool:
+        ...
 
-    CompT = t.TypeVar('CompT', bound=Comparable)
+CompT = t.TypeVar('CompT', bound=Comparable)
 
-    class VisitProtocol(t.Protocol[P, R]):
-        def process(self, *args: P.args, **kwargs: P.kwargs) -> R:
-            ...
+class VisitProtocol(t.Protocol[P, R]):
+    def process(self, *args: P.args, **kwargs: P.kwargs) -> R:
+        ...
 
 
 NESTED_INDEXED_NODES = Tuple, List
 
 
-def clone_node(obj, **kwargs):
-    # type: (AST, t.Any) -> AST
+def clone_node(obj: AST, **kwargs: t.Any) -> AST:
     new = AST.__new__(type(obj))
     new.__dict__.update(obj.__dict__, **kwargs)
     new._orig = obj  # type: ignore[attr-defined]
@@ -60,10 +59,8 @@ class cached_property(object):  # type: ignore[no-redef]
         return value
 
 
-def context_property(func):
-    # type: (t.Callable[..., R]) -> t.Callable[..., R]
-    def inner(self, ctx, *args, **kwargs):
-        # type: (T, t.Any, t.Any, t.Any) -> R
+def context_property(func: t.Callable[..., R]) -> t.Callable[..., R]:
+    def inner(self: T, ctx: t.Any, *args: t.Any, **kwargs: t.Any) -> R:
         try:
             cv = self._ctx_values  # type: ignore[attr-defined]
         except AttributeError:
@@ -83,29 +80,24 @@ class AttributeException(Exception): pass
 
 
 class Location(object):
-    def __init__(self, location):
-        # type: (loc_t) -> None
+    def __init__(self, location: loc_t) -> None:
         self.location = location
 
-    def __lt__(self, other):
-        # type: (t.Self) -> bool
+    def __lt__(self, other: t.Self) -> bool:
         return self.location < other.location
 
-    def __repr__(self):
-        # type: () -> str
+    def __repr__(self) -> str:
         return repr(self.location)
 
 
-def insert_loc(locations, loc):
-    # type: (list[CompT], CompT) -> None
+def insert_loc(locations: list[CompT], loc: CompT) -> None:
     if locations and locations[-1] < loc:
         locations.append(loc)
     else:
         insort(locations, loc)
 
 
-def dumptree(node, result, level):
-    # type: (AST, list[str], int) -> list[str]
+def dumptree(node: AST, result: list[str], level: int) -> list[str]:
     LW = '   '
     fields = [(k, v)
               for k, v in iter_fields(node)
@@ -132,54 +124,43 @@ def dumptree(node, result, level):
     return result
 
 
-def dump(node):
-    # type: (AST) -> str
+def dump(node: AST) -> str:
     return '\n'.join(dumptree(node, [], 0))
 
 
-def print_dump(node):
-    # type: (AST) -> None
+def print_dump(node: AST) -> None:
     print(dump(node))
 
 
-def visitor(cls):
-    # type: (type[VisitProtocol[P, R]]) -> t.Callable[P, R]
-    def func(*args, **kwargs):
-        # type: (P.args, P.kwargs) -> R
+def visitor(cls: type[VisitProtocol[P, R]]) -> t.Callable[P, R]:
+    def func(*args: P.args, **kwargs: P.kwargs) -> R:
         return cls().process(*args, **kwargs)
     func.visitor = cls  # type: ignore[attr-defined]
     return func
 
 
 class StopVisiting(Exception):
-    def __init__(self, value):
-        # type: (t.Any) -> None
+    def __init__(self, value: t.Any) -> None:
         self.value = value
 
 
 class get_expr_end_visitor(NodeVisitor):
-    def process(self, node):
-        # type: (AST) -> loc_t
+    def process(self, node: AST) -> loc_t:
         self.last_loc = node.lineno, node.col_offset + 1  # type: ignore[attr-defined]
         self.visit(node)
         return self.last_loc
 
-    def visit_Store(self, node):
-        # type: (AST) -> None
+    def visit_Store(self, node: AST) -> None:
         pass
 
-    def visit_Load(self, node):
-        # type: (AST) -> None
+    def visit_Load(self, node: AST) -> None:
         pass
 
-    def visit_Constant(self, node):
-        # type: (Constant) -> None
+    def visit_Constant(self, node: Constant) -> None:
         self.last_loc = node.lineno, node.col_offset + 1
 
-    def __getattr__(self, name):
-        # type: (str) -> t.Callable[[AST], None]
-        def inner(node):
-            # type: (AST) -> None
+    def __getattr__(self, name: str) -> t.Callable[[AST], None]:
+        def inner(node: AST) -> None:
             try:
                 self.last_loc = node.lineno, node.col_offset + 1 # type: ignore[attr-defined]
             except AttributeError:
@@ -191,40 +172,34 @@ class get_expr_end_visitor(NodeVisitor):
 
 
 class get_name_usages_visitor(NodeVisitor):
-    def process(self, node):
-        # type: (AST) -> list[AstName]
-        self.locations = []  # type: list[AstName]
+    def process(self, node: AST) -> list[AstName]:
+        self.locations: list[AstName] = []
         self.visit(node)
         return self.locations
 
-    def visit_Name(self, node):
-        # type: (AstName) -> None
+    def visit_Name(self, node: AstName) -> None:
         if isinstance(node.ctx, Load):
             self.locations.append(node)
 
 
 class get_all_usages_visitor(NodeVisitor):
-    def process(self, node):
-        # type: (AST) -> list[tuple[str, str, loc_t, AST]]
-        self.locations = []  # type: list[tuple[str, str, loc_t, AST]]
+    def process(self, node: AST) -> list[tuple[str, str, loc_t, AST]]:
+        self.locations: list[tuple[str, str, loc_t, AST]] = []
         self.visit(node)
         return self.locations
 
-    def visit_Name(self, node):
-        # type: (AstName) -> None
+    def visit_Name(self, node: AstName) -> None:
         if type(node.ctx) is Load:
             self.locations.append(('name', node.id, np(node), node))
 
-    def visit_Attribute(self, node):
-        # type: (Attribute) -> None
+    def visit_Attribute(self, node: Attribute) -> None:
         if type(node.ctx) is Load:
             self.locations.append(('attr', node.attr, np(node), node))
         self.visit(node.value)
 
 
 class StopNodeVisitor(NodeVisitor):
-    def process(self, node):
-        # type: (AST) -> t.Any
+    def process(self, node: AST) -> t.Any:
         try:
             self.visit(node)
         except StopVisiting as e:
@@ -234,8 +209,7 @@ class StopNodeVisitor(NodeVisitor):
 
 
 class get_marked_atribute_visitor(StopNodeVisitor):
-    def visit_Attribute(self, node):
-        # type: (Attribute) -> None
+    def visit_Attribute(self, node: Attribute) -> None:
         if marked(node.attr):
             raise StopVisiting(clone_node(node, attr=unmark(node.attr)))
 
@@ -243,34 +217,29 @@ class get_marked_atribute_visitor(StopNodeVisitor):
 
 
 class get_marked_name_visitor(StopNodeVisitor):
-    def visit_Name(self, node):
-        # type: (AstName) -> None
+    def visit_Name(self, node: AstName) -> None:
         if type(node.ctx) == Load and marked(node.id):
             raise StopVisiting(clone_node(node, id=unmark(node.id)))
 
 
 class get_any_marked_name_visitor(StopNodeVisitor):
-    def visit_Name(self, node):
-        # type: (AstName) -> None
+    def visit_Name(self, node: AstName) -> None:
         if marked(node.id):
             raise StopVisiting(clone_node(node, id=unmark(node.id)))
 
 
-def _join_level_pkg(level, package):
-    # type: (int, str | None) -> str
+def _join_level_pkg(level: int, package: str | None) -> str:
     return '.' * level + (package and package or '')
 
 
-def join_pkg(package, module):
-    # type: (str, str) -> str
+def join_pkg(package: str, module: str) -> str:
     if package.endswith('.'):
         return package + module
     else:
         return package + '.' + module
 
 
-def split_pkg(package):
-    # type: (str) -> tuple[str, str]
+def split_pkg(package: str) -> tuple[str, str]:
     if not package.strip('.'):
         return package, ''
 
@@ -284,14 +253,12 @@ def split_pkg(package):
 
 
 class get_marked_import_visitor(StopNodeVisitor):
-    def visit_Import(self, node):
-        # type: (Import) -> None
+    def visit_Import(self, node: Import) -> None:
         for a in node.names:
             if marked(a.name):
                 raise StopVisiting((unmark(a.name), None))
 
-    def visit_ImportFrom(self, node):
-        # type: (ImportFrom) -> None
+    def visit_ImportFrom(self, node: ImportFrom) -> None:
         if node.module and marked(node.module):
             name = _join_level_pkg(node.level, unmark(node.module))
             raise StopVisiting((name, None))
@@ -301,8 +268,7 @@ class get_marked_import_visitor(StopNodeVisitor):
                 raise StopVisiting((name, unmark(a.name)))
 
 
-def get_indexes_for_target(target, result, idx):
-    # type: (AST, list[tuple[Targets, list[int]]], list[int]) -> list[tuple[Targets, list[int]]]
+def get_indexes_for_target(target: AST, result: list[tuple[Targets, list[int]]], idx: list[int]) -> list[tuple[Targets, list[int]]]:
     if isinstance(target, NESTED_INDEXED_NODES):
         for i, r in enumerate(target.elts):
             nidx = idx[:]
@@ -318,16 +284,14 @@ def get_indexes_for_target(target, result, idx):
     return result
 
 
-def np(node):
-    # type: (AST) -> loc_t
+def np(node: AST) -> loc_t:
     return node.lineno, node.col_offset  # type: ignore[attr-defined]
 
 
 SOURCE_MARK = '__supp_mark__'
 
 
-def unmark(name):
-    # type: (str) -> str
+def unmark(name: str) -> str:
     pos = name.find(SOURCE_MARK)
     result = name[:pos] + name[pos+len(SOURCE_MARK):]
     dpos = result.find('.', pos)
@@ -336,14 +300,12 @@ def unmark(name):
     return result
 
 
-def marked(name):
-    # type: (str) -> bool
+def marked(name: str) -> bool:
     return SOURCE_MARK in name
 
 
 class Source(object):
-    def __init__(self, source, filename=None, position=None):
-        # type: (str, str | None, tuple[int, int] | None) -> None
+    def __init__(self, source: str, filename: str | None = None, position: tuple[int, int] | None = None) -> None:
         self.orig_source = source
         self.filename = filename or '<string>'
         if position:
@@ -358,23 +320,19 @@ class Source(object):
         else:
             self.source = source
 
-    def with_mark(self, position):
-        # type: (tuple[int, int]) -> Source
+    def with_mark(self, position: tuple[int, int]) -> Source:
         return Source(self.orig_source, self.filename, position)
 
     @cached_property
-    def tree(self):
-        # type: () -> AST
+    def tree(self) -> AST:
         return parse(self.source, self.filename)
 
     @cached_property
-    def lines(self):
-        # type: () -> list[str]
+    def lines(self) -> list[str]:
         return self.source.splitlines() or ['']
 
 
-def dump_flows(scope, fd=None):
-    # type: (SourceScope, t.Optional[t.IO[str]]) -> None
+def dump_flows(scope: SourceScope, fd: t.Optional[t.IO[str]] = None) -> None:
     from functools import partial
     from .scope import LoopFlow
 
@@ -388,7 +346,7 @@ def dump_flows(scope, fd=None):
     pp('rankdir=BT;')
     pp('node [shape=box];')
 
-    scopes = {}  # type: dict[Scope, list[Flow]]
+    scopes: dict[Scope, list[Flow]] = {}
 
     for flow in scope._all_flows:
         pp(r'{} [label="{}{}"];'.format(
@@ -397,8 +355,7 @@ def dump_flows(scope, fd=None):
             flow._names))
         scopes.setdefault(flow.scope, []).append(flow)
 
-    def print_flows(scope, flows):
-        # type: (Scope, list[Flow]) -> None
+    def print_flows(scope: Scope, flows: list[Flow]) -> None:
         for flow in flows:
             if flow.parents:
                 for p in flow.parents:
