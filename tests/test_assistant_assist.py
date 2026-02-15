@@ -12,6 +12,12 @@ def tassist(source, pos, project=None, filename=None, debug=False):
     return assist(project or Project(), source, pos, filename, debug=debug)
 
 
+def passist(source, pos, project=None, filename=None, debug=False):
+    debug = debug or os.environ.get('DEBUG')
+    prefix, names = assist(project or Project(), source, pos, filename, debug=debug)
+    return set(it for it in names if it.startswith(prefix))
+
+
 def test_simple_from():
     source, p = sp('''\
         from mul|
@@ -432,7 +438,7 @@ def test_annotated_arg():
         def foo(arg: Boo):
             arg.f|
     ''')
-    _, result = tassist(source, p[0], debug=True)
+    _, result = tassist(source, p[0])
     assert 'foo' in result
 
 
@@ -441,7 +447,7 @@ def test_annotated_arg_union():
         from typing import Union
 
         class A:
-            def foo(self):
+            def boo(self):
                 pass
 
         class B:
@@ -449,11 +455,10 @@ def test_annotated_arg_union():
                 pass
 
         def boo(arg: Union[A, B]):
-            arg.|
+            arg.b|
     ''')
-    _, result = tassist(source, p[0], debug=True)
-    assert 'foo' in result
-    assert 'bar' in result
+    result = passist(source, p[0])
+    assert result == {'boo', 'bar'}
 
 
 def test_annotated_arg_union_alias():
@@ -461,30 +466,31 @@ def test_annotated_arg_union_alias():
         from typing import Union
 
         class A:
-            def foo(self):
+            def boo(self):
                 pass
 
         class B:
             def bar(self):
                 pass
 
-        Arg = Union[A, B]
-        ArgA = A[B]
+        Arg1 = Union[A, B]
+        Arg2 = Union[A]
+        Arg3 = A[B]
 
-        def boo(arg1: Arg, arg2: ArgA):
-            arg1.f|
+        def boo(arg1: Arg1, arg2: Arg2, arg3: Arg3):
             arg1.b|
-            arg2.f|
+            arg2.b|
+            arg3.b|
     ''')
 
-    _, result = tassist(source, p[0])
-    assert 'foo' in result
+    result = passist(source, p[0])
+    assert result == {'boo', 'bar'}
 
-    _, result = tassist(source, p[1])
-    assert 'bar' in result
+    result = passist(source, p[1])
+    assert result == {'boo'}
 
-    _, result = tassist(source, p[2], debug=True)
-    assert 'foo' in result
+    result = passist(source, p[2])
+    assert result == {'boo'}
 
 
 def test_annotated_arg_union_import_alias():
@@ -492,7 +498,7 @@ def test_annotated_arg_union_import_alias():
         from typing import Union as U
 
         class A:
-            def foo(self):
+            def boo(self):
                 pass
 
         class B:
@@ -500,11 +506,10 @@ def test_annotated_arg_union_import_alias():
                 pass
 
         def boo(arg: U[A, B]):
-            arg.|
+            arg.b|
     ''')
-    _, result = tassist(source, p[0], debug=True)
-    assert 'foo' in result
-    assert 'bar' in result
+    result = passist(source, p[0])
+    assert result == {'boo', 'bar'}
 
 
 def test_annotated_arg_optional():
@@ -518,7 +523,7 @@ def test_annotated_arg_optional():
         def boo(arg: Optional[A]):
             arg.f|
     ''')
-    _, result = tassist(source, p[0], debug=True)
+    _, result = tassist(source, p[0])
     assert 'foo' in result
 
 
@@ -526,7 +531,7 @@ def test_annotated_arg_optional():
 def test_annotated_arg_pep604_union():
     source, p = sp('''\
         class A:
-            def foo(self):
+            def boo(self):
                 pass
 
         class B:
@@ -534,29 +539,31 @@ def test_annotated_arg_pep604_union():
                 pass
 
         def boo(arg: A | B):
-            arg.@
-    ''', marker='@')
-    _, result = tassist(source, p[0], debug=True)
-    assert 'foo' in result
-    assert 'bar' in result
+            arg.b$
+    ''', marker='$')
+    result = passist(source, p[0])
+    assert result == {'boo', 'bar'}
 
 
 def test_annotated_arg_type():
     source, p = sp('''\
-        from typing import Type
+        from typing import Type, Union
 
         class A:
-            value = 10
+            bar = 10
 
-            @classmethod
-            def make(cls):
-                pass
+            def __init__(self):
+                self.boo = 20
 
-        def boo(arg: Type[A]):
-            arg.m|
+        class B:
+            baz = 20
+
+        def boo(arg: Union[Type[A], Type[B]]):
+            arg.b|
     ''')
-    _, result = tassist(source, p[0], debug=True)
-    assert 'make' in result
+
+    result = passist(source, p[0])
+    assert result == {'bar', 'baz'}
 
 
 def test_annotated_arg_with_forward_refs():
@@ -570,7 +577,34 @@ def test_annotated_arg_with_forward_refs():
             def foo(self):
                 pass
     ''')
-    _, result = tassist(source, p[0], debug=True)
+    _, result = tassist(source, p[0])
+    assert 'foo' in result
+
+
+def test_annotated_str_refs():
+    source, p = sp('''\
+        def foo(arg: 'Boo'):
+            arg.f|
+
+        class Boo:
+            def foo(self):
+                pass
+    ''')
+    _, result = tassist(source, p[0])
+    assert 'foo' in result
+
+
+def test_annotated_attribute_refs():
+    source, p = sp('''\
+        class Boo:
+            class Bar:
+                def foo(self):
+                    pass
+
+        def foo(arg: Boo.Bar):
+            arg.f|
+    ''')
+    _, result = tassist(source, p[0])
     assert 'foo' in result
 
 

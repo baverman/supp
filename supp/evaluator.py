@@ -38,6 +38,7 @@ else:
 if t.TYPE_CHECKING:
     from .project import Project
     from .name import Name
+    from .scope import Flow
 
 
 class EvalCtx(object):
@@ -173,6 +174,10 @@ class TypeWrapper(Object):
 
 
 class EvalAnnotationCtx(EvalCtx):
+    def __init__(self, project: Project, flow: Flow) -> None:
+        super().__init__(project)
+        self._flows = [flow]
+
     def _evaluate(self, node: AST) -> Object | None:
         node_type = type(node)
         # print('@@', node)
@@ -184,7 +189,10 @@ class EvalAnnotationCtx(EvalCtx):
             if name:
                 return self.evaluate(name)
         elif node_type is AssignedName:
-            return self.evaluate(node.value_node)
+            self._flows.append(node.scope.flow)
+            result = self.evaluate(node.value_node)
+            self._flows.pop()
+            return result
         elif node_type is ImportedName:
             if node.module == 'typing':
                 return MarkerObject(node.mname)
@@ -213,6 +221,14 @@ class EvalAnnotationCtx(EvalCtx):
                 return obj
         elif node_type is BinOp:
             return self.make_composite([node.left, node.right])
+        elif node_type is Str:
+            return self.evaluate(self._flows[-1].names.get(node.s))
+        elif node_type is Constant:
+            return self.evaluate(self._flows[-1].names.get(node.value))
+        elif node_type is Attribute:
+            value = self.evaluate(node.value)
+            if value:
+                return self.evaluate(value.get_attr(self, node.attr))
         else:
             log.warning("Unknown node type %r %r", node_type, node)
 

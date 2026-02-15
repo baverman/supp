@@ -42,8 +42,7 @@ class BaseScope(object):
 
 
 class Scope(BaseScope):
-    if False:
-        flow: 'Flow' = None
+    flow: 'Flow'
 
     def __init__(self, parent: 'Scope', top: 'SourceScope') -> None:
         self.parent = parent
@@ -118,8 +117,7 @@ class Flow(object):
 
 
 class LoopFlow(object):
-    if False:
-        _names: t.Mapping[str, Name | MultiName] = None
+    _names: t.Mapping[str, Name | MultiName]
 
     def __init__(self, parent: Flow) -> None:
         self.parent = parent
@@ -145,13 +143,12 @@ class LoopFlow(object):
 
 
 class SourceScope(Scope):
-    if False:
-        _imports: list[str] = None
-        _global_names: dict[str, Name] = None
-        _attr_assigns: list[tuple[Scope, Attribute, AST]] = None
-        _star_imports: list[tuple[loc_t, loc_t, str, Flow]] = None
-        _unvisited: list[tuple[Flow, AST]] = None
-        source: Source = None
+    _imports: list[str]
+    _global_names: dict[str, Name]
+    _attr_assigns: list[tuple[Scope, Attribute, AST]]
+    _star_imports: list[tuple[loc_t, loc_t, str, Flow]]
+    _unvisited: list[tuple[Flow, AST]]
+    source: Source
 
     def __init__(self, source: Source) -> None:
         Scope.__init__(self, builtin_scope, self)  # type: ignore[arg-type]
@@ -313,7 +310,7 @@ class FuncScope(Scope, Location, Resolvable):
         if arg.idx == [0] and isinstance(self.parent, ClassScope):
             return self.parent.resolve(ctx).call(ctx)
         if arg.annotation:
-            actx = EvalAnnotationCtx(ctx.project)
+            actx = EvalAnnotationCtx(ctx.project, self.parent.flow)
             obj = actx.evaluate(arg.annotation)
             if obj is None:
                 return None

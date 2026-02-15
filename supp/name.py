@@ -31,11 +31,9 @@ class Object(object):
     def get_attr(self, ctx: EvalCtx, name: str) -> "Object" | "Name" | None:
         return self._attrs.get(name)
 
-    if False:
-
-        @property
-        def _attrs(self) -> Attributes:
-            raise NotImplementedError
+    @property
+    def _attrs(self) -> Attributes:
+        raise NotImplementedError
 
 
 class Callable(object):
@@ -47,8 +45,7 @@ class Resolvable(object):
 
 
 class Name(Location):
-    if False:
-        scope: Scope = None
+    scope: Scope
 
     def __init__(self, name: str, location: loc_t) -> None:
         self.name = name
