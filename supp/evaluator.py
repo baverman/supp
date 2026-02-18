@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import typing as t
-from ast import Name as AstName, Attribute, Call, AST, BinOp, BitOr, Subscript, Tuple
+from ast import Name as AstName, Attribute, Call, AST, BinOp, Subscript, expr
 
 from .util import np
 from .compat import HAS_CONSTANTS
@@ -47,7 +47,7 @@ class EvalCtx(object):
         self.level = 0
         self.nodes: set[t.Hashable] = set()
 
-    def evaluate(self, node: AST | Object | Name | None) -> Object | None:
+    def evaluate(self, node: AST | Object | Name | MultiName | None) -> Object | None:
         if node is None or node in self.nodes:
             return None
         self.nodes.add(node)
@@ -56,6 +56,35 @@ class EvalCtx(object):
         self.level -= 1
         self.nodes.remove(node)
         return result  # type: ignore[no-any-return]
+
+    def evaluate_annotation(self, annotation: expr, flow: Flow) -> tuple[Object | None, bool]:
+        actx = EvalAnnotationCtx(self.project, flow)
+        obj = actx.evaluate(annotation)
+        if obj is None:
+            return None, False
+
+        is_class_var = False
+        if type(obj) is ClassVarWrapper:
+            obj = obj.object
+            is_class_var = True
+
+        if type(obj) is CompositeValue:
+            values = obj.values
+        else:
+            values = [obj]
+
+        rvalues: list[Object | None] = []
+        for it in values:
+            if type(it) is TypeWrapper:
+                rvalues.append(it.object)
+            elif isinstance(it, Callable):
+                rvalues.append(it.call(self))
+        if len(rvalues) > 1:
+            return CompositeValue([it for it in rvalues if it is not None]), is_class_var
+        elif rvalues:
+            return rvalues[0], is_class_var
+
+        return None, is_class_var
 
     def _evaluate(self, node):  # type: ignore[no-untyped-def]
         node_type = type(node)
@@ -73,6 +102,8 @@ class EvalCtx(object):
             if name:
                 return self.evaluate(name)
         elif node_type is AssignedName:
+            if node.annotation:
+                return self.evaluate_annotation(node.annotation, node.annotation.flow)[0]
             return self.evaluate(node.value_node)
         elif node_type is ImportedName:
             return self.evaluate(node.resolve(self))
@@ -91,7 +122,7 @@ class EvalCtx(object):
             func = self.evaluate(node.func)
             if func:
                 if isinstance(func, Callable):
-                    return func.call(self)  # type: ignore[attr-defined]
+                    return func.call(self)
                 else:
                     log.warning("Non-callable %r %r", type(func), func)
         elif isinstance(node, Resolvable):
@@ -161,7 +192,7 @@ class MarkerObject(Object):
     def __init__(self, typ: str) -> None:
         self.type = typ
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f'MarkerObject({self.type!r})'
 
 
@@ -169,8 +200,16 @@ class TypeWrapper(Object):
     def __init__(self, obj: Object) -> None:
         self.object = obj
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f'Type({self.object})'
+
+
+class ClassVarWrapper(Object):
+    def __init__(self, obj: Object) -> None:
+        self.object = obj
+
+    def __repr__(self) -> str:
+        return f'ClassVar({self.object})'
 
 
 class EvalAnnotationCtx(EvalCtx):
@@ -178,7 +217,7 @@ class EvalAnnotationCtx(EvalCtx):
         super().__init__(project)
         self._flows = [flow]
 
-    def _evaluate(self, node: AST) -> Object | None:
+    def _evaluate(self, node):  # type: ignore[no-untyped-def]
         node_type = type(node)
         # print('@@', node)
         if node_type is AstName:
@@ -206,19 +245,25 @@ class EvalAnnotationCtx(EvalCtx):
             obj_type = type(obj)
             # print('!!', obj)
             if obj_type is MarkerObject:
-                if obj.type == 'Union':
+                if obj.type == 'Union':  # type: ignore[union-attr]
                     if hasattr(node.slice, 'elts'):
                         return self.make_composite(node.slice.elts)
                     else:
                         return self.make_composite([node.slice])
-                elif obj.type == 'Optional':
+                elif obj.type == 'Optional':  # type: ignore[union-attr]
                     return self.evaluate(node.slice)
-                elif obj.type == 'Type':
+                elif obj.type == 'Type':  # type: ignore[union-attr]
                     o = self.evaluate(node.slice)
                     if o is not None:
                         return TypeWrapper(o)
+                elif obj.type == 'ClassVar':  # type: ignore[union-attr]
+                    o = self.evaluate(node.slice)
+                    if o is not None:
+                        return ClassVarWrapper(o)
             else:
                 return obj
+        elif node_type is MultiName:
+            return self.make_composite(node.valid_names)
         elif node_type is BinOp:
             return self.make_composite([node.left, node.right])
         elif node_type is Str:
@@ -232,7 +277,9 @@ class EvalAnnotationCtx(EvalCtx):
         else:
             log.warning("Unknown node type %r %r", node_type, node)
 
-    def make_composite(self, values) -> CompositeValue | None:
+        return None
+
+    def make_composite(self, values: list[AST]) -> CompositeValue | None:
         rvalues = []
         for it in values:
             o = self.evaluate(it)

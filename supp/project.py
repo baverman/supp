@@ -19,9 +19,6 @@ except:
 
 SOURCE_SUFFIXES = (".py",)
 
-if t.TYPE_CHECKING:
-    from .name import Object
-
 
 class Project(object):
     def __init__(

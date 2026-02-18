@@ -12,7 +12,7 @@ from supp.nast import extract, marked_flow
 
 
 if PY2:
-    class AsyncWith: pass
+    class AsyncWith: ...
 else:
     from ast import AsyncWith
 
@@ -58,7 +58,8 @@ def names_at(scope, p, project=None, debug=False):
         scope.resolve_star_imports(project)
     import os
     if os.environ.get('PDB'):
-        import ipdb; ipdb.set_trace()
+        import ipdb
+        ipdb.set_trace()
     return flow.names_at(p)
 
 

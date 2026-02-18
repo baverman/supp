@@ -5,7 +5,7 @@ import ast
 
 from .compat import PY2
 from .scope import FuncScope, Flow, SourceScope, ClassScope
-from .name import AssignedName, ImportedName
+from .name import AssignedName, ImportedName, AnnotatedName
 from .util import np, get_expr_end, get_indexes_for_target, visitor, get_any_marked_name
 
 if PY2:
@@ -17,7 +17,6 @@ else:
 
 
 if t.TYPE_CHECKING:
-    from .scope import LoopFlow
     from .util import Source
     from .project import Project
 
@@ -59,7 +58,7 @@ class extract_visitor(NodeVisitor):
         cur = self.flow
         self.flow = flow
         if nodes:
-            if type(nodes) == list:
+            if type(nodes) is list:
                 for n in nodes:
                     self.visit(n)
             else:
@@ -90,13 +89,17 @@ class extract_visitor(NodeVisitor):
         else:
             eend = get_expr_end(node)
         name = node.target
+        node.annotation.flow = self.flow  # type: ignore[attr-defined]
         if isinstance(name, Attribute):
-            self.top.add_attr_assign(self.flow.scope, name, node.value)  # type: ignore[arg-type]  # TODO
+            self.top.add_attr_assign(self.flow.scope, name, node.value, node.annotation)  # type: ignore[arg-type]  # TODO
         elif isinstance(name, UNSUPPORTED_ASSIGMENTS):
             pass
         elif node.value:
             name.flow = self.flow  # type: ignore[attr-defined]
-            self.flow.add_name(AssignedName(name.id, eend, np(name), node.value))
+            self.flow.add_name(AssignedName(name.id, eend, np(name), node.value, node.annotation))
+        else:
+            self.flow.scope.annotations[name.id] = AnnotatedName(name.id, eend, np(name), node.annotation)
+
         self.generic_visit(node)
 
     def visit_If(self, node: ast.If) -> None:

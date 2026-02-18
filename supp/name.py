@@ -7,7 +7,7 @@ from .util import Location, cached_property, context_property
 from .compat import iteritems
 
 if t.TYPE_CHECKING:
-    from .scope import Scope, ClassScope, SourceScope, FuncScope
+    from .scope import Scope, ClassScope, SourceScope, FuncScope, Flow
     from .evaluator import EvalCtx
     from .util import loc_t
     from .module import SourceModule, ImportedModule
@@ -37,7 +37,7 @@ class Object(object):
 
 
 class Callable(object):
-    pass
+    def call(self, ctx: EvalCtx) -> Object | None: ...
 
 
 class Resolvable(object):
@@ -69,7 +69,7 @@ class ArgumentName(Name, Resolvable):
         location: loc_t,
         declared_at: loc_t,
         func: FuncScope,
-        annotation: ast.exp | None = None,
+        annotation: ast.expr | None = None,
     ) -> None:
         Name.__init__(self, name, location)
         self.declared_at = declared_at
@@ -89,16 +89,34 @@ class ArgumentName(Name, Resolvable):
 
 class AssignedName(Name):
     def __init__(
-        self, name: str, location: loc_t, declared_at: loc_t, value_node: ast.AST
+        self, name: str, location: loc_t, declared_at: loc_t, value_node: ast.AST,
+        annotation: ast.expr | None = None,
     ) -> None:
         Name.__init__(self, name, location)
         self.declared_at = declared_at
         self.value_node = value_node
+        self.annotation = annotation
 
     def __repr__(self) -> str:
         return "AssignedName({}, {}, {})".format(
             self.name, self.location, self.declared_at
         )
+
+
+class AnnotatedName(Name):
+    def __init__(self, name: str, location: loc_t, declared_at: loc_t, annotation: ast.expr):
+        Name.__init__(self, name, location)
+        self.declared_at = declared_at
+        self.annotation = annotation
+
+    def __repr__(self) -> str:
+        return "AnnotatedName({}, {}, {})".format(
+            self.name, self.location, self.declared_at
+        )
+
+    @context_property
+    def resolve(self, ctx: EvalCtx) -> tuple[Object | None, bool]:
+        return ctx.evaluate_annotation(self.annotation, self.annotation.flow)  # type: ignore[attr-defined]
 
 
 class AdditionalNameWrapper(Object):
@@ -302,6 +320,7 @@ class AssignedAttribute(Name, Resolvable):
         attr: ast.Attribute,
         value: ast.AST,
         declared_at: loc_t,
+        annotation: ast.expr | None,
     ) -> None:
         self.name = attr.attr
         self.location = 0, 0
@@ -309,9 +328,13 @@ class AssignedAttribute(Name, Resolvable):
         self.declared_at = declared_at
         self.scope = scope
         self.value = value
+        self.annotation = annotation
 
     @context_property
     def resolve(self, ctx: EvalCtx) -> Object | None:
+        if self.annotation:
+            flow: Flow = self.annotation.flow  # type: ignore[attr-defined]
+            return ctx.evaluate_annotation(self.annotation, flow)[0]
         return ctx.evaluate(self.value)
 
 
@@ -374,7 +397,14 @@ class ClassObject(Object, Callable):
         attrs = {}
         for b in reversed(self.bases):
             attrs.update(b._attrs)
-        attrs.update(self._cls_attrs)
+
+        cls_attrs: dict[str, Name | Object] = self._cls_attrs  # type: ignore[assignment]
+        annotations = self.scope.annotations
+        for key, value in annotations.items():
+            ann, is_class_var = value.resolve(self.ctx)
+            if ann and is_class_var:
+                cls_attrs[key] = ann
+        attrs.update(cls_attrs)
         return attrs
 
     @context_property
@@ -409,7 +439,14 @@ class InstanceValue(Object):
             o = b.call(self.ctx)
             if o:
                 attrs.update(o._attrs)
+
         attrs.update(self.cls.scope.top.assigns(self.ctx).get(self, {}))
+
+        for key, value in self.cls.scope.annotations.items():
+            ann, is_class_var = value.resolve(self.ctx)
+            if ann and not is_class_var:
+                attrs[key] = ann
+
         return attrs
 
 

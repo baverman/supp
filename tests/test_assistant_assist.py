@@ -608,6 +608,42 @@ def test_annotated_attribute_refs():
     assert 'foo' in result
 
 
+def test_annotated_class_attributes():
+    source, p = sp('''\
+        from typing import ClassVar
+
+        class A:
+            boom: int
+
+        class Boo:
+            boo: str
+            boo_cls: ClassVar[str]
+
+            def __init__(self, arg: A):
+                self.baz = arg
+                self.aaa: A = 10
+
+        def foo(arg: Boo):
+            arg.b|
+            arg.baz.b|
+            arg.aaa.b|
+
+        Boo.b|
+    ''')
+
+    result = passist(source, p[0], debug=True)
+    assert result == {'boo', 'boo_cls', 'baz'}
+
+    result = passist(source, p[1])
+    assert result == {'boom'}
+
+    result = passist(source, p[2])
+    assert result == {'boom'}
+
+    result = passist(source, p[3])
+    assert result == {'boo_cls'}
+
+
 # def test_test():
 #     project = Project(['/home/bobrov/work/sdl_line'], dyn_modules=['sdl3'])
 #     source, p = sp('''\
@@ -619,10 +655,10 @@ def test_annotated_attribute_refs():
 #     assert False
 
 # def test_real_file():
-#     pdir = '/home/bobrov/work/diagen'
-#     fname = '/home/bobrov/work/diagen/diagen/nodes.py'
+#     pdir = '/home/bobrov/work/supp'
+#     fname = '/home/bobrov/work/supp/supp/name.py'
 #     project = Project([pdir])
-#     source, p = sp(open(fname).read(), marker='$')
-#     _, result = tassist(source, p[0], project=project, filename=fname)
+#     source = open(fname).read()
+#     _, result = tassist(source, (445, 47), project=project, filename=fname)
 #     print(result)
 #     assert False

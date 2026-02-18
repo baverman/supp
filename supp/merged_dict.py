@@ -5,7 +5,7 @@ class MergedDict(object):
     def __init__(self, *dicts):
         self._dicts = dd = []
         for d in dicts:
-            if type(d) == MergedDict:
+            if type(d) is MergedDict:
                 dd.extend(d._dicts)
             else:
                 dd.append(d)

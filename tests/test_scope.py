@@ -684,7 +684,7 @@ def test_parent_names_through_loop():
         |
     ''')
     names = names_at(scope, p[0])
-    assert type(names['foo']) == AssignedName
+    assert type(names['foo']) is AssignedName
 
 
 def test_dotted_imports():

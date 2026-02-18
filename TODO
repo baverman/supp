@@ -1,7 +1,7 @@
 # Annotations
-* class annotations (class var)
-* inline attribute variable annotations
+* return annotations
 * ? multiple locations
+
 
 * usage graph
 * imports checker

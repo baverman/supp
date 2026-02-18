@@ -1,16 +1,21 @@
 from __future__ import print_function, annotations
 
 import sys
+import typing as t
 from bisect import insort
 from ast import iter_fields, Store, Load, NodeVisitor, parse, Tuple, List, AST
-import typing as t, abc
 from ast import ImportFrom, Import, Name as AstName, Attribute, Subscript, Constant
-from functools import cached_property as cached_property
+
+if t.TYPE_CHECKING:
+    from functools import cached_property as cached_property
 
 try:
     from ast import Starred
 except ImportError:
-    class Starred: pass  # type: ignore[no-redef]
+
+    class Starred:  # type: ignore[no-redef]
+        pass
+
 
 from .compat import iteritems, string_types
 
@@ -24,15 +29,16 @@ loc_t = tuple[int, int]
 
 Targets = AstName | Attribute | Subscript
 
+
 class Comparable(t.Protocol):
-    def __lt__(self, other: t.Any) -> bool:
-        ...
+    def __lt__(self, other: t.Any) -> bool: ...
+
 
 CompT = t.TypeVar('CompT', bound=Comparable)
 
+
 class VisitProtocol(t.Protocol[P, R]):
-    def process(self, *args: P.args, **kwargs: P.kwargs) -> R:
-        ...
+    def process(self, *args: P.args, **kwargs: P.kwargs) -> R: ...
 
 
 NESTED_INDEXED_NODES = Tuple, List
@@ -73,10 +79,12 @@ def context_property(func: t.Callable[..., R]) -> t.Callable[..., R]:
 
         val = cv[func.__name__] = func(self, ctx, *args, **kwargs)
         return val
+
     return inner
 
 
-class AttributeException(Exception): pass
+class AttributeException(Exception):
+    pass
 
 
 class Location(object):
@@ -99,18 +107,25 @@ def insert_loc(locations: list[CompT], loc: CompT) -> None:
 
 def dumptree(node: AST, result: list[str], level: int) -> list[str]:
     LW = '   '
-    fields = [(k, v)
-              for k, v in iter_fields(node)
-              if (hasattr(v, '_fields') and not isinstance(v, Store) and not isinstance(v, Load)) or
-                 (isinstance(v, list) and v and hasattr(v[0], '_fields'))]
+    fields = [
+        (k, v)
+        for k, v in iter_fields(node)
+        if (hasattr(v, '_fields') and not isinstance(v, Store) and not isinstance(v, Load))
+        or (isinstance(v, list) and v and hasattr(v[0], '_fields'))
+    ]
     field_names = set(k for k, _ in fields)
 
-    result.append('{} {} {}'.format(
-        LW * level,
-        type(node).__name__,
-        ', '.join('{}: {}'.format(k, v)
-                  for k, v in sorted(iteritems(vars(node)))
-                  if k not in field_names)))
+    result.append(
+        '{} {} {}'.format(
+            LW * level,
+            type(node).__name__,
+            ', '.join(
+                '{}: {}'.format(k, v)
+                for k, v in sorted(iteritems(vars(node)))
+                if k not in field_names
+            ),
+        )
+    )
 
     for k, v in fields:
         if isinstance(v, list):
@@ -135,6 +150,7 @@ def print_dump(node: AST) -> None:
 def visitor(cls: type[VisitProtocol[P, R]]) -> t.Callable[P, R]:
     def func(*args: P.args, **kwargs: P.kwargs) -> R:
         return cls().process(*args, **kwargs)
+
     func.visitor = cls  # type: ignore[attr-defined]
     return func
 
@@ -162,7 +178,7 @@ class get_expr_end_visitor(NodeVisitor):
     def __getattr__(self, name: str) -> t.Callable[[AST], None]:
         def inner(node: AST) -> None:
             try:
-                self.last_loc = node.lineno, node.col_offset + 1 # type: ignore[attr-defined]
+                self.last_loc = node.lineno, node.col_offset + 1  # type: ignore[attr-defined]
             except AttributeError:
                 pass
             self.generic_visit(node)
@@ -218,7 +234,7 @@ class get_marked_atribute_visitor(StopNodeVisitor):
 
 class get_marked_name_visitor(StopNodeVisitor):
     def visit_Name(self, node: AstName) -> None:
-        if type(node.ctx) == Load and marked(node.id):
+        if type(node.ctx) is Load and marked(node.id):
             raise StopVisiting(clone_node(node, id=unmark(node.id)))
 
 
@@ -268,7 +284,9 @@ class get_marked_import_visitor(StopNodeVisitor):
                 raise StopVisiting((name, unmark(a.name)))
 
 
-def get_indexes_for_target(target: AST, result: list[tuple[Targets, list[int]]], idx: list[int]) -> list[tuple[Targets, list[int]]]:
+def get_indexes_for_target(
+    target: AST, result: list[tuple[Targets, list[int]]], idx: list[int]
+) -> list[tuple[Targets, list[int]]]:
     if isinstance(target, NESTED_INDEXED_NODES):
         for i, r in enumerate(target.elts):
             nidx = idx[:]
@@ -293,7 +311,7 @@ SOURCE_MARK = '__supp_mark__'
 
 def unmark(name: str) -> str:
     pos = name.find(SOURCE_MARK)
-    result = name[:pos] + name[pos+len(SOURCE_MARK):]
+    result = name[:pos] + name[pos + len(SOURCE_MARK) :]
     dpos = result.find('.', pos)
     if dpos >= 0:
         result = result[:dpos]
@@ -305,7 +323,9 @@ def marked(name: str) -> bool:
 
 
 class Source(object):
-    def __init__(self, source: str, filename: str | None = None, position: tuple[int, int] | None = None) -> None:
+    def __init__(
+        self, source: str, filename: str | None = None, position: tuple[int, int] | None = None
+    ) -> None:
         self.orig_source = source
         self.filename = filename or '<string>'
         if position:
@@ -313,8 +333,8 @@ class Source(object):
             lines = source.splitlines() or ['']
             if ln > len(lines):
                 lines.append('')
-            line = lines[ln-1]
-            lines[ln-1] = line[:col] + SOURCE_MARK + line[col:]
+            line = lines[ln - 1]
+            lines[ln - 1] = line[:col] + SOURCE_MARK + line[col:]
             self.source = '\n'.join(lines)
             self.lines = lines
         else:
@@ -349,10 +369,7 @@ def dump_flows(scope: SourceScope, fd: t.Optional[t.IO[str]] = None) -> None:
     scopes: dict[Scope, list[Flow]] = {}
 
     for flow in scope._all_flows:
-        pp(r'{} [label="{}{}"];'.format(
-            id(flow),
-            flow.hint,
-            flow._names))
+        pp(r'{} [label="{}{}"];'.format(id(flow), flow.hint, flow._names))
         scopes.setdefault(flow.scope, []).append(flow)
 
     def print_flows(scope: Scope, flows: list[Flow]) -> None:

@@ -1,28 +1,23 @@
 from __future__ import annotations
 import string
-import logging
 from bisect import bisect
-from ast import Name as AstName, Attribute, Call, FunctionDef, ClassDef, Lambda
+from ast import Name as AstName, Attribute, FunctionDef, ClassDef, Lambda, AST, stmt, expr
+import typing as t
 
-from .util import (Location, np, insert_loc, cached_property,
-                   get_indexes_for_target, context_property)
-from .compat import PY2, itervalues, builtins, iteritems, iterkeys
-from .name import (ArgumentName, MultiName, UndefinedName, ImportedName,
-                   RuntimeName, AdditionalNameWrapper, AssignedName,
-                   MultiValue, AssignedAttribute, Object, Resolvable,
-                   Callable, ClassObject, AttrObject, FuncObject, CompositeValue,
-                   first_name)
-from .merged_dict import MergedDict
 from . import compat
-from .evaluator import EvalAnnotationCtx, TypeWrapper
+from .util import (Location, np, insert_loc, cached_property,
+                   get_indexes_for_target, context_property, Source, loc_t)
+from .compat import PY2, builtins, iteritems, iterkeys
+from .name import (ArgumentName, MultiName, UndefinedName, ImportedName,
+                   RuntimeName,
+                   MultiValue, AssignedAttribute, Object, Resolvable,
+                   ClassObject, FuncObject,
+                   first_name, Name, AnnotatedName)
+from .merged_dict import MergedDict
 
-if False:
-    from ast import stmt, AST
-    import typing as t
-    from .evaluator import EvalCtx
-    from .util import Source, loc_t
-    from .name import Name
+if t.TYPE_CHECKING:
     from .project import Project
+    from .evaluator import EvalCtx
 
 IMPORT_DELIMETERS = string.whitespace + '(,'
 IMPORT_END_DELIMETERS = string.whitespace + '),.;'
@@ -49,6 +44,7 @@ class Scope(BaseScope):
         self.top = top
         self.locals: set[str] = set()
         self.globals: set[str] = set()
+        self.annotations: dict[str, AnnotatedName] = {}
 
     @property
     def filename(self) -> str:
@@ -145,7 +141,7 @@ class LoopFlow(object):
 class SourceScope(Scope):
     _imports: list[str]
     _global_names: dict[str, Name]
-    _attr_assigns: list[tuple[Scope, Attribute, AST]]
+    _attr_assigns: list[tuple[Scope, Attribute, AST, expr | None]]
     _star_imports: list[tuple[loc_t, loc_t, str, Flow]]
     _unvisited: list[tuple[Flow, AST]]
     source: Source
@@ -204,8 +200,8 @@ class SourceScope(Scope):
 
         return start
 
-    def add_attr_assign(self, scope: Scope, attr: Attribute, value: AST) -> None:
-        self._attr_assigns.append((scope, attr, value))
+    def add_attr_assign(self, scope: Scope, attr: Attribute, value: AST, annotation: expr | None=None) -> None:
+        self._attr_assigns.append((scope, attr, value, annotation))
 
     def add_global(self, name: Name) -> None:
         self._global_names[name.name] = name
@@ -217,14 +213,14 @@ class SourceScope(Scope):
     @context_property
     def assigns(self, ctx: EvalCtx) -> dict[Object, dict[str, MultiValue]]:
         result: dict[Object, dict[str, MultiValue]] = {}
-        for _scope, attr, value in self._attr_assigns:
+        for _scope, attr, value, annotation in self._attr_assigns:
             # logging.getLogger('supp.attr').error('Get attr for %s %s',
             #                                      scope, dump(attr, annotate_fields=False))
             if type(attr.value) is AstName:
                 attr_val = ctx.evaluate(attr.value)
                 if attr_val:
                     attrs = result.setdefault(attr_val, {})
-                    assigned_attr = AssignedAttribute(self, attr, value, np(attr))
+                    assigned_attr = AssignedAttribute(self, attr, value, np(attr), annotation)
                     try:
                         attrs[attr.attr].add(assigned_attr)
                     except KeyError:
@@ -310,24 +306,7 @@ class FuncScope(Scope, Location, Resolvable):
         if arg.idx == [0] and isinstance(self.parent, ClassScope):
             return self.parent.resolve(ctx).call(ctx)
         if arg.annotation:
-            actx = EvalAnnotationCtx(ctx.project, self.parent.flow)
-            obj = actx.evaluate(arg.annotation)
-            if obj is None:
-                return None
-            if type(obj) is CompositeValue:
-                values = obj.values
-            else:
-                values = [obj]
-            rvalues = []
-            for it in values:
-                if type(it) is TypeWrapper:
-                    rvalues.append(it.object)
-                elif isinstance(it, Callable):
-                    rvalues.append(it.call(ctx))
-            if len(rvalues) > 1:
-                return CompositeValue(rvalues)
-            elif rvalues:
-                return rvalues[0]
+            return ctx.evaluate_annotation(arg.annotation, self.parent.flow)[0]
         return None
 
     def resolve(self, ctx: EvalCtx) -> Object | None:
