@@ -5,6 +5,7 @@ VER = sys.version_info[:2]
 
 if PY2:
     import __builtin__ as builtins
+
     range = builtins.xrange
     string_types = (str, unicode)
 
@@ -16,7 +17,6 @@ if PY2:
     listitems = lambda d: d.items()
     exec('def reraise(tp, value, tb=None):\n raise tp, value, tb')
 
-
     def nstr(data):
         if type(data) is unicode:
             return data.encode('utf-8')
@@ -24,8 +24,9 @@ if PY2:
 
 else:
     import builtins
+
     range = builtins.range
-    string_types = (str, )
+    string_types = (str,)
     hasattr = builtins.hasattr
 
     iterkeys = lambda d: d.keys()
@@ -35,17 +36,16 @@ else:
     listvalues = lambda d: list(d.values())
     listitems = lambda d: list(d.items())
 
-
     def nstr(data):
         if type(data) is bytes:
             return data.decode()
         return data
 
-
     def reraise(tp, value, tb=None):
         if value.__traceback__ is not tb:
             raise value.with_traceback(tb)
         raise value
+
 
 HAS_VAR_TYPE_HINTS = VER >= (3, 6)
 HAS_WALRUS = VER >= (3, 8)

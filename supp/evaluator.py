@@ -2,23 +2,24 @@ from __future__ import annotations
 
 import logging
 import typing as t
-from ast import Name as AstName, Attribute, Call, AST, BinOp, Subscript, expr
+from ast import AST, Attribute, BinOp, Call, Subscript, expr
+from ast import Name as AstName
 
-from .util import np
 from .compat import HAS_CONSTANTS
 from .name import (
+    AssignedName,
+    Callable,
+    CompositeValue,
     ImportedName,
     MultiName,
     MultiValue,
     Object,
-    RuntimeName,
     Resolvable,
-    AssignedName,
-    Callable,
-    CompositeValue,
+    RuntimeName,
 )
+from .util import np
 
-log = logging.getLogger("supp.evaluator")
+log = logging.getLogger('supp.evaluator')
 
 if HAS_CONSTANTS:
     from ast import Constant
@@ -29,15 +30,15 @@ if HAS_CONSTANTS:
     class Bytes:
         pass
 else:
-    from ast import Str, Bytes  # type: ignore[assignment]
+    from ast import Bytes, Str  # type: ignore[assignment]
 
     class Constant:  # type: ignore[no-redef]
         pass
 
 
 if t.TYPE_CHECKING:
-    from .project import Project
     from .name import Name
+    from .project import Project
     from .scope import Flow
 
 
@@ -124,21 +125,21 @@ class EvalCtx(object):
                 if isinstance(func, Callable):
                     return func.call(self)
                 else:
-                    log.warning("Non-callable %r %r", type(func), func)
+                    log.warning('Non-callable %r %r', type(func), func)
         elif isinstance(node, Resolvable):
             return node.resolve(self)  # type: ignore[attr-defined]
         elif isinstance(node, Object):
             return node
         elif node_type is Str:
-            return RuntimeName("__none__", node.s)
+            return RuntimeName('__none__', node.s)
         elif node_type is Bytes:
-            return RuntimeName("__none__", node.s)
+            return RuntimeName('__none__', node.s)
         elif node_type is Constant:
-            return RuntimeName("__none__", node.value)
+            return RuntimeName('__none__', node.value)
         elif isinstance(node, Callable):
             return node
         else:
-            log.warning("Unknown node type %r %r", node_type, node)
+            log.warning('Unknown node type %r %r', node_type, node)
 
     def declarations(
         self,
@@ -275,7 +276,7 @@ class EvalAnnotationCtx(EvalCtx):
             if value:
                 return self.evaluate(value.get_attr(self, node.attr))
         else:
-            log.warning("Unknown node type %r %r", node_type, node)
+            log.warning('Unknown node type %r %r', node_type, node)
 
         return None
 
@@ -294,4 +295,3 @@ class EvalAnnotationCtx(EvalCtx):
             return CompositeValue(rvalues)
 
         return None
-

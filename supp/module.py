@@ -1,16 +1,17 @@
 from __future__ import annotations
-from os.path import getmtime
-import typing as t
 
-from .util import cached_property, Source
-from .nast import extract_scope
+import typing as t
+from os.path import getmtime
+
 from .compat import iteritems
-from .name import RuntimeName, Object
+from .name import Object, RuntimeName
+from .nast import extract_scope
+from .util import Source, cached_property
 
 if t.TYPE_CHECKING:
     from .name import Attributes, Name
-    from .scope import SourceScope
     from .project import Project
+    from .scope import SourceScope
 
 
 class SourceModule(Object):

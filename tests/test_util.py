@@ -1,4 +1,5 @@
-from supp.util import unmark, SOURCE_MARK, get_marked_import, Source, split_pkg
+from supp.util import SOURCE_MARK, Source, get_marked_import, split_pkg, unmark
+
 from .helpers import sp
 
 
@@ -28,7 +29,7 @@ def tmarked_import(source, filename, pos):
 def test_marked_import(project):
     project.add_m('testp.testm')
 
-    source, p = sp('''\n
+    source, p = sp("""\n
         import b|oo
         import boo.f|oo
         from boo import fo|o
@@ -37,7 +38,7 @@ def test_marked_import(project):
         from .foo import bo|o
         from .fo|o import boo
         from .| import foo
-    ''')
+    """)
 
     fn = project.get_m('testp.testm')
     assert tmarked_import(source, fn, p[0]) == ('boo', None)
@@ -49,9 +50,9 @@ def test_marked_import(project):
     assert tmarked_import(source, fn, p[6]) == ('.foo', None)
     assert tmarked_import(source, fn, p[7]) == ('.', None)
 
-    source, p  = sp('''\n
+    source, p = sp("""\n
         import os.|
-    ''')
+    """)
     assert tmarked_import(source, fn, p[0]) == ('os.', None)
 
 

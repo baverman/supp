@@ -1,9 +1,8 @@
 # type: ignore
+import os.path
 import sys
 import time
-import os.path
-
-from threading import Thread, Lock
+from threading import Lock, Thread
 
 from .umsgpack import dumps, loads
 
@@ -29,8 +28,8 @@ class Environment(object):
         self.prepare_lock = Lock()
 
     def _run(self):
-        from subprocess import Popen
         from multiprocessing.connection import Client, arbitrary_address
+        from subprocess import Popen
 
         if sys.platform == 'win32':
             addr = arbitrary_address('AF_PIPE')

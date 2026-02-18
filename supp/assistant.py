@@ -1,12 +1,21 @@
 # type: ignore
 from __future__ import print_function
-import re
-import logging
 
-from .util import (Source, print_dump, get_marked_atribute, split_pkg,
-                   get_marked_name, get_marked_import, get_all_usages, join_pkg)
+import logging
+import re
+
 from .evaluator import EvalCtx
 from .nast import extract_scope
+from .util import (
+    Source,
+    get_all_usages,
+    get_marked_atribute,
+    get_marked_import,
+    get_marked_name,
+    join_pkg,
+    print_dump,
+    split_pkg,
+)
 
 log = logging.getLogger('supp.assistant')
 

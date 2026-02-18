@@ -1,8 +1,9 @@
 # type: ignore
 from __future__ import annotations
-import sys
-import os.path
+
 import logging
+import os.path
+import sys
 import typing as t
 
 logger = logging.getLogger('server')
@@ -18,10 +19,9 @@ except ImportError:
         sys.path = old_path
 
 from supp import assistant, linter
-from supp.umsgpack import loads, dumps
-from supp.project import Project
 from supp.compat import nstr
-
+from supp.project import Project
+from supp.umsgpack import dumps, loads
 
 if t.TYPE_CHECKING:
     from multiprocessing.connection import _ConnectionBase
@@ -34,7 +34,9 @@ class Server(object):
     def configure(self, config: dict[str, t.Any]) -> None:
         self.project = Project(config['sources'], dyn_modules=config.get('dyn_modules'))
 
-    def process(self, name: str, args: tuple[t.Any], kwargs: dict[str, t.Any]) -> tuple[t.Any, bool]:
+    def process(
+        self, name: str, args: tuple[t.Any], kwargs: dict[str, t.Any]
+    ) -> tuple[t.Any, bool]:
         try:
             is_ok = True
             result = getattr(self, name)(*args, **kwargs)
@@ -103,9 +105,11 @@ if __name__ == '__main__':
     if 'SUPP_LOG_FILE' in os.environ:
         logging.basicConfig(
             filename=os.environ['SUPP_LOG_FILE'],
-            format="%(asctime)s %(name)s %(levelname)s: %(message)s", level=level)
+            format='%(asctime)s %(name)s %(levelname)s: %(message)s',
+            level=level,
+        )
     else:
-        logging.basicConfig(format="%(name)s %(levelname)s: %(message)s", level=level)
+        logging.basicConfig(format='%(name)s %(levelname)s: %(message)s', level=level)
 
     listener = Listener(sys.argv[1])
     conn = listener.accept()

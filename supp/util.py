@@ -1,10 +1,24 @@
-from __future__ import print_function, annotations
+from __future__ import annotations, print_function
 
 import sys
 import typing as t
+from ast import (
+    AST,
+    Attribute,
+    Constant,
+    Import,
+    ImportFrom,
+    List,
+    Load,
+    NodeVisitor,
+    Store,
+    Subscript,
+    Tuple,
+    iter_fields,
+    parse,
+)
+from ast import Name as AstName
 from bisect import insort
-from ast import iter_fields, Store, Load, NodeVisitor, parse, Tuple, List, AST
-from ast import ImportFrom, Import, Name as AstName, Attribute, Subscript, Constant
 
 if t.TYPE_CHECKING:
     from functools import cached_property as cached_property
@@ -20,7 +34,7 @@ except ImportError:
 from .compat import iteritems, string_types
 
 if t.TYPE_CHECKING:
-    from .scope import Scope, Flow, SourceScope
+    from .scope import Flow, Scope, SourceScope
 
 T = t.TypeVar('T')
 R = t.TypeVar('R', covariant=True)
@@ -354,6 +368,7 @@ class Source(object):
 
 def dump_flows(scope: SourceScope, fd: t.Optional[t.IO[str]] = None) -> None:
     from functools import partial
+
     from .scope import LoopFlow
 
     fd = fd or sys.stdout

@@ -9,11 +9,11 @@ def tusages(source, project=None, filename=None):
 
 
 def test_simple():
-    source, _p = sp('''\
+    source, _p = sp("""\
         s = 'boo'
         while s:
             foo(s)
-    ''')
+    """)
 
     tusages(source)
     # assert False

@@ -1,14 +1,15 @@
 from supp.remote import Environment
+
 from .helpers import sp
 
 
 def test_remote_assist():
     env = Environment()
     env.configure({'sources': ['.']})
-    source, p = sp('''\
+    source, p = sp("""\
         foo = 10
         |
-    ''')
+    """)
     m, result = env.assist(source, p[0], 'boo.py')
     assert m == ''
     assert 'foo' in result

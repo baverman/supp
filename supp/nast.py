@@ -1,12 +1,13 @@
 from __future__ import annotations
-from ast import Attribute, Subscript, Load, NodeVisitor
-import typing as t
+
 import ast
+import typing as t
+from ast import Attribute, Load, NodeVisitor, Subscript
 
 from .compat import PY2
-from .scope import FuncScope, Flow, SourceScope, ClassScope
-from .name import AssignedName, ImportedName, AnnotatedName
-from .util import np, get_expr_end, get_indexes_for_target, visitor, get_any_marked_name
+from .name import AnnotatedName, AssignedName, ImportedName
+from .scope import ClassScope, Flow, FuncScope, SourceScope
+from .util import get_any_marked_name, get_expr_end, get_indexes_for_target, np, visitor
 
 if PY2:
     UNSUPPORTED_ASSIGMENTS = Subscript
@@ -17,10 +18,10 @@ else:
 
 
 if t.TYPE_CHECKING:
-    from .util import Source
     from .project import Project
+    from .util import Source
 
-T = t.TypeVar("T")
+T = t.TypeVar('T')
 
 
 def extract_scope(source: Source, project: Project) -> SourceScope:
@@ -32,7 +33,7 @@ def extract_scope(source: Source, project: Project) -> SourceScope:
 
 def marked_flow(scope: SourceScope) -> Flow | None:
     name: ast.Name = get_any_marked_name(scope.source.tree)
-    if name and hasattr(name, "flow"):
+    if name and hasattr(name, 'flow'):
         marked_id = name._orig.id  # type: ignore[attr-defined]
         for n in name.flow._names:
             if n.name == marked_id:
@@ -77,9 +78,7 @@ class extract_visitor(NodeVisitor):
                     continue
                 else:
                     name.flow = self.flow  # type: ignore[attr-defined]
-                    self.flow.add_name(
-                        AssignedName(name.id, eend, np(name), node.value)
-                    )
+                    self.flow.add_name(AssignedName(name.id, eend, np(name), node.value))
 
         self.generic_visit(node)
 
@@ -98,36 +97,34 @@ class extract_visitor(NodeVisitor):
             name.flow = self.flow  # type: ignore[attr-defined]
             self.flow.add_name(AssignedName(name.id, eend, np(name), node.value, node.annotation))
         else:
-            self.flow.scope.annotations[name.id] = AnnotatedName(name.id, eend, np(name), node.annotation)
+            self.flow.scope.annotations[name.id] = AnnotatedName(
+                name.id, eend, np(name), node.annotation
+            )
 
         self.generic_visit(node)
 
     def visit_If(self, node: ast.If) -> None:
         self.visit(node.test)
         cur = self.flow
-        body = self.visit_in_flow(node.body, self.make_flow("if", [cur]))
-        orelse = self.visit_in_flow(node.orelse, self.make_flow("else", [cur]))
-        self.flow = self.make_flow("join", [body, orelse])
+        body = self.visit_in_flow(node.body, self.make_flow('if', [cur]))
+        orelse = self.visit_in_flow(node.orelse, self.make_flow('else', [cur]))
+        self.flow = self.make_flow('join', [body, orelse])
         self.flow.scope.flow = self.flow
 
     def visit_For(self, node: ast.For | ast.AsyncFor) -> None:
         self.visit(node.iter)
         cur = self.flow
 
-        body_start = self.make_flow("for", [cur])
+        body_start = self.make_flow('for', [cur])
         for nn, _idx in get_indexes_for_target(node.target, [], []):
             name: ast.Name = nn  # type: ignore[assignment]
-            body_start.add_name(
-                AssignedName(name.id, np(node.body[0]), np(name), node.iter)
-            )
+            body_start.add_name(AssignedName(name.id, np(node.body[0]), np(name), node.iter))
         body = self.visit_in_flow(node.body, body_start)
         body_start.loop(body)
 
-        orelse = self.visit_in_flow(
-            node.orelse, self.make_flow("for-else", [cur, body])
-        )
+        orelse = self.visit_in_flow(node.orelse, self.make_flow('for-else', [cur, body]))
 
-        self.flow = self.make_flow("join", [orelse])
+        self.flow = self.make_flow('join', [orelse])
         self.flow.scope.flow = self.flow
 
     visit_AsyncFor = visit_For
@@ -136,15 +133,13 @@ class extract_visitor(NodeVisitor):
         self.visit(node.test)
         cur = self.flow
 
-        body_start = self.make_flow("while", [cur])
+        body_start = self.make_flow('while', [cur])
         body = self.visit_in_flow(node.body, body_start)
         body_start.loop(body)
 
-        orelse = self.visit_in_flow(
-            node.orelse, self.make_flow("while-else", [cur, body])
-        )
+        orelse = self.visit_in_flow(node.orelse, self.make_flow('while-else', [cur, body]))
 
-        self.flow = self.make_flow("join", [orelse])
+        self.flow = self.make_flow('join', [orelse])
         self.flow.scope.flow = self.flow
 
     def visit_Import(self, node: ast.Import) -> None:
@@ -156,7 +151,7 @@ class extract_visitor(NodeVisitor):
                 name = a.asname
                 iname = a.name
             else:
-                name, sep, _ = a.name.partition(".")
+                name, sep, _ = a.name.partition('.')
                 qualified = bool(sep)
                 iname = name
                 self.top._imports.append(a.name)
@@ -172,18 +167,18 @@ class extract_visitor(NodeVisitor):
         for a in node.names:
             name = a.asname or a.name
             declared_at = self.top.find_id_loc(name, start)
-            module = "." * node.level + (node.module or "")
-            if name == "*":
+            module = '.' * node.level + (node.module or '')
+            if name == '*':
                 self.top._star_imports.append((loc, declared_at, module, self.flow))
             else:
                 self.flow.add_name(ImportedName(name, loc, declared_at, module, a.name))
 
     def visit_TryExcept(self, node: ast.Try) -> None:
         cur = self.flow
-        body = self.visit_in_flow(node.body, self.make_flow("try", [cur]))
+        body = self.visit_in_flow(node.body, self.make_flow('try', [cur]))
         handlers = []
         for h in node.handlers:
-            fh = self.make_flow("except", [cur, body])
+            fh = self.make_flow('except', [cur, body])
             if h.name:
                 if PY2:
                     fh.add_name(AssignedName(h.name.id, np(h.body[0]), np(h), h.type))
@@ -193,11 +188,11 @@ class extract_visitor(NodeVisitor):
                 self.visit(h.type)
             handlers.append(self.visit_in_flow(h.body, fh))
 
-        orelse = self.visit_in_flow(node.orelse, self.make_flow("try-else", [body]))
+        orelse = self.visit_in_flow(node.orelse, self.make_flow('try-else', [body]))
 
-        self.flow = self.make_flow("join", [orelse] + handlers)
+        self.flow = self.make_flow('join', [orelse] + handlers)
         self.flow.scope.flow = self.flow
-        if hasattr(node, "finalbody"):
+        if hasattr(node, 'finalbody'):
             self.visit_in_flow(node.finalbody, self.flow)
 
     visit_Try = visit_TryExcept
@@ -262,7 +257,7 @@ class extract_visitor(NodeVisitor):
         for g in node.generators:
             self.visit_in_flow(g.iter, p)
             pp = p
-            p = self.make_flow("comp", [p])
+            p = self.make_flow('comp', [p])
             for nn, _idx in get_indexes_for_target(g.target, [], []):
                 name: ast.Name = nn  # type: ignore[assignment]
                 name.flow = pp  # type: ignore[attr-defined]
@@ -272,13 +267,13 @@ class extract_visitor(NodeVisitor):
                 for inode in g.ifs:
                     self.visit_in_flow(inode, p)
 
-        elt: ast.AST = getattr(node, "elt", None) or node.value  # type: ignore[union-attr]
+        elt: ast.AST = getattr(node, 'elt', None) or node.value  # type: ignore[union-attr]
         self.visit_in_flow(elt, p)
 
-        if hasattr(node, "key"):
+        if hasattr(node, 'key'):
             self.visit_in_flow(node.key, p)
 
-        self.flow = self.make_flow("comp-join", [cur, p])
+        self.flow = self.make_flow('comp-join', [cur, p])
         self.flow.scope.flow = self.flow
 
     visit_GeneratorExp = visit_ListComp
@@ -295,9 +290,7 @@ class extract_visitor(NodeVisitor):
             if it.optional_vars:
                 for nn, _idx in get_indexes_for_target(it.optional_vars, [], []):
                     name: ast.Name = nn  # type: ignore[assignment]
-                    self.flow.add_name(
-                        AssignedName(name.id, np(node.body[0]), np(name), node)
-                    )
+                    self.flow.add_name(AssignedName(name.id, np(node.body[0]), np(name), node))
 
         self.generic_visit(node)
 

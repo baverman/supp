@@ -21,6 +21,7 @@ ignore = ["E731", "E402"]
 
 [tool.coverage.run]
 source = ["supp"]
+omit = ["supp/umsgpack.py"]
 
 # [tool.coverage.report]
 # fail_under = 100

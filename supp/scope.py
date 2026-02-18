@@ -1,23 +1,44 @@
 from __future__ import annotations
+
 import string
-from bisect import bisect
-from ast import Name as AstName, Attribute, FunctionDef, ClassDef, Lambda, AST, stmt, expr
 import typing as t
+from ast import AST, Attribute, ClassDef, FunctionDef, Lambda, expr, stmt
+from ast import Name as AstName
+from bisect import bisect
 
 from . import compat
-from .util import (Location, np, insert_loc, cached_property,
-                   get_indexes_for_target, context_property, Source, loc_t)
 from .compat import PY2, builtins, iteritems, iterkeys
-from .name import (ArgumentName, MultiName, UndefinedName, ImportedName,
-                   RuntimeName,
-                   MultiValue, AssignedAttribute, Object, Resolvable,
-                   ClassObject, FuncObject,
-                   first_name, Name, AnnotatedName)
 from .merged_dict import MergedDict
+from .name import (
+    AnnotatedName,
+    ArgumentName,
+    AssignedAttribute,
+    ClassObject,
+    FuncObject,
+    ImportedName,
+    MultiName,
+    MultiValue,
+    Name,
+    Object,
+    Resolvable,
+    RuntimeName,
+    UndefinedName,
+    first_name,
+)
+from .util import (
+    Location,
+    Source,
+    cached_property,
+    context_property,
+    get_indexes_for_target,
+    insert_loc,
+    loc_t,
+    np,
+)
 
 if t.TYPE_CHECKING:
-    from .project import Project
     from .evaluator import EvalCtx
+    from .project import Project
 
 IMPORT_DELIMETERS = string.whitespace + '(,'
 IMPORT_END_DELIMETERS = string.whitespace + '),.;'
@@ -52,7 +73,9 @@ class Scope(BaseScope):
 
 
 class Flow(object):
-    def __init__(self, hint: str, scope: Scope, parents: t.MutableSequence[Flow | LoopFlow] | None = None) -> None:
+    def __init__(
+        self, hint: str, scope: Scope, parents: t.MutableSequence[Flow | LoopFlow] | None = None
+    ) -> None:
         self.hint = hint
         self.scope = scope
         self._names: list[Name] = []
@@ -74,14 +97,17 @@ class Flow(object):
         return MergedDict({n.name: n for n in self._names}, self.parent_names)
 
     @cached_property
-    def parent_names(self) -> t.Mapping[str, Name | MultiName ]:
+    def parent_names(self) -> t.Mapping[str, Name | MultiName]:
         if len(self.parents) == 1:
             return self.parents[0].names  # type: ignore[return-value]
         elif len(self.parents) > 1:
             names: dict[str, Name | MultiName] = {}
             nameset: set[str] = set()
-            pnames: list[t.Mapping[str, Name]] = [p.names for p in self.parents # type: ignore[misc]
-                      if p.names is not UNRESOLVED]
+            pnames: list[t.Mapping[str, Name]] = [
+                p.names  # type: ignore[misc]
+                for p in self.parents
+                if p.names is not UNRESOLVED
+            ]
             for p in pnames:
                 nameset.update(p)
             for n in nameset:
@@ -166,9 +192,11 @@ class SourceScope(Scope):
 
     @property
     def exported_names(self) -> dict[str, Name]:
-        return {k: first_name(v)
-                for k, v in iteritems(self.names)
-                if getattr(v, 'location', None) != (0, 0)}
+        return {
+            k: first_name(v)
+            for k, v in iteritems(self.names)
+            if getattr(v, 'location', None) != (0, 0)
+        }
 
     @property
     def all_names(self) -> t.Iterable[tuple[Flow, Name]]:
@@ -185,22 +213,26 @@ class SourceScope(Scope):
 
     def find_id_loc(self, id: str, start: loc_t, shift: int = 0, delimeters: bool = True) -> loc_t:
         sl, pos = start
-        source = '\n'.join(self.source.lines[sl-1:sl+50])
+        source = '\n'.join(self.source.lines[sl - 1 : sl + 50])
         source_len = len(source)
         while True:
             pos = source.find(id, pos + 1)
             if pos < 0:
                 break
 
-            if pos == 0 or not delimeters or source[pos-1] in IMPORT_DELIMETERS:
+            if pos == 0 or not delimeters or source[pos - 1] in IMPORT_DELIMETERS:
                 ep = pos + len(id)
                 if ep >= source_len or not delimeters or source[ep] in IMPORT_END_DELIMETERS:
-                    return (sl + source.count('\n', 0, pos),
-                            pos - source.rfind('\n', 0, pos) - 1 + shift)
+                    return (
+                        sl + source.count('\n', 0, pos),
+                        pos - source.rfind('\n', 0, pos) - 1 + shift,
+                    )
 
         return start
 
-    def add_attr_assign(self, scope: Scope, attr: Attribute, value: AST, annotation: expr | None=None) -> None:
+    def add_attr_assign(
+        self, scope: Scope, attr: Attribute, value: AST, annotation: expr | None = None
+    ) -> None:
         self._attr_assigns.append((scope, attr, value, annotation))
 
     def add_global(self, name: Name) -> None:
@@ -270,7 +302,10 @@ class FuncScope(Scope, Location, Resolvable):
             fnode: FunctionDef = node  # type: ignore[assignment]
             self.name = fnode.name
             self.declared_at = top.find_id_loc(' ' + fnode.name, np(fnode), 1, False)
-            self.location = get_first_body_node_loc(fnode.body) or (np(fnode.body[0])[0], np(fnode)[1] + 4)
+            self.location = get_first_body_node_loc(fnode.body) or (
+                np(fnode.body[0])[0],
+                np(fnode)[1] + 4,
+            )
             self.decorator_list = fnode.decorator_list
 
         for ni, n in enumerate(node.args.args):
@@ -278,7 +313,9 @@ class FuncScope(Scope, Location, Resolvable):
                 for nn, idx in get_indexes_for_target(n, [], []):
                     self.args.append(ArgumentName([ni] + idx, nn.id, self.location, np(nn), self))
             else:
-                self.args.append(ArgumentName([ni], n.arg, self.location, np(n), self, n.annotation))
+                self.args.append(
+                    ArgumentName([ni], n.arg, self.location, np(n), self, n.annotation)
+                )
 
         if not PY2:
             for n in node.args.kwonlyargs:
@@ -352,9 +389,9 @@ class BuiltinScope(BaseScope):
     @cached_property
     def names(self) -> dict[str, Name]:
         names = {k: RuntimeName(k, v, True) for k, v in iteritems(vars(builtins))}
-        names.update({k: RuntimeName(k, v)
-                      for k, v in iteritems(vars(compat))
-                      if k.startswith('__')})
+        names.update(
+            {k: RuntimeName(k, v) for k, v in iteritems(vars(compat)) if k.startswith('__')}
+        )
         return names  # type: ignore[return-value]
 
 

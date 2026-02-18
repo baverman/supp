@@ -1,20 +1,21 @@
 from __future__ import annotations
+
+import ast
 import logging
 import typing as t
-import ast
 
-from .util import Location, cached_property, context_property
 from .compat import iteritems
+from .util import Location, cached_property, context_property
 
 if t.TYPE_CHECKING:
-    from .scope import Scope, ClassScope, SourceScope, FuncScope, Flow
     from .evaluator import EvalCtx
+    from .module import ImportedModule, SourceModule
+    from .scope import ClassScope, Flow, FuncScope, Scope, SourceScope
     from .util import loc_t
-    from .module import SourceModule, ImportedModule
 
 AttrList = t.Mapping[str, t.Any] | list[str] | set[str]
-Attributes = dict[str, "Object | Name"]
-Names = t.Mapping[str, "Name"]
+Attributes = dict[str, 'Object | Name']
+Names = t.Mapping[str, 'Name']
 
 
 class CallableProto(t.Protocol):
@@ -28,7 +29,7 @@ class Object(object):
     def attr_list(self, ctx: EvalCtx) -> AttrList:
         return self._attrs
 
-    def get_attr(self, ctx: EvalCtx, name: str) -> "Object" | "Name" | None:
+    def get_attr(self, ctx: EvalCtx, name: str) -> 'Object' | 'Name' | None:
         return self._attrs.get(name)
 
     @property
@@ -52,7 +53,7 @@ class Name(Location):
         self.location = location
 
     def __repr__(self) -> str:
-        return "{}({}, {})".format(self.__class__.__name__, self.name, self.location)
+        return '{}({}, {})'.format(self.__class__.__name__, self.name, self.location)
 
     @property
     def filename(self) -> str | None:
@@ -78,9 +79,7 @@ class ArgumentName(Name, Resolvable):
         self.annotation = annotation
 
     def __repr__(self) -> str:
-        return "ArgumentName({}, {}, {})".format(
-            self.name, self.location, self.declared_at
-        )
+        return 'ArgumentName({}, {}, {})'.format(self.name, self.location, self.declared_at)
 
     @context_property
     def resolve(self, ctx: EvalCtx) -> Object | None:
@@ -89,7 +88,11 @@ class ArgumentName(Name, Resolvable):
 
 class AssignedName(Name):
     def __init__(
-        self, name: str, location: loc_t, declared_at: loc_t, value_node: ast.AST,
+        self,
+        name: str,
+        location: loc_t,
+        declared_at: loc_t,
+        value_node: ast.AST,
         annotation: ast.expr | None = None,
     ) -> None:
         Name.__init__(self, name, location)
@@ -98,9 +101,7 @@ class AssignedName(Name):
         self.annotation = annotation
 
     def __repr__(self) -> str:
-        return "AssignedName({}, {}, {})".format(
-            self.name, self.location, self.declared_at
-        )
+        return 'AssignedName({}, {}, {})'.format(self.name, self.location, self.declared_at)
 
 
 class AnnotatedName(Name):
@@ -110,9 +111,7 @@ class AnnotatedName(Name):
         self.annotation = annotation
 
     def __repr__(self) -> str:
-        return "AnnotatedName({}, {}, {})".format(
-            self.name, self.location, self.declared_at
-        )
+        return 'AnnotatedName({}, {}, {})'.format(self.name, self.location, self.declared_at)
 
     @context_property
     def resolve(self, ctx: EvalCtx) -> tuple[Object | None, bool]:
@@ -120,9 +119,7 @@ class AnnotatedName(Name):
 
 
 class AdditionalNameWrapper(Object):
-    def __init__(
-        self, value: SourceModule | ImportedModule, names: t.Mapping[str, Name]
-    ) -> None:
+    def __init__(self, value: SourceModule | ImportedModule, names: t.Mapping[str, Name]) -> None:
         self.value = value
         self._names = names
 
@@ -198,8 +195,8 @@ class ImportedName(Name, Resolvable):
         value = None
         filename = self.scope.top.source.filename
         if self.mname:
-            if self.module.strip("."):
-                module = self.module + "." + self.mname
+            if self.module.strip('.'):
+                module = self.module + '.' + self.mname
             else:
                 module = self.module + self.mname
 
@@ -212,8 +209,8 @@ class ImportedName(Name, Resolvable):
             try:
                 value = ctx.project.get_nmodule(self.module, filename)
             except ImportError:
-                logging.getLogger("supp.import").error(
-                    "Failed import of %s from %s", self.module, filename
+                logging.getLogger('supp.import').error(
+                    'Failed import of %s from %s', self.module, filename
                 )
                 # value = FailedImport(self.module)
             else:
@@ -221,14 +218,12 @@ class ImportedName(Name, Resolvable):
                     value = value.get_attr(ctx, self.mname)  # type: ignore[assignment]
 
         if not self.mname and value:
-            prefix = self.module + "."
+            prefix = self.module + '.'
             names = {}
             for mname in self.scope.top._imports:
                 if mname.startswith(prefix):
-                    name = mname[len(prefix) :].partition(".")[0]
-                    names[name] = iname = ImportedName(
-                        name, (0, 0), (0, 0), prefix + name, None
-                    )
+                    name = mname[len(prefix) :].partition('.')[0]
+                    names[name] = iname = ImportedName(name, (0, 0), (0, 0), prefix + name, None)
                     iname.scope = self.scope
             if names:
                 value = AdditionalNameWrapper(value, names)  # type: ignore[assignment]
@@ -237,7 +232,7 @@ class ImportedName(Name, Resolvable):
         return value
 
     def __repr__(self) -> str:
-        return "ImportedName({}, {}, {}, {}, {})".format(
+        return 'ImportedName({}, {}, {}, {}, {})'.format(
             self.name, self.location, self.declared_at, self.module, self.mname
         )
 
@@ -256,9 +251,7 @@ class RuntimeName(Name, Object, Callable):
         try:
             return {k: RuntimeName(k, v) for k, v in iteritems(vars(self.value))}
         except TypeError:
-            return {
-                k: RuntimeName(k, getattr(self.value, k, None)) for k in dir(self.value)
-            }
+            return {k: RuntimeName(k, getattr(self.value, k, None)) for k in dir(self.value)}
 
     def call(self, ctx: EvalCtx) -> Object | None:
         try:
@@ -269,7 +262,7 @@ class RuntimeName(Name, Object, Callable):
         self._instance = None
         if isinstance(self.value, type):
             try:
-                self._instance = RuntimeName("__none__", self.value())
+                self._instance = RuntimeName('__none__', self.value())
             except TypeError:
                 pass
 
@@ -283,7 +276,7 @@ class UndefinedName(str):
         return True
 
     def __repr__(self) -> str:
-        return "UndefinedName({})".format(self)
+        return 'UndefinedName({})'.format(self)
 
     @property
     def name(self) -> str:
@@ -302,7 +295,7 @@ class MultiName(object):
         self.name = self.alt_names[0].name
 
     def __repr__(self) -> str:
-        return "MultiName({})".format(self.alt_names)
+        return 'MultiName({})'.format(self.alt_names)
 
     @cached_property
     def has_undefined(self) -> bool:
@@ -344,9 +337,7 @@ class MultiValue(Object):
     def __init__(self, value: AssignedAttribute) -> None:
         self.values = [value]
 
-    def add(
-        self, value: MultiValue | AssignedAttribute
-    ) -> MultiValue | AssignedAttribute:
+    def add(self, value: MultiValue | AssignedAttribute) -> MultiValue | AssignedAttribute:
         if isinstance(value, MultiValue):
             self.values.extend(value.values)
         else:
@@ -359,9 +350,7 @@ class MultiValue(Object):
         except AttributeError:
             pass
 
-        result = self._rvalues = list(
-            filter(None, (v.resolve(ctx) for v in self.values))
-        )
+        result = self._rvalues = list(filter(None, (v.resolve(ctx) for v in self.values)))
         return result
 
     def attr_list(self, ctx: EvalCtx) -> AttrList:

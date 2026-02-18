@@ -1,17 +1,15 @@
 import os
-
+from ast import Call, Dict, Lambda, Subscript, With
 from textwrap import dedent
-from ast import Lambda, With, Call, Subscript, Dict
 
-from supp.compat import iteritems, PY2
-from supp.name import (AssignedName, UndefinedName, MultiName,
-                       ImportedName, ArgumentName)
-from supp.scope import SourceScope, FuncScope, ClassScope
-from supp.util import Source, print_dump, dump_flows
+from supp.compat import PY2, iteritems
+from supp.name import ArgumentName, AssignedName, ImportedName, MultiName, UndefinedName
 from supp.nast import extract, marked_flow
-
+from supp.scope import ClassScope, FuncScope, SourceScope
+from supp.util import Source, dump_flows, print_dump
 
 if PY2:
+
     class AsyncWith: ...
 else:
     from ast import AsyncWith
@@ -57,8 +55,10 @@ def names_at(scope, p, project=None, debug=False):
     if project:
         scope.resolve_star_imports(project)
     import os
+
     if os.environ.get('PDB'):
         import ipdb
+
         ipdb.set_trace()
     return flow.names_at(p)
 

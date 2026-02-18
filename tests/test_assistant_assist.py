@@ -1,6 +1,8 @@
 import os
 import sys
+
 import pytest
+
 from supp.assistant import assist
 from supp.project import Project
 
@@ -19,9 +21,9 @@ def passist(source, pos, project=None, filename=None, debug=False):
 
 
 def test_simple_from():
-    source, p = sp('''\
+    source, p = sp("""\
         from mul|
-    ''')
+    """)
 
     m, result = tassist(source, p[0])
     assert m == 'mul'
@@ -29,9 +31,9 @@ def test_simple_from():
 
 
 def test_from_all():
-    source, p = sp('''\
+    source, p = sp("""\
         from |
-    ''')
+    """)
     m, result = tassist(source, p[0])
     assert m == ''
     assert 'os' in result
@@ -39,9 +41,9 @@ def test_from_all():
 
 
 def test_from_with_parent_package():
-    source, p = sp('''\
+    source, p = sp("""\
         from multiprocessing.|
-    ''')
+    """)
 
     m, result = tassist(source, p[0])
     assert m == ''
@@ -50,9 +52,9 @@ def test_from_with_parent_package():
 
 
 def test_dyn_from_with_parent_package():
-    source, p = sp('''\
+    source, p = sp("""\
         from os.|
-    ''')
+    """)
 
     m, result = tassist(source, p[0])
     assert m == ''
@@ -61,9 +63,9 @@ def test_dyn_from_with_parent_package():
 
 def test_from_src(project):
     project.add_m('testp.module')
-    source, p = sp('''\
+    source, p = sp("""\
         from testp.|
-    ''')
+    """)
     m, result = tassist(source, p[0], project)
     assert m == ''
     assert result == ['module']
@@ -71,52 +73,52 @@ def test_from_src(project):
 
 def test_relative_from(project):
     project.add_m('testp.module')
-    source, p = sp('''\
+    source, p = sp("""\
         from .|
-    ''')
+    """)
     m, result = tassist(source, p[0], project, project.get_m('testp.tmodule'))
     assert m == ''
     assert 'module' in result
 
-    source, p = sp('''\
+    source, p = sp("""\
         from ..|
-    ''')
+    """)
     m, result = tassist(source, p[0], project, project.get_m('testp.pkg.tmodule'))
     assert m == ''
     assert 'module' in result
 
 
 def test_simple_import():
-    source, p = sp('''\
+    source, p = sp("""\
         import mul|
-    ''')
+    """)
     m, result = tassist(source, p[0])
     assert m == 'mul'
     assert 'multiprocessing' in result
 
 
 def test_comma_import():
-    source, p = sp('''\
+    source, p = sp("""\
         import os, mul|
-    ''')
+    """)
     m, result = tassist(source, p[0])
     assert m == 'mul'
     assert 'multiprocessing' in result
 
 
 def test_dotted_import():
-    source, p = sp('''\
+    source, p = sp("""\
         import os.|
-    ''')
+    """)
     m, result = tassist(source, p[0])
     assert m == ''
     assert 'path' in result
 
 
 def test_import_all():
-    source, p = sp('''\
+    source, p = sp("""\
         import |
-    ''')
+    """)
     m, result = tassist(source, p[0])
     assert m == ''
     assert 'os' in result
@@ -124,9 +126,9 @@ def test_import_all():
 
 
 def test_import_from_simple1():
-    source, p = sp('''\
+    source, p = sp("""\
         from multiprocessing import |
-    ''')
+    """)
     m, result = tassist(source, p[0])
     assert m == ''
     assert 'connection' in result
@@ -136,9 +138,9 @@ def test_import_from_simple1():
 
 def test_import_from_simple2(project):
     project.add_m('testp.module')
-    source, p = sp('''\
+    source, p = sp("""\
         from . import |
-    ''')
+    """)
     m, result = tassist(source, p[0], project, project.get_m('testp.tmodule'))
     assert m == ''
     assert 'module' in result
@@ -146,23 +148,26 @@ def test_import_from_simple2(project):
 
 def test_import_from_simple3(project):
     project.add_m('testp.module.submod')
-    source, p = sp('''\
+    source, p = sp("""\
         from .module import |
-    ''')
+    """)
     m, result = tassist(source, p[0], project, project.get_m('testp.tmodule'))
     assert m == ''
     assert 'submod' in result
 
 
 def test_import_from_module_names(project):
-    project.add_m('testp.__init__', '''\
+    project.add_m(
+        'testp.__init__',
+        """\
         foo = 10
-    ''')
+    """,
+    )
     project.add_m('testp.module')
 
-    source, p = sp('''\
+    source, p = sp("""\
         from testp import |
-    ''')
+    """)
     m, result = tassist(source, p[0], project, project.get_m('testp.tmodule'))
     assert m == ''
     assert 'module' in result
@@ -176,11 +181,11 @@ def test_import_from_module_names(project):
 
 
 def test_name_assist():
-    source, p = sp('''\
+    source, p = sp("""\
         boo = 10
         foo = 20
         f|
-    ''')
+    """)
     m, result = tassist(source, p[0])
     assert m == 'f'
     assert 'foo' in result
@@ -189,9 +194,9 @@ def test_name_assist():
 
 def test_dynamic_modules():
     project = Project()
-    source, p = sp('''\
+    source, p = sp("""\
         from os.path import j|
-    ''')
+    """)
 
     m, result = tassist(source, p[0], project)
     assert m == 'j'
@@ -205,59 +210,62 @@ def test_dynamic_modules():
 
 def test_imported_name_modules():
     project = Project()
-    source, p = sp('''\
+    source, p = sp("""\
         from multiprocessing import connection
         connection.Cl|
-    ''')
+    """)
     m, result = tassist(source, p[0], project)
     assert m == 'Cl'
     assert 'Client' in result
 
 
 def test_recursive_imported_name(project):
-    project.add_m('testp.testm', '''\
+    project.add_m(
+        'testp.testm',
+        """\
         import datetime
-    ''')
+    """,
+    )
 
-    source, p = sp('''\
+    source, p = sp("""\
         from testp.testm import datetime
         datetime.|
-    ''')
+    """)
 
     _, result = tassist(source, p[0], project)
     assert 'timedelta' in result
 
 
 def test_assigned_imported_name():
-    source, p = sp('''\
+    source, p = sp("""\
         from multiprocessing import connection
         cn = connection
         cn.|
-    ''')
+    """)
     _, result = tassist(source, p[0])
     assert 'Client' in result
 
 
 def test_deep_attribute():
-    source, p = sp('''\
+    source, p = sp("""\
         import os.path
         os.path.|
-    ''')
+    """)
     _, result = tassist(source, p[0])
     assert 'join' in result
 
 
 def test_import_space():
-    source, p = sp('''\
+    source, p = sp("""\
         import multiprocessing.connection
         multiprocessing.connection.|
-    ''')
+    """)
     _, result = tassist(source, p[0])
     assert 'Client' in result
 
 
 def test_class_attribute():
-    source, p = sp('''\
+    source, p = sp("""\
         class Foo(object):
             def foo(self):
                 pass
@@ -271,7 +279,7 @@ def test_class_attribute():
                 pass
 
         Boo.|
-    ''')
+    """)
     _, result = tassist(source, p[0])
     assert 'boo' in result
     assert 'foo' in result
@@ -280,31 +288,31 @@ def test_class_attribute():
 
 
 def test_instance_attribute():
-    source, p = sp('''\
+    source, p = sp("""\
         class Boo(object):
             def boo(self):
                 pass
 
         bar = Boo()
         bar.|
-    ''')
+    """)
     _, result = tassist(source, p[0])
     assert 'boo' in result
 
 
 def test_basic_self():
-    source, p = sp('''\
+    source, p = sp("""\
         class Boo(object):
             def boo(self):
                 self.|
-    ''')
+    """)
 
     _, result = tassist(source, p[0])
     assert 'boo' in result
 
 
 def test_instance_attributes():
-    source, p = sp('''\
+    source, p = sp("""\
         class Bar(object):
             def foobar(self):
                 pass
@@ -315,14 +323,14 @@ def test_instance_attributes():
 
             def boo(self):
                 self.bar.|
-    ''')
+    """)
 
     _, result = tassist(source, p[0])
     assert 'foobar' in result
 
 
 def test_inherited_instance_attributes():
-    source, p = sp('''\
+    source, p = sp("""\
         class Bar(object):
             def __init__(self):
                 self.foobar = 10
@@ -334,19 +342,19 @@ def test_inherited_instance_attributes():
         class Boo(Foo):
             def boo(self):
                 self.bar.|
-    ''')
+    """)
 
     _, result = tassist(source, p[0])
     assert 'foobar' in result
 
 
 def test_func_call_result():
-    source, p = sp('''\
+    source, p = sp("""\
         def foo():
             return ""
 
         foo().|
-    ''')
+    """)
 
     _, result = tassist(source, p[0])
     assert 'startswith' in result
@@ -354,19 +362,19 @@ def test_func_call_result():
 
 @pytest.mark.xfail
 def test_func_call_arg_result():
-    source, p = sp('''\
+    source, p = sp("""\
         def foo(arg):
             return arg
 
         foo("").|
-    ''')
+    """)
 
     _, result = tassist(source, p[0])
     assert 'startswith' in result
 
 
 def test_classmethod():
-    source, p = sp('''\
+    source, p = sp("""\
         class Bar(object):
             @classmethod
             def bar(cls):
@@ -377,7 +385,7 @@ def test_classmethod():
                 pass
 
         Bar.bar().f|
-    ''')
+    """)
 
     _, result = tassist(source, p[0])
     assert 'foo' in result
@@ -387,10 +395,10 @@ def test_classmethod():
 
 
 def test_in_call_brackets():
-    source, p = sp('''\
+    source, p = sp("""\
         boo = 10
         foo(b|)
-    ''')
+    """)
 
     m, result = tassist(source, p[0])
     assert 'boo' in result
@@ -398,21 +406,21 @@ def test_in_call_brackets():
 
 
 def test_property():
-    source, p = sp('''\
+    source, p = sp("""\
         class Boo:
             @property
             def boo(self):
                 return ''
 
         Boo().boo.s|
-    ''')
+    """)
 
     _, result = tassist(source, p[0])
     assert 'startswith' in result
 
 
 def test_cached_property():
-    source, p = sp('''\
+    source, p = sp("""\
         class cached_property(object):
             def __get__(self, cls, obj):
                 pass
@@ -423,27 +431,27 @@ def test_cached_property():
                 return ''
 
         Boo().boo.s|
-    ''')
+    """)
 
     _, result = tassist(source, p[0])
     assert 'startswith' in result
 
 
 def test_annotated_arg():
-    source, p = sp('''\
+    source, p = sp("""\
         class Boo:
             def foo(self):
                 pass
 
         def foo(arg: Boo):
             arg.f|
-    ''')
+    """)
     _, result = tassist(source, p[0])
     assert 'foo' in result
 
 
 def test_annotated_arg_union():
-    source, p = sp('''\
+    source, p = sp("""\
         from typing import Union
 
         class A:
@@ -456,13 +464,13 @@ def test_annotated_arg_union():
 
         def boo(arg: Union[A, B]):
             arg.b|
-    ''')
+    """)
     result = passist(source, p[0])
     assert result == {'boo', 'bar'}
 
 
 def test_annotated_arg_union_alias():
-    source, p = sp('''\
+    source, p = sp("""\
         from typing import Union
 
         class A:
@@ -481,7 +489,7 @@ def test_annotated_arg_union_alias():
             arg1.b|
             arg2.b|
             arg3.b|
-    ''')
+    """)
 
     result = passist(source, p[0])
     assert result == {'boo', 'bar'}
@@ -494,7 +502,7 @@ def test_annotated_arg_union_alias():
 
 
 def test_annotated_arg_union_import_alias():
-    source, p = sp('''\
+    source, p = sp("""\
         from typing import Union as U
 
         class A:
@@ -507,13 +515,13 @@ def test_annotated_arg_union_import_alias():
 
         def boo(arg: U[A, B]):
             arg.b|
-    ''')
+    """)
     result = passist(source, p[0])
     assert result == {'boo', 'bar'}
 
 
 def test_annotated_arg_optional():
-    source, p = sp('''\
+    source, p = sp("""\
         from typing import Optional
 
         class A:
@@ -522,14 +530,15 @@ def test_annotated_arg_optional():
 
         def boo(arg: Optional[A]):
             arg.f|
-    ''')
+    """)
     _, result = tassist(source, p[0])
     assert 'foo' in result
 
 
 @pytest.mark.skipif(sys.version_info < (3, 10), reason='py3.10+ syntax')
 def test_annotated_arg_pep604_union():
-    source, p = sp('''\
+    source, p = sp(
+        """\
         class A:
             def boo(self):
                 pass
@@ -540,13 +549,15 @@ def test_annotated_arg_pep604_union():
 
         def boo(arg: A | B):
             arg.b$
-    ''', marker='$')
+    """,
+        marker='$',
+    )
     result = passist(source, p[0])
     assert result == {'boo', 'bar'}
 
 
 def test_annotated_arg_type():
-    source, p = sp('''\
+    source, p = sp("""\
         from typing import Type, Union
 
         class A:
@@ -560,14 +571,14 @@ def test_annotated_arg_type():
 
         def boo(arg: Union[Type[A], Type[B]]):
             arg.b|
-    ''')
+    """)
 
     result = passist(source, p[0])
     assert result == {'bar', 'baz'}
 
 
 def test_annotated_arg_with_forward_refs():
-    source, p = sp('''\
+    source, p = sp("""\
         from __future__ import annotations
 
         def foo(arg: Boo):
@@ -576,26 +587,26 @@ def test_annotated_arg_with_forward_refs():
         class Boo:
             def foo(self):
                 pass
-    ''')
+    """)
     _, result = tassist(source, p[0])
     assert 'foo' in result
 
 
 def test_annotated_str_refs():
-    source, p = sp('''\
+    source, p = sp("""\
         def foo(arg: 'Boo'):
             arg.f|
 
         class Boo:
             def foo(self):
                 pass
-    ''')
+    """)
     _, result = tassist(source, p[0])
     assert 'foo' in result
 
 
 def test_annotated_attribute_refs():
-    source, p = sp('''\
+    source, p = sp("""\
         class Boo:
             class Bar:
                 def foo(self):
@@ -603,13 +614,13 @@ def test_annotated_attribute_refs():
 
         def foo(arg: Boo.Bar):
             arg.f|
-    ''')
+    """)
     _, result = tassist(source, p[0])
     assert 'foo' in result
 
 
 def test_annotated_class_attributes():
-    source, p = sp('''\
+    source, p = sp("""\
         from typing import ClassVar
 
         class A:
@@ -629,7 +640,7 @@ def test_annotated_class_attributes():
             arg.aaa.b|
 
         Boo.b|
-    ''')
+    """)
 
     result = passist(source, p[0], debug=True)
     assert result == {'boo', 'boo_cls', 'baz'}

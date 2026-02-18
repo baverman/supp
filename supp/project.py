@@ -1,12 +1,12 @@
 from __future__ import annotations
-import typing as t
+
 import os
 import sys
-
+import typing as t
 from contextlib import contextmanager
 
 from .compat import range
-from .module import SourceModule, ImportedModule
+from .module import ImportedModule, SourceModule
 
 try:
     import importlib.machinery
@@ -17,14 +17,14 @@ except:
 
     SUFFIXES = [s for s, _, _ in imp.get_suffixes()]
 
-SOURCE_SUFFIXES = (".py",)
+SOURCE_SUFFIXES = ('.py',)
 
 
 class Project(object):
     def __init__(
         self, sources: list[str] | None = None, dyn_modules: list[str] | None = None
     ) -> None:
-        self.sources = sources or ["."]
+        self.sources = sources or ['.']
         self._norm_cache: dict[str, list[str]] = {}
         self._module_cache: dict[str, ImportedModule | SourceModule] = {}
         self._context_cache: dict[str, ImportedModule | SourceModule] = {}
@@ -38,16 +38,16 @@ class Project(object):
         path = self.get_path()
 
         if root:
-            droot = root + "."
+            droot = root + '.'
             for package in sys.modules:
                 if package.startswith(droot):
-                    modules.add(package[len(droot) :].partition(".")[0])
+                    modules.add(package[len(droot) :].partition('.')[0])
         else:
             for package in sys.modules:
-                modules.add(package.partition(".")[0])
+                modules.add(package.partition('.')[0])
 
         for p in path:
-            pdir = os.path.join(p, *root.split("."))
+            pdir = os.path.join(p, *root.split('.'))
             try:
                 dlist = os.listdir(pdir)
             except OSError:
@@ -57,12 +57,12 @@ class Project(object):
                 for s in SUFFIXES:
                     if name.endswith(s):
                         mname = name[: -len(s)]
-                        if mname == "__init__":
+                        if mname == '__init__':
                             continue
                         modules.add(mname)
                         break
                 else:
-                    if os.path.exists(os.path.join(pdir, name, "__init__.py")):
+                    if os.path.exists(os.path.join(pdir, name, '__init__.py')):
                         modules.add(name)
 
         return modules
@@ -95,7 +95,7 @@ class Project(object):
         filename = None
         is_source = False
         for p in path:
-            mpath = os.path.join(p, *name.split("."))
+            mpath = os.path.join(p, *name.split('.'))
             for s in SUFFIXES:
                 fname = mpath + s
                 if os.path.exists(fname):
@@ -103,7 +103,7 @@ class Project(object):
                     is_source = s in SOURCE_SUFFIXES
                     break
             else:
-                fname = os.path.join(mpath, "__init__.py")
+                fname = os.path.join(mpath, '__init__.py')
                 if os.path.exists(fname):
                     filename = fname
                     is_source = True
@@ -131,11 +131,11 @@ class Project(object):
         return module
 
     def norm_package(self, package: str, filename: str) -> str:
-        if not package.startswith("."):
+        if not package.startswith('.'):
             return package
 
         root = filename
-        for _ in range(len(package) - len(package.lstrip("."))):
+        for _ in range(len(package) - len(package.lstrip('.'))):
             root = os.path.dirname(root)
 
         key = root
@@ -144,18 +144,18 @@ class Project(object):
         except KeyError:
             parts = []
             while True:
-                if os.path.exists(os.path.join(root, "__init__.py")):
+                if os.path.exists(os.path.join(root, '__init__.py')):
                     parts.insert(0, os.path.basename(root))
                     root = os.path.dirname(root)
                 else:
                     break
 
             if not parts:
-                raise Exception("Not a package: {} ({})".format(filename, package))
+                raise Exception('Not a package: {} ({})'.format(filename, package))
 
             self._norm_cache[key] = parts
 
-        package = package.lstrip(".")
+        package = package.lstrip('.')
         if package:
             parts = parts + [package]
-        return ".".join(parts)
+        return '.'.join(parts)

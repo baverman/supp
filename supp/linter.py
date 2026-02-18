@@ -1,13 +1,12 @@
 # type: ignore
 import logging
 
-from .util import Source, get_name_usages, np
-from .name import MultiName, ArgumentName, ImportedName
-from .scope import SourceScope, ClassScope
-from .nast import extract_scope
 from .compat import itervalues
 from .evaluator import EvalCtx
-
+from .name import ArgumentName, ImportedName, MultiName
+from .nast import extract_scope
+from .scope import ClassScope, SourceScope
+from .util import Source, get_name_usages, np
 
 IGNORED_SCOPES = SourceScope, ClassScope
 log = logging.getLogger('supp.linter')
@@ -30,6 +29,7 @@ def lint(project, source, filename=None, debug=False):
 
     if debug:
         from .util import print_dump
+
         print_dump(source.tree)
 
     result = []
@@ -42,8 +42,9 @@ def lint(project, source, filename=None, debug=False):
         try:
             flow = name.flow
         except AttributeError:
-            result.append(('E42', 'UNKNOWN NAME: {}'.format(name.id),
-                           location[0], location[1], None))
+            result.append(
+                ('E42', 'UNKNOWN NAME: {}'.format(name.id), location[0], location[1], None)
+            )
             continue
 
         snames = flow.names_at(location)
@@ -52,8 +53,9 @@ def lint(project, source, filename=None, debug=False):
             sname = snames[name.id]
             # print('@@', name.id, sname)
         except KeyError:
-            result.append(('E02', 'Undefined name: {}'.format(name.id),
-                           location[0], location[1], flow))
+            result.append(
+                ('E02', 'Undefined name: {}'.format(name.id), location[0], location[1], flow)
+            )
         else:
             # if type(sname) is MultiName and sname.has_undefined:
             #     use_name(sname)
@@ -88,13 +90,13 @@ def lint(project, source, filename=None, debug=False):
                 message = 'Unused import: {}'
             else:
                 continue
-        if (isinstance(name, ArgumentName) and
-                isinstance(flow.scope.parent, ClassScope)):
+        if isinstance(name, ArgumentName) and isinstance(flow.scope.parent, ClassScope):
             continue
 
         # print('###', name)
-        result.append((w, message.format(name.name),
-                       name.declared_at[0], name.declared_at[1], flow))
+        result.append(
+            (w, message.format(name.name), name.declared_at[0], name.declared_at[1], flow)
+        )
 
     return result
 
@@ -117,5 +119,7 @@ def check_names(project, source, filename=None):
 if __name__ == '__main__':
     import os
     import sys
+
     from .project import Project
+
     check_names(Project([os.getcwd()]), open(sys.argv[1]).read(), sys.argv[1])
