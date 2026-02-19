@@ -346,6 +346,7 @@ class FuncScope(Scope, Location, Resolvable):
             return ctx.evaluate_annotation(arg.annotation, self.parent.flow)[0]
         return None
 
+    @context_property
     def resolve(self, ctx: EvalCtx) -> Object | None:
         o = FuncObject(self)
         if not isinstance(self.parent, ClassScope):

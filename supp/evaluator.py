@@ -17,7 +17,7 @@ from .name import (
     Resolvable,
     RuntimeName,
 )
-from .util import np
+from .util import dump, np
 
 log = logging.getLogger('supp.evaluator')
 
@@ -276,6 +276,9 @@ class EvalAnnotationCtx(EvalCtx):
             if value:
                 return self.evaluate(value.get_attr(self, node.attr))
         else:
+            # if isinstance(node, AST):
+            #     log.warning('Unknown node type %r %r:\n%s', node_type, node, dump(node))
+            # else:
             log.warning('Unknown node type %r %r', node_type, node)
 
         return None

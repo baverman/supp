@@ -655,6 +655,18 @@ def test_annotated_class_attributes():
     assert result == {'boo_cls'}
 
 
+def test_annotated_result():
+    source, p = sp("""\
+        def foo() -> str:
+            ...
+
+        foo().|
+    """)
+
+    _, result = tassist(source, p[0], debug=True)
+    assert 'startswith' in result
+
+
 # def test_test():
 #     project = Project(['/home/bobrov/work/sdl_line'], dyn_modules=['sdl3'])
 #     source, p = sp('''\
@@ -670,6 +682,6 @@ def test_annotated_class_attributes():
 #     fname = '/home/bobrov/work/supp/supp/name.py'
 #     project = Project([pdir])
 #     source = open(fname).read()
-#     _, result = tassist(source, (445, 47), project=project, filename=fname)
+#     _, result = tassist(source, (434, 49), project=project, filename=fname)
 #     print(result)
 #     assert False

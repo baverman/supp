@@ -128,6 +128,7 @@ def dumptree(node: AST, result: list[str], level: int) -> list[str]:
         or (isinstance(v, list) and v and hasattr(v[0], '_fields'))
     ]
     field_names = set(k for k, _ in fields)
+    field_names.add('flow')
 
     result.append(
         '{} {} {}'.format(

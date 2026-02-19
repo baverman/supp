@@ -411,6 +411,9 @@ class FuncObject(Object, Callable):
 
     @context_property
     def call(self, ctx: EvalCtx) -> Object | None:
+        node = self.scope.node
+        if type(node) is ast.FunctionDef and node.returns:
+            return ctx.evaluate_annotation(node.returns, self.scope.parent.flow)[0]
         if len(self.scope.returns) == 1:
             return ctx.evaluate(self.scope.returns[0])
         return None
