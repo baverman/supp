@@ -4,6 +4,7 @@ import ast
 import typing as t
 from ast import Attribute, Load, NodeVisitor, Starred, Subscript
 
+from .ast_types import Annotation
 from .name import AnnotatedName, AssignedName, ImportedName
 from .scope import ClassScope, Flow, FuncScope, SourceScope
 from .util import get_any_marked_name, get_expr_end, get_indexes_for_target, np, visitor
@@ -82,17 +83,19 @@ class extract_visitor(NodeVisitor):
         else:
             eend = get_expr_end(node)
         name = node.target
-        node.annotation.flow = self.flow  # type: ignore[attr-defined]
+        annotation: Annotation = node.annotation  # type: ignore[assignment]
+        annotation.flow = self.flow
         if isinstance(name, Attribute):
-            self.top.add_attr_assign(self.flow.scope, name, node.value, node.annotation)  # type: ignore[arg-type]  # TODO
+            assert node.value
+            self.top.add_attr_assign(self.flow.scope, name, node.value, annotation)
         elif isinstance(name, UNSUPPORTED_ASSIGMENTS):
             pass
         elif node.value:
             name.flow = self.flow  # type: ignore[attr-defined]
-            self.flow.add_name(AssignedName(name.id, eend, np(name), node.value, node.annotation))
+            self.flow.add_name(AssignedName(name.id, eend, np(name), node.value, annotation))
         else:
             self.flow.scope.annotations[name.id] = AnnotatedName(
-                name.id, eend, np(name), node.annotation
+                name.id, eend, np(name), annotation
             )
 
         self.generic_visit(node)

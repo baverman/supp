@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import dataclasses
 import logging
 import typing as t
-from ast import AST, Attribute, BinOp, Call, Subscript, expr
+from ast import AST, Attribute, BinOp, Call, Subscript
 from ast import Name as AstName
 
+from .ast_types import Annotation
 from .compat import HAS_CONSTANTS
 from .name import (
     AssignedName,
@@ -42,6 +44,12 @@ if t.TYPE_CHECKING:
     from .scope import Flow
 
 
+@dataclasses.dataclass
+class AnnotationEvalResult:
+    type: Object | None
+    is_class_var: bool
+
+
 class EvalCtx(object):
     def __init__(self, project: Project) -> None:
         self.project = project
@@ -58,16 +66,17 @@ class EvalCtx(object):
         self.nodes.remove(node)
         return result  # type: ignore[no-any-return]
 
-    def evaluate_annotation(self, annotation: expr, flow: Flow) -> tuple[Object | None, bool]:
-        actx = EvalAnnotationCtx(self.project, flow)
+    def evaluate_annotation(self, annotation: Annotation) -> AnnotationEvalResult:
+        actx = EvalAnnotationCtx(self.project, annotation.flow)
         obj = actx.evaluate(annotation)
-        if obj is None:
-            return None, False
 
-        is_class_var = False
+        result = AnnotationEvalResult(None, False)
+        if obj is None:
+            return result
+
         if type(obj) is ClassVarWrapper:
             obj = obj.object
-            is_class_var = True
+            result.is_class_var = True
 
         if type(obj) is CompositeValue:
             values = obj.values
@@ -80,12 +89,13 @@ class EvalCtx(object):
                 rvalues.append(it.object)
             elif isinstance(it, Callable):
                 rvalues.append(it.call(self))
-        if len(rvalues) > 1:
-            return CompositeValue([it for it in rvalues if it is not None]), is_class_var
-        elif rvalues:
-            return rvalues[0], is_class_var
 
-        return None, is_class_var
+        if len(rvalues) > 1:
+            result.type = CompositeValue([it for it in rvalues if it is not None])
+        elif rvalues:
+            result.type = rvalues[0]
+
+        return result
 
     def _evaluate(self, node):  # type: ignore[no-untyped-def]
         node_type = type(node)
@@ -104,7 +114,7 @@ class EvalCtx(object):
                 return self.evaluate(name)
         elif node_type is AssignedName:
             if node.annotation:
-                return self.evaluate_annotation(node.annotation, node.annotation.flow)[0]
+                return self.evaluate_annotation(node.annotation).type
             return self.evaluate(node.value_node)
         elif node_type is ImportedName:
             return self.evaluate(node.resolve(self))

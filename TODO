@@ -5,3 +5,13 @@
 * usage graph
 * imports checker
 * hints to ignore lint errors/warnings
+
+
+# Cases
+
+```
+    @context_property
+    def assigns(self, ctx: EvalCtx) -> dict[Object, dict[str, MultiValue]]:
+        result: dict[Object, dict[str, MultiValue]] = {}
+        for _scope, attr, value, annotation in self._attr_@@@@assigns:
+```

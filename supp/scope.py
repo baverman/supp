@@ -7,6 +7,7 @@ from ast import Name as AstName
 from bisect import bisect
 
 from . import compat
+from .ast_types import Annotation, make_annotation
 from .compat import builtins, iteritems, iterkeys
 from .merged_dict import MergedDict
 from .name import (
@@ -158,7 +159,7 @@ class LoopFlow(object):
 class SourceScope(Scope):
     _imports: list[str]
     _global_names: dict[str, Name]
-    _attr_assigns: list[tuple[Scope, Attribute, AST, expr | None]]
+    _attr_assigns: list[tuple[Scope, Attribute, AST, Annotation | None]]
     _star_imports: list[tuple[loc_t, loc_t, str, Flow]]
     _unvisited: list[tuple[Flow, AST]]
     source: Source
@@ -222,7 +223,7 @@ class SourceScope(Scope):
         return start
 
     def add_attr_assign(
-        self, scope: Scope, attr: Attribute, value: AST, annotation: expr | None = None
+        self, scope: Scope, attr: Attribute, value: expr, annotation: Annotation | None = None
     ) -> None:
         self._attr_assigns.append((scope, attr, value, annotation))
 
@@ -300,7 +301,11 @@ class FuncScope(Scope, Location, Resolvable):
             self.decorator_list = fnode.decorator_list
 
         for ni, n in enumerate(node.args.args):
-            self.args.append(ArgumentName([ni], n.arg, self.location, np(n), self, n.annotation))
+            if n.annotation:
+                arg_annotation = make_annotation(n.annotation, self.parent.flow)
+            else:
+                arg_annotation = None
+            self.args.append(ArgumentName([ni], n.arg, self.location, np(n), self, arg_annotation))
 
         for n in node.args.kwonlyargs:
             self.args.append(ArgumentName([], n.arg, self.location, np(n), self))
@@ -323,7 +328,7 @@ class FuncScope(Scope, Location, Resolvable):
         if arg.idx == [0] and isinstance(self.parent, ClassScope):
             return self.parent.resolve(ctx).call(ctx)
         if arg.annotation:
-            return ctx.evaluate_annotation(arg.annotation, self.parent.flow)[0]
+            return ctx.evaluate_annotation(arg.annotation).type
         return None
 
     @context_property

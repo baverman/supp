@@ -4,13 +4,14 @@ import ast
 import logging
 import typing as t
 
+from .ast_types import Annotation, make_annotation
 from .compat import iteritems
 from .util import Location, cached_property, context_property
 
 if t.TYPE_CHECKING:
-    from .evaluator import EvalCtx
+    from .evaluator import AnnotationEvalResult, EvalCtx
     from .module import ImportedModule, SourceModule
-    from .scope import ClassScope, Flow, FuncScope, Scope, SourceScope
+    from .scope import ClassScope, FuncScope, Scope, SourceScope
     from .util import loc_t
 
 AttrList = t.Mapping[str, t.Any] | list[str] | set[str]
@@ -70,7 +71,7 @@ class ArgumentName(Name, Resolvable):
         location: loc_t,
         declared_at: loc_t,
         func: FuncScope,
-        annotation: ast.expr | None = None,
+        annotation: Annotation | None = None,
     ) -> None:
         Name.__init__(self, name, location)
         self.declared_at = declared_at
@@ -93,7 +94,7 @@ class AssignedName(Name):
         location: loc_t,
         declared_at: loc_t,
         value_node: ast.AST,
-        annotation: ast.expr | None = None,
+        annotation: Annotation | None = None,
     ) -> None:
         Name.__init__(self, name, location)
         self.declared_at = declared_at
@@ -105,7 +106,7 @@ class AssignedName(Name):
 
 
 class AnnotatedName(Name):
-    def __init__(self, name: str, location: loc_t, declared_at: loc_t, annotation: ast.expr):
+    def __init__(self, name: str, location: loc_t, declared_at: loc_t, annotation: Annotation):
         Name.__init__(self, name, location)
         self.declared_at = declared_at
         self.annotation = annotation
@@ -114,8 +115,8 @@ class AnnotatedName(Name):
         return 'AnnotatedName({}, {}, {})'.format(self.name, self.location, self.declared_at)
 
     @context_property
-    def resolve(self, ctx: EvalCtx) -> tuple[Object | None, bool]:
-        return ctx.evaluate_annotation(self.annotation, self.annotation.flow)  # type: ignore[attr-defined]
+    def resolve(self, ctx: EvalCtx) -> AnnotationEvalResult:
+        return ctx.evaluate_annotation(self.annotation)
 
 
 class AdditionalNameWrapper(Object):
@@ -313,7 +314,7 @@ class AssignedAttribute(Name, Resolvable):
         attr: ast.Attribute,
         value: ast.AST,
         declared_at: loc_t,
-        annotation: ast.expr | None,
+        annotation: Annotation | None,
     ) -> None:
         self.name = attr.attr
         self.location = 0, 0
@@ -326,8 +327,7 @@ class AssignedAttribute(Name, Resolvable):
     @context_property
     def resolve(self, ctx: EvalCtx) -> Object | None:
         if self.annotation:
-            flow: Flow = self.annotation.flow  # type: ignore[attr-defined]
-            return ctx.evaluate_annotation(self.annotation, flow)[0]
+            return ctx.evaluate_annotation(self.annotation).type
         return ctx.evaluate(self.value)
 
 
@@ -390,9 +390,9 @@ class ClassObject(Object, Callable):
         cls_attrs: dict[str, Name | Object] = self._cls_attrs  # type: ignore[assignment]
         annotations = self.scope.annotations
         for key, value in annotations.items():
-            ann, is_class_var = value.resolve(self.ctx)
-            if ann and is_class_var:
-                cls_attrs[key] = ann
+            res = value.resolve(self.ctx)
+            if res.type and res.is_class_var:
+                cls_attrs[key] = res.type
         attrs.update(cls_attrs)
         return attrs
 
@@ -413,7 +413,9 @@ class FuncObject(Object, Callable):
     def call(self, ctx: EvalCtx) -> Object | None:
         node = self.scope.node
         if type(node) is ast.FunctionDef and node.returns:
-            return ctx.evaluate_annotation(node.returns, self.scope.parent.flow)[0]
+            return ctx.evaluate_annotation(
+                make_annotation(node.returns, self.scope.parent.flow)
+            ).type
         if len(self.scope.returns) == 1:
             return ctx.evaluate(self.scope.returns[0])
         return None
@@ -435,9 +437,9 @@ class InstanceValue(Object):
         attrs.update(self.cls.scope.top.assigns(self.ctx).get(self, {}))
 
         for key, value in self.cls.scope.annotations.items():
-            ann, is_class_var = value.resolve(self.ctx)
-            if ann and not is_class_var:
-                attrs[key] = ann
+            res = value.resolve(self.ctx)
+            if res.type and not res.is_class_var:
+                attrs[key] = res.type
 
         return attrs
 
