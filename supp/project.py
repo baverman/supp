@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.machinery
 import os
 import sys
 import typing as t
@@ -8,15 +9,7 @@ from contextlib import contextmanager
 from .compat import range
 from .module import ImportedModule, SourceModule
 
-try:
-    import importlib.machinery
-
-    SUFFIXES = importlib.machinery.all_suffixes()
-except:
-    import imp  # type: ignore[import-not-found]
-
-    SUFFIXES = [s for s, _, _ in imp.get_suffixes()]
-
+SUFFIXES = importlib.machinery.all_suffixes()
 SOURCE_SUFFIXES = ('.py',)
 
 

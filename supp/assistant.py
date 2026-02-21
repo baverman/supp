@@ -50,7 +50,7 @@ def assist(project, source, position, filename=None, debug=False):
             module = project.get_nmodule(head, filename)
             return tail, sorted(set(plist) | set(module.attr_list(ctx)))
 
-    scope = extract_scope(source, project)
+    extract_scope(source, project)
 
     prefix = re.split(r'(\.|\s|\()', line)[-1]
     attr = get_marked_atribute(source.tree)
@@ -75,7 +75,7 @@ def location(project, source, position, filename=None, debug=False):
     source = Source(source, filename, position)
 
     debug and print_dump(source.tree)
-    scope = extract_scope(source, project)
+    extract_scope(source, project)
 
     result = []
     marked_import = get_marked_import(source.tree)
@@ -115,7 +115,7 @@ def location(project, source, position, filename=None, debug=False):
 
 def usages(project, source, filename=None):
     source = Source(source, filename)
-    scope = extract_scope(source, project)
+    extract_scope(source, project)
     ctx = EvalCtx(project)
 
     for utype, nname, loc, node in get_all_usages(source.tree):

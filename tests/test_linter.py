@@ -2,7 +2,6 @@ import os
 
 import pytest
 
-from supp.compat import PY2
 from supp.linter import lint
 from supp.project import Project
 
@@ -196,7 +195,6 @@ def test_qualified_imports():
     assert not result
 
 
-@pytest.mark.skipif(PY2, reason='py3 only')
 def test_annotations():
     result = tlint("""\
         foo = "10"
@@ -208,7 +206,6 @@ def test_annotations():
     assert not result
 
 
-@pytest.mark.skipif(PY2, reason='py3 only')
 def test_start_deconstruct():
     result = tlint("""\
         result = {boo: foo for *boo, foo in ['123']}
@@ -216,7 +213,6 @@ def test_start_deconstruct():
     assert not result
 
 
-@pytest.mark.skipif(PY2, reason='py3 only')
 def test_args_kwarrgs_annotations():
     result = tlint("""\
         from module import T, P

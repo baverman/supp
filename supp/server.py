@@ -14,7 +14,7 @@ except ImportError:
     old_path = sys.path[:]
     sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
     try:
-        import supp
+        import supp  #  NOQA
     finally:
         sys.path = old_path
 
@@ -86,11 +86,11 @@ class Server(object):
                     result, is_ok = self.process(*args)
                     try:
                         content = dumps((result, is_ok))
-                    except:
+                    except:  # NOQA
                         content = dumps((('SerializeError', 'Serialize error'), False))
                     try:
                         self.conn.send_bytes(content)
-                    except:
+                    except:  # NOQA
                         logger.exception('Send error')
 
 

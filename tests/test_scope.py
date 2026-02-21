@@ -1,17 +1,14 @@
-from ast import With
+from ast import AsyncWith, With
 
 import pytest
 
-from supp.compat import HAS_VAR_TYPE_HINTS, HAS_WALRUS, PY2
+from supp.compat import HAS_VAR_TYPE_HINTS, HAS_WALRUS
 from supp.name import AssignedName
 from supp.project import Project
 
 from .helpers import csp, names_at, nvalues
 
-if not PY2:
-    from ast import AsyncWith
-
-    With = With, AsyncWith
+With = With, AsyncWith
 
 
 def test_simple_flow():
@@ -106,7 +103,6 @@ def test_for_without_break():
     }
 
 
-@pytest.mark.skipif(PY2, reason='py3 only')
 def test_async_for():
     scope, p = csp("""\
         async def foo():
@@ -256,7 +252,6 @@ def test_empty_function_scope():
     assert nvalues(names_at(scope, p[0])) == {'foo': 'func'}
 
 
-@pytest.mark.skipif(PY2, reason='py3 only')
 def test_async_function_scope():
     scope, p = csp("""\
         a = 10
@@ -427,7 +422,6 @@ def test_kwargs():
     assert names['kwargs'].declared_at == (2, 10)
 
 
-@pytest.mark.skipif(PY2, reason='py3 only')
 def test_default_args_in_the_middle():
     scope, p = csp("""\
         def boo(*args, foo=None, **kwargs):
@@ -479,7 +473,6 @@ def test_with():
     assert nvalues(names_at(scope, p[0])) == {'f': 'with'}
 
 
-@pytest.mark.skipif(PY2, reason='py3 only')
 def test_async_with():
     scope, p = csp("""\
         async def foo():

@@ -2,19 +2,13 @@ from __future__ import annotations
 
 import ast
 import typing as t
-from ast import Attribute, Load, NodeVisitor, Subscript
+from ast import Attribute, Load, NodeVisitor, Starred, Subscript
 
-from .compat import PY2
 from .name import AnnotatedName, AssignedName, ImportedName
 from .scope import ClassScope, Flow, FuncScope, SourceScope
 from .util import get_any_marked_name, get_expr_end, get_indexes_for_target, np, visitor
 
-if PY2:
-    UNSUPPORTED_ASSIGMENTS = Subscript
-else:
-    from ast import Starred
-
-    UNSUPPORTED_ASSIGMENTS = Subscript, Starred
+UNSUPPORTED_ASSIGMENTS = Subscript, Starred
 
 
 if t.TYPE_CHECKING:
@@ -180,10 +174,7 @@ class extract_visitor(NodeVisitor):
         for h in node.handlers:
             fh = self.make_flow('except', [cur, body])
             if h.name:
-                if PY2:
-                    fh.add_name(AssignedName(h.name.id, np(h.body[0]), np(h), h.type))
-                else:
-                    fh.add_name(AssignedName(h.name, np(h.body[0]), np(h), h.type))  # type: ignore[arg-type]
+                fh.add_name(AssignedName(h.name, np(h.body[0]), np(h), h.type))  # type: ignore[arg-type]
             if h.type:
                 self.visit(h.type)
             handlers.append(self.visit_in_flow(h.body, fh))
@@ -204,16 +195,15 @@ class extract_visitor(NodeVisitor):
         for df in node.args.defaults:
             self.visit(df)
 
-        if not PY2:
-            for a in node.args.args:
-                a.annotation and self.visit(a.annotation)
-            for kw in node.args.kwonlyargs:
-                kw.annotation and self.visit(kw.annotation)
-            if node.args.vararg and node.args.vararg.annotation:
-                self.visit(node.args.vararg.annotation)
-            if node.args.kwarg and node.args.kwarg.annotation:
-                self.visit(node.args.kwarg.annotation)
-            node.returns and self.visit(node.returns)
+        for a in node.args.args:
+            a.annotation and self.visit(a.annotation)
+        for kw in node.args.kwonlyargs:
+            kw.annotation and self.visit(kw.annotation)
+        if node.args.vararg and node.args.vararg.annotation:
+            self.visit(node.args.vararg.annotation)
+        if node.args.kwarg and node.args.kwarg.annotation:
+            self.visit(node.args.kwarg.annotation)
+        node.returns and self.visit(node.returns)
 
         cur = self.flow
         scope = FuncScope(cur.scope, node, self.top)
@@ -227,11 +217,10 @@ class extract_visitor(NodeVisitor):
         for d in node.args.defaults:
             self.visit(d)
 
-        if not PY2:
-            for a in node.args.args:
-                a.annotation and self.visit(a.annotation)
-            for kw in node.args.kwonlyargs:
-                kw.annotation and self.visit(kw.annotation)
+        for a in node.args.args:
+            a.annotation and self.visit(a.annotation)
+        for kw in node.args.kwonlyargs:
+            kw.annotation and self.visit(kw.annotation)
 
         cur = self.flow
         scope = FuncScope(cur.scope, node, self.top)
@@ -281,10 +270,7 @@ class extract_visitor(NodeVisitor):
     visit_SetComp = visit_ListComp
 
     def visit_With(self, node: ast.With | ast.AsyncWith) -> None:
-        if PY2:
-            items = [node]
-        else:
-            items = node.items
+        items = node.items
 
         for it in items:
             if it.optional_vars:

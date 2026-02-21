@@ -48,7 +48,7 @@ License: MIT
 version = (2, 0)
 'Module version tuple'
 
-import collections
+import collections  # NOQA
 import io
 import struct
 import sys
@@ -403,15 +403,15 @@ def _pack2(obj, fp):
         _pack_nil(obj, fp)
     elif isinstance(obj, bool):
         _pack_boolean(obj, fp)
-    elif isinstance(obj, int) or isinstance(obj, long):
+    elif isinstance(obj, int) or isinstance(obj, long):  # NOQA
         _pack_integer(obj, fp)
     elif isinstance(obj, float):
         _pack_float(obj, fp)
-    elif compatibility and isinstance(obj, unicode):
+    elif compatibility and isinstance(obj, unicode):  # NOQA
         _pack_oldspec_raw(bytes(obj), fp)
     elif compatibility and isinstance(obj, bytes):
         _pack_oldspec_raw(obj, fp)
-    elif isinstance(obj, unicode):
+    elif isinstance(obj, unicode):  # NOQA
         _pack_string(obj, fp)
     elif isinstance(obj, str):
         _pack_binary(obj, fp)

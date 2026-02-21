@@ -103,7 +103,7 @@ def lint(project, source, filename=None, debug=False):
 
 def check_names(project, source, filename=None):
     source = Source(source, filename)
-    scope = extract_scope(source, project)
+    extract_scope(source, project)
     ctx = EvalCtx(project)
 
     name_usages = get_name_usages(source.tree)

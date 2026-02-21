@@ -7,7 +7,7 @@ from ast import Name as AstName
 from bisect import bisect
 
 from . import compat
-from .compat import PY2, builtins, iteritems, iterkeys
+from .compat import builtins, iteritems, iterkeys
 from .merged_dict import MergedDict
 from .name import (
     AnnotatedName,
@@ -25,16 +25,7 @@ from .name import (
     UndefinedName,
     first_name,
 )
-from .util import (
-    Location,
-    Source,
-    cached_property,
-    context_property,
-    get_indexes_for_target,
-    insert_loc,
-    loc_t,
-    np,
-)
+from .util import Location, Source, cached_property, context_property, insert_loc, loc_t, np
 
 if t.TYPE_CHECKING:
     from .evaluator import EvalCtx
@@ -309,25 +300,14 @@ class FuncScope(Scope, Location, Resolvable):
             self.decorator_list = fnode.decorator_list
 
         for ni, n in enumerate(node.args.args):
-            if PY2:
-                for nn, idx in get_indexes_for_target(n, [], []):
-                    self.args.append(ArgumentName([ni] + idx, nn.id, self.location, np(nn), self))
-            else:
-                self.args.append(
-                    ArgumentName([ni], n.arg, self.location, np(n), self, n.annotation)
-                )
+            self.args.append(ArgumentName([ni], n.arg, self.location, np(n), self, n.annotation))
 
-        if not PY2:
-            for n in node.args.kwonlyargs:
-                self.args.append(ArgumentName([], n.arg, self.location, np(n), self))
+        for n in node.args.kwonlyargs:
+            self.args.append(ArgumentName([], n.arg, self.location, np(n), self))
 
         for s, n in (('*', node.args.vararg), ('**', node.args.kwarg)):  # type: ignore[assignment]
             if n:
-                if PY2:
-                    declared_at = top.find_id_loc(s + n, np(node), len(s))
-                    self.args.append(ArgumentName([], n, self.location, declared_at, self))
-                else:
-                    self.args.append(ArgumentName([], n.arg, self.location, np(n), self))
+                self.args.append(ArgumentName([], n.arg, self.location, np(n), self))
 
         self.flow = self.top.add_flow(Flow('func', self))
         for arg in self.args:

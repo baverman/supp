@@ -2,7 +2,6 @@ import os
 from itertools import chain
 
 from supp import linter
-from supp.compat import PY2
 from supp.nast import extract_scope
 from supp.project import Project
 from supp.util import Source
@@ -27,7 +26,7 @@ def test_lint(fname):
     for r in result:
         error, description = r[:2]
         if error[0] == 'E':
-            if not PY2 and error == 'E02' and (' unicode' in description or ' long' in description):
+            if error == 'E02' and (' unicode' in description or ' long' in description):
                 continue
 
             assert False, '{}: {}'.format(fname, r)

@@ -17,7 +17,7 @@ from .name import (
     Resolvable,
     RuntimeName,
 )
-from .util import dump, np
+from .util import np
 
 log = logging.getLogger('supp.evaluator')
 

@@ -1,18 +1,12 @@
 import os
-from ast import Call, Dict, Lambda, Subscript, With
+from ast import AsyncWith, Call, Dict, Lambda, Subscript, With
 from textwrap import dedent
 
-from supp.compat import PY2, iteritems
+from supp.compat import iteritems
 from supp.name import ArgumentName, AssignedName, ImportedName, MultiName, UndefinedName
 from supp.nast import extract, marked_flow
 from supp.scope import ClassScope, FuncScope, SourceScope
 from supp.util import Source, dump_flows, print_dump
-
-if PY2:
-
-    class AsyncWith: ...
-else:
-    from ast import AsyncWith
 
 
 def sp(source, marker='|'):
@@ -81,10 +75,7 @@ def get_value(name):
             return 'listitem'
         if hasattr(name.value_node, 'id'):
             return name.value_node.id
-        if PY2:
-            return name.value_node.n
-        else:
-            return name.value_node.value
+        return name.value_node.value
     elif isinstance(name, UndefinedName):
         return 'undefined'
     elif isinstance(name, MultiName):
@@ -95,7 +86,7 @@ def get_value(name):
         else:
             return 'import:{0.module}'.format(name)
     elif isinstance(name, ArgumentName):
-        return '{}.arg'.format(name.func.name, name.name)
+        return '{}.arg'.format(name.func.name)
     elif isinstance(name, FuncScope):
         return 'func'
     elif isinstance(name, ClassScope):
