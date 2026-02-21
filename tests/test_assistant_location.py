@@ -1,5 +1,7 @@
 import os
 
+import pytest
+
 from supp.assistant import _loc, location
 from supp.project import Project
 
@@ -36,10 +38,10 @@ def test_module_name_location():
         |boo
     """)
 
-    (loc,) = tlocation(source, p[0])
+    ([loc],) = tlocation(source, p[0])
     assert loc['loc'] == (1, 4)
 
-    (loc,) = tlocation(source, p[1])
+    ([loc],) = tlocation(source, p[1])
     assert loc['loc'] == (2, 0)
 
 
@@ -58,22 +60,22 @@ def test_imported_name_location(project):
         from . import tes|tm
     """)
 
-    (loc,) = tlocation(source, p[0], project, filename=project.get_m('testp.testm2'))
+    ([loc],) = tlocation(source, p[0], project, filename=project.get_m('testp.testm2'))
     assert loc['loc'] == (1, 0)
     assert loc['file'] == project.get_m('testp.testm')
 
-    (loc,) = tlocation(source, p[1], project, filename=project.get_m('testp.testm2'))
+    ([loc],) = tlocation(source, p[1], project, filename=project.get_m('testp.testm2'))
     assert loc['loc'] == (1, 0)
     assert loc['file'] == project.get_m('testp.testm')
 
     locs = tlocation(source, p[2], project, filename=project.get_m('testp.testm2'))
     assert locs == [
-        _loc((2, 24), project.get_m('testp.testm2')),
-        _loc((1, 0), project.get_m('testp.testm')),
+        [_loc((2, 24), project.get_m('testp.testm2'))],
+        [_loc((1, 0), project.get_m('testp.testm'))],
     ]
 
     locs = tlocation(source, p[3], project, filename=project.get_m('testp.testm2'))
-    assert locs == [_loc((1, 0), project.get_m('testp.testm'))]
+    assert locs == [[_loc((1, 0), project.get_m('testp.testm'))]]
 
 
 def test_imported_attr_location(project):
@@ -100,29 +102,47 @@ def test_imported_attr_location(project):
         from testp.tes|tm.boo import foo
     """)
 
-    (loc,) = tlocation(source, p[0], project, filename=project.get_m('testp.testm2'))
+    ([loc],) = tlocation(source, p[0], project, filename=project.get_m('testp.testm2'))
     assert loc['loc'] == (3, 4)
     assert loc['file'] == project.get_m('testp.testm')
 
-    (loc,) = tlocation(source, p[1], project, filename=project.get_m('testp.testm2'))
+    ([loc],) = tlocation(source, p[1], project, filename=project.get_m('testp.testm2'))
     assert loc['loc'] == (3, 4)
     assert loc['file'] == project.get_m('testp.testm')
 
     locs = tlocation(source, p[2], project, filename=project.get_m('testp.testm2'))
     assert locs == [
-        _loc((6, 0), project.get_m('testp.testm')),
+        [_loc((6, 0), project.get_m('testp.testm'))],
     ]
 
     locs = tlocation(source, p[3], project, filename=project.get_m('testp.testm2'))
     assert locs == [
-        _loc((0, 0), project.get_m('testp.testm2')),
-        _loc((1, 0), project.get_m('testp.testm')),
+        [_loc((0, 0), project.get_m('testp.testm2'))],
+        [_loc((1, 0), project.get_m('testp.testm'))],
     ]
 
     locs = tlocation(source, p[4], project, filename=project.get_m('testp.testm2'))
     assert locs == [
-        _loc((1, 0), project.get_m('testp.testm')),
+        [_loc((1, 0), project.get_m('testp.testm'))],
     ]
+
+
+@pytest.mark.xfail
+def test_instance_attributes_locations_with_annotations():
+    source, p = sp("""\
+        class Boo(Bar):
+            bar: int
+
+            def __init__(self):
+                self.bar = 100
+
+            def boo(self):
+                self.b|ar
+    """)
+
+    result = tlocation(source, p[0])
+    print(result)
+    assert False
 
 
 # def test_boo():

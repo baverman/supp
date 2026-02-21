@@ -105,10 +105,7 @@ def location(project, source, position, filename=None, debug=False):
 
     locs = []
     for r in result:
-        if isinstance(r, list):
-            locs.append([_loc(n.declared_at, n.filename) for n in r])
-        else:
-            locs.append(_loc(r.declared_at, r.filename))
+        locs.append([_loc(n.declared_at, n.filename) for n in r])
 
     return locs
 

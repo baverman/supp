@@ -154,8 +154,8 @@ class EvalCtx(object):
     def declarations(
         self,
         node: Name | AstName | MultiName | MultiValue | Attribute | ImportedName,
-        result: list[Name | list[Name]],
-    ) -> list[Name | list[Name]]:
+        result: list[list[Name]],
+    ) -> list[list[Name]]:
         node_type = type(node)
         cname = None
         if node_type is AstName:
@@ -188,10 +188,10 @@ class EvalCtx(object):
                 cname = value.get_attr(self, ast_attr.attr)
         elif node_type is ImportedName:
             iname: ImportedName = node  # type: ignore[assignment]
-            result.append(iname)
+            result.append([iname])
             cname = iname.resolve(self)
         else:
-            result.append(node)  # type: ignore[arg-type]
+            result.append([node])  # type: ignore[list-item]
 
         if cname:
             return self.declarations(cname, result)

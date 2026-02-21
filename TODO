@@ -1,17 +1,17 @@
+# Current
+* Goto location and autocomplete should use different strategies. Location should stop on final
+  name with location. Autocomplete should resolve actual type. Currently it's mixed up and fails
+  miserably. Maybe a new design is needed. Or two step evaluation: get object representing point in ast
+  and get object type. First one is enough to get location.
+
 # Annotations
 * ? multiple locations
 
 
+# Misc
 * usage graph
 * imports checker
 * hints to ignore lint errors/warnings
 
 
 # Cases
-
-```
-    @context_property
-    def assigns(self, ctx: EvalCtx) -> dict[Object, dict[str, MultiValue]]:
-        result: dict[Object, dict[str, MultiValue]] = {}
-        for _scope, attr, value, annotation in self._attr_@@@@assigns:
-```
