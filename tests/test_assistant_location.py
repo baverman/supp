@@ -1,7 +1,5 @@
 import os
 
-import pytest
-
 from supp.assistant import _loc, location
 from supp.project import Project
 
@@ -127,10 +125,9 @@ def test_imported_attr_location(project):
     ]
 
 
-@pytest.mark.xfail
 def test_instance_attributes_locations_with_annotations():
     source, p = sp("""\
-        class Boo(Bar):
+        class Boo:
             bar: int
 
             def __init__(self):
@@ -141,8 +138,7 @@ def test_instance_attributes_locations_with_annotations():
     """)
 
     result = tlocation(source, p[0])
-    print(result)
-    assert False
+    assert result == [[{'loc': (5, 8), 'file': '<string>'}]]
 
 
 # def test_boo():

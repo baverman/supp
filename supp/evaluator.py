@@ -9,6 +9,7 @@ from ast import Name as AstName
 from .ast_types import Annotation
 from .compat import HAS_CONSTANTS
 from .name import (
+    AnnotatedWrapper,
     AssignedName,
     Callable,
     CompositeValue,
@@ -162,6 +163,9 @@ class EvalCtx(object):
             ast_name: AstName = node  # type: ignore[assignment]
             names = ast_name.flow.names_at(np(ast_name))  # type: ignore[attr-defined]
             cname = names.get(ast_name.id)
+        elif node_type is AnnotatedWrapper:
+            awname: AnnotatedWrapper = node  # type: ignore[assignment]
+            cname = awname.object
         elif node_type is MultiName:
             mname: MultiName = node  # type: ignore[assignment]
             names = mname.valid_names

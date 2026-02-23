@@ -105,7 +105,7 @@ class AssignedName(Name):
         return 'AssignedName({}, {}, {})'.format(self.name, self.location, self.declared_at)
 
 
-class AnnotatedName(Name):
+class AnnotatedName(Name, Resolvable):
     def __init__(self, name: str, location: loc_t, declared_at: loc_t, annotation: Annotation):
         Name.__init__(self, name, location)
         self.declared_at = declared_at
@@ -115,8 +115,20 @@ class AnnotatedName(Name):
         return 'AnnotatedName({}, {}, {})'.format(self.name, self.location, self.declared_at)
 
     @context_property
-    def resolve(self, ctx: EvalCtx) -> AnnotationEvalResult:
+    def resolve_full(self, ctx: EvalCtx) -> AnnotationEvalResult:
         return ctx.evaluate_annotation(self.annotation)
+
+    def resolve(self, ctx: EvalCtx) -> Object | None:
+        return self.resolve_full(ctx).type
+
+
+class AnnotatedWrapper(Name, Resolvable):
+    def __init__(self, obj: Name | Object, annotation: AnnotatedName):
+        self.object = obj
+        self.annotation = annotation
+
+    def resolve(self, ctx: EvalCtx) -> Object | None:
+        return self.annotation.resolve(ctx)
 
 
 class AdditionalNameWrapper(Object):
@@ -390,9 +402,13 @@ class ClassObject(Object, Callable):
         cls_attrs: dict[str, Name | Object] = self._cls_attrs  # type: ignore[assignment]
         annotations = self.scope.annotations
         for key, value in annotations.items():
-            res = value.resolve(self.ctx)
+            res = value.resolve_full(self.ctx)
             if res.type and res.is_class_var:
-                cls_attrs[key] = res.type
+                attr = cls_attrs.get('key')
+                if attr is not None:
+                    cls_attrs[key] = AnnotatedWrapper(attr, value)
+                else:
+                    cls_attrs[key] = value
         attrs.update(cls_attrs)
         return attrs
 
@@ -437,9 +453,13 @@ class InstanceValue(Object):
         attrs.update(self.cls.scope.top.assigns(self.ctx).get(self, {}))
 
         for key, value in self.cls.scope.annotations.items():
-            res = value.resolve(self.ctx)
+            res = value.resolve_full(self.ctx)
             if res.type and not res.is_class_var:
-                attrs[key] = res.type
+                attr = attrs.get(key)
+                if attr is not None:
+                    attrs[key] = AnnotatedWrapper(attr, value)
+                else:
+                    attrs[key] = value
 
         return attrs
 

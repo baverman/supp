@@ -94,9 +94,10 @@ class extract_visitor(NodeVisitor):
             name.flow = self.flow  # type: ignore[attr-defined]
             self.flow.add_name(AssignedName(name.id, eend, np(name), node.value, annotation))
         else:
-            self.flow.scope.annotations[name.id] = AnnotatedName(
+            self.flow.scope.annotations[name.id] = aname = AnnotatedName(
                 name.id, eend, np(name), annotation
             )
+            aname.scope = self.flow.scope
 
         self.generic_visit(node)
 
