@@ -1,6 +1,10 @@
 from __future__ import annotations, print_function
 
+import hashlib
+import os.path
+import pydoc
 import sys
+import tempfile
 import typing as t
 from ast import (
     AST,
@@ -418,3 +422,20 @@ get_marked_import = visitor(get_marked_import_visitor)
 get_marked_atribute = visitor(get_marked_atribute_visitor)
 get_marked_name = visitor(get_marked_name_visitor)
 get_all_usages = visitor(get_all_usages_visitor)
+
+
+def gen_doc(name: str, obj: object, directory: str | None = None) -> str:
+    hsh = hashlib.sha256('-'.join((sys.executable, name)).encode()).hexdigest()[:10]
+    hdir = os.path.join(directory or tempfile.gettempdir(), 'supp-tmp')
+    os.makedirs(hdir, exist_ok=True)
+
+    fname = os.path.join(hdir, hsh + '.txt')
+    if os.path.exists(fname):
+        return fname
+
+    tmp = fname + '.tmp'
+    with open(tmp, 'w') as f:
+        h = pydoc.Helper(None, f)
+        h(obj)
+    os.rename(tmp, fname)
+    return fname

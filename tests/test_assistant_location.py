@@ -141,6 +141,16 @@ def test_instance_attributes_locations_with_annotations():
     assert result == [[{'loc': (5, 8), 'file': '<string>'}]]
 
 
+def test_runtime_locations():
+    source, p = sp("""\
+        import zlib
+        zlib.decom|press
+    """)
+
+    result = tlocation(source, p[0])
+    assert result[0][0]['loc'] == (3, 0)
+
+
 # def test_boo():
 #     project = Project(['/home/bobrov/work/supp'])
 #     source = open(__file__.rstrip('c')).read()

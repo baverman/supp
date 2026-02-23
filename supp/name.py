@@ -6,7 +6,7 @@ import typing as t
 
 from .ast_types import Annotation, make_annotation
 from .compat import iteritems
-from .util import Location, cached_property, context_property
+from .util import Location, cached_property, context_property, gen_doc
 
 if t.TYPE_CHECKING:
     from .evaluator import AnnotationEvalResult, EvalCtx
@@ -142,7 +142,7 @@ class AdditionalNameWrapper(Object):
 
     @property
     def declared_at(self) -> loc_t:
-        return self.value.declared_at  # type: ignore[union-attr] # TODO
+        return self.value.declared_at
 
     def attr_list(self, ctx: EvalCtx) -> AttrList:
         if self.value:
@@ -258,6 +258,7 @@ class RuntimeName(Name, Object, Callable):
         self.value = value
         self.location = (0, 0)
         self.is_builtin = is_builtin
+        self.declared_at = (3, 0)
 
     @cached_property
     def _attrs(self) -> Attributes:
@@ -280,6 +281,10 @@ class RuntimeName(Name, Object, Callable):
                 pass
 
         return self._instance
+
+    @property
+    def filename(self) -> str:
+        return gen_doc(self.name, self.value)
 
 
 class UndefinedName(str):
