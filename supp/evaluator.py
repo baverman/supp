@@ -13,8 +13,11 @@ from .name import (
     AnnotatedWrapper,
     AssignedName,
     Callable,
+    ClassObject,
     CompositeValue,
+    FuncObject,
     ImportedName,
+    InstanceValue,
     MultiName,
     MultiValue,
     Object,
@@ -71,11 +74,19 @@ class EvalCtx(object):
         self.nodes.remove(node)
         return result  # type: ignore[no-any-return]
 
-    def annotation_context(self, flow: Flow) -> EvalAnnotationCtx:
-        return EvalAnnotationCtx(self.project, flow)
+    def annotation_context(
+        self,
+        flow: Flow,
+        substitutions: dict[str, Object] | None = None,
+    ) -> EvalAnnotationCtx:
+        return EvalAnnotationCtx(self.project, flow, substitutions)
 
-    def evaluate_annotation(self, annotation: Annotation) -> AnnotationEvalResult:
-        obj = self.annotation_context(annotation.flow).evaluate(annotation)
+    def evaluate_annotation(
+        self,
+        annotation: Annotation,
+        substitutions: dict[str, Object] | None = None,
+    ) -> AnnotationEvalResult:
+        obj = self.annotation_context(annotation.flow, substitutions).evaluate(annotation)
 
         result = AnnotationEvalResult(None, False)
         if obj is None:
@@ -129,6 +140,20 @@ class EvalCtx(object):
             value = self.evaluate(node.value)
             if value:
                 return self.evaluate(value.get_attr(self, node.attr))
+        elif node_type is Subscript:
+            value = self.evaluate(node.value)
+            if isinstance(value, ClassObject):
+                if hasattr(node.slice, 'elts'):
+                    args_nodes = node.slice.elts
+                else:
+                    args_nodes = [node.slice]
+                args = []
+                for arg in args_nodes:
+                    obj = self.evaluate(arg)
+                    if obj is not None:
+                        args.append(obj)
+                return value.with_type_args(args)
+            return value
         elif node_type is MultiName:
             values = []
             for n in node.valid_names:
@@ -139,6 +164,10 @@ class EvalCtx(object):
         elif node_type is Call:
             func = self.evaluate(node.func)
             if func:
+                if type(func) is FuncObject and type(node.func) is Attribute:
+                    owner = self.evaluate(node.func.value)
+                    if isinstance(owner, (ClassObject, InstanceValue)) and owner.substitutions:
+                        func = func.with_substitutions(owner.substitutions)
                 if isinstance(func, Callable):
                     return func.call(self)
                 else:
@@ -234,14 +263,22 @@ class ClassVarWrapper(Object):
 
 
 class EvalAnnotationCtx(EvalCtx):
-    def __init__(self, project: Project, flow: Flow) -> None:
+    def __init__(
+        self,
+        project: Project,
+        flow: Flow,
+        substitutions: dict[str, Object] | None = None,
+    ) -> None:
         super().__init__(project)
         self.flow = flow
+        self.substitutions = substitutions or {}
 
     def _evaluate(self, node):  # type: ignore[no-untyped-def]
         node_type = type(node)
         # print('@@', node)
         if node_type is AstName:
+            if node.id in self.substitutions:
+                return self.substitutions[node.id]
             names = node.flow.names_at(np(node))
             name = names.get(node.id)
             if not name:
@@ -249,7 +286,9 @@ class EvalAnnotationCtx(EvalCtx):
             if name:
                 return self.evaluate(name)
         elif node_type is AssignedName:
-            return self.annotation_context(node.scope.flow).evaluate(node.value_node)
+            return self.annotation_context(node.scope.flow, self.substitutions).evaluate(
+                node.value_node
+            )
         elif node_type is ImportedName:
             if node.module in _TYPING_MODULES and node.mname:
                 return MarkerObject(node.mname)
@@ -279,6 +318,17 @@ class EvalAnnotationCtx(EvalCtx):
                     if o is not None:
                         return ClassVarWrapper(o)
             else:
+                if isinstance(obj, ClassObject):
+                    if hasattr(node.slice, 'elts'):
+                        args_nodes = node.slice.elts
+                    else:
+                        args_nodes = [node.slice]
+                    args = []
+                    for arg in args_nodes:
+                        o = self.evaluate(arg)
+                        if o is not None:
+                            args.append(o)
+                    return obj.with_type_args(args)
                 return obj
         elif node_type is MultiName:
             return self.make_composite(node.valid_names)

@@ -675,6 +675,101 @@ def test_annotated_result():
     assert 'startswith' in result
 
 
+def test_generic_instances():
+    source, p = sp("""\
+        from typing import Generic, TypeVar
+
+        T = TypeVar('T')
+
+        class Boo(Generic[T]):
+            foo: T
+
+        BooStr = Boo[str]
+
+        BooStr().foo.s|
+    """)
+
+    _, result = tassist(source, p[0])
+    assert 'startswith' in result
+
+
+def test_generic_instances_direct_subscript():
+    source, p = sp("""\
+        from typing import Generic, TypeVar
+
+        T = TypeVar('T')
+
+        class Boo(Generic[T]):
+            foo: T
+
+        Boo[str]().foo.s|
+    """)
+
+    _, result = tassist(source, p[0])
+    assert 'startswith' in result
+
+
+def test_generic_instances_multiple_type_params():
+    source, p = sp("""\
+        from typing import Generic, TypeVar
+
+        T = TypeVar('T')
+        U = TypeVar('U')
+
+        class Pair(Generic[T, U]):
+            first: T
+            second: U
+
+        PairSI = Pair[str, int]
+
+        PairSI().first.s|
+        PairSI().second.b|
+    """)
+
+    _, result = tassist(source, p[0])
+    assert 'startswith' in result
+
+    _, result = tassist(source, p[1])
+    assert 'bit_length' in result
+
+
+def test_generic_instances_return_value():
+    source, p = sp("""\
+        from typing import Generic, TypeVar
+
+        T = TypeVar('T')
+
+        class Boo(Generic[T]):
+            def foo(self) -> T: ...
+
+        BooStr = Boo[str]
+
+        BooStr().foo().s|
+    """)
+
+    _, result = tassist(source, p[0])
+    assert 'startswith' in result
+
+
+def test_generic_instances_arg():
+    source, p = sp("""\
+        from typing import Generic, TypeVar
+
+        T = TypeVar('T')
+
+        class Boo(Generic[T]):
+            def foo(self) -> T: ...
+
+        BooStr = Boo[str]
+
+        def foo(arg: BooStr):
+            arg.foo().s|
+    """)
+
+    _, result = tassist(source, p[0])
+    assert 'startswith' in result
+
+
 # def test_test():
 #     project = Project(['/home/bobrov/work/sdl_line'], dyn_modules=['sdl3'])
 #     source, p = sp('''\

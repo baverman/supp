@@ -125,11 +125,19 @@ class AnnotatedName(Name, Resolvable):
 
 
 class AnnotatedWrapper(Name, Resolvable):
-    def __init__(self, obj: Name | Object, annotation: AnnotatedName):
+    def __init__(
+        self,
+        obj: Name | Object,
+        annotation: AnnotatedName,
+        substitutions: dict[str, Object] | None = None,
+    ):
         self.object = obj
         self.annotation = annotation
+        self.substitutions = substitutions
 
     def resolve(self, ctx: EvalCtx) -> Object | None:
+        if self.substitutions:
+            return ctx.evaluate_annotation(self.annotation.annotation, self.substitutions).type
         return self.annotation.resolve(ctx)
 
 
@@ -388,9 +396,46 @@ class MultiValue(Object):
 
 
 class ClassObject(Object, Callable):
-    def __init__(self, ctx: EvalCtx, scope: ClassScope) -> None:
+    def __init__(
+        self,
+        ctx: EvalCtx,
+        scope: ClassScope,
+        substitutions: dict[str, Object] | None = None,
+    ) -> None:
         self.ctx = ctx
         self.scope = scope
+        self.substitutions = substitutions or {}
+
+    @cached_property
+    def type_params(self) -> list[str]:
+        params: list[str] = []
+        for base in self.scope._bases:
+            if type(base) is ast.Subscript and self._is_generic_base(base.value):
+                params.extend(self._extract_type_param_names(base.slice))
+        return params
+
+    def _is_generic_base(self, node: ast.AST) -> bool:
+        # TODO: add proper module name handling
+        if type(node) is ast.Name:
+            return node.id == 'Generic'
+        if type(node) is ast.Attribute:
+            return node.attr == 'Generic'
+        return False
+
+    def _extract_type_param_names(self, node: ast.AST) -> list[str]:
+        if type(node) is ast.Tuple:
+            return [it.id for it in node.elts if type(it) is ast.Name]
+        if type(node) is ast.Name:
+            return [node.id]
+        return []
+
+    def with_type_args(self, args: list[Object]) -> ClassObject:
+        if not self.type_params or not args:
+            return self
+        substitutions = self.substitutions.copy()
+        for key, value in zip(self.type_params, args):
+            substitutions[key] = value
+        return ClassObject(self.ctx, self.scope, substitutions)
 
     @property
     def _cls_attrs(self) -> Names:
@@ -410,13 +455,13 @@ class ClassObject(Object, Callable):
         cls_attrs: dict[str, Name | Object] = self._cls_attrs  # type: ignore[assignment]
         annotations = self.scope.annotations
         for key, value in annotations.items():
-            res = value.resolve_full(self.ctx)
+            res = self.ctx.evaluate_annotation(value.annotation, self.substitutions)
             if res.type and res.is_class_var:
                 attr = cls_attrs.get('key')
                 if attr is not None:
-                    cls_attrs[key] = AnnotatedWrapper(attr, value)
+                    cls_attrs[key] = AnnotatedWrapper(attr, value, self.substitutions)
                 else:
-                    cls_attrs[key] = value
+                    cls_attrs[key] = AnnotatedWrapper(value, value, self.substitutions)
         attrs.update(cls_attrs)
         return attrs
 
@@ -426,8 +471,9 @@ class ClassObject(Object, Callable):
 
 
 class FuncObject(Object, Callable):
-    def __init__(self, scope: FuncScope) -> None:
+    def __init__(self, scope: FuncScope, substitutions: dict[str, Object] | None = None) -> None:
         self.scope = scope
+        self.substitutions = substitutions or {}
 
     @cached_property
     def _attrs(self) -> Attributes:
@@ -438,17 +484,26 @@ class FuncObject(Object, Callable):
         node = self.scope.node
         if type(node) is ast.FunctionDef and node.returns:
             return ctx.evaluate_annotation(
-                make_annotation(node.returns, self.scope.parent.flow)
+                make_annotation(node.returns, self.scope.parent.flow),
+                self.substitutions,
             ).type
         if len(self.scope.returns) == 1:
             return ctx.evaluate(self.scope.returns[0])
         return None
+
+    def with_substitutions(self, substitutions: dict[str, Object]) -> FuncObject:
+        if not substitutions:
+            return self
+        merged = self.substitutions.copy()
+        merged.update(substitutions)
+        return FuncObject(self.scope, merged)
 
 
 class InstanceValue(Object):
     def __init__(self, ctx: EvalCtx, cls: ClassObject) -> None:
         self.ctx = ctx
         self.cls = cls
+        self.substitutions = cls.substitutions
 
     @cached_property
     def _attrs(self) -> Attributes:
@@ -461,13 +516,13 @@ class InstanceValue(Object):
         attrs.update(self.cls.scope.top.assigns(self.ctx).get(self, {}))
 
         for key, value in self.cls.scope.annotations.items():
-            res = value.resolve_full(self.ctx)
+            res = self.ctx.evaluate_annotation(value.annotation, self.substitutions)
             if res.type and not res.is_class_var:
                 attr = attrs.get(key)
                 if attr is not None:
-                    attrs[key] = AnnotatedWrapper(attr, value)
+                    attrs[key] = AnnotatedWrapper(attr, value, self.substitutions)
                 else:
-                    attrs[key] = value
+                    attrs[key] = AnnotatedWrapper(value, value, self.substitutions)
 
         return attrs
 
