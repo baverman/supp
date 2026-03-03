@@ -8,6 +8,7 @@ from ast import Name as AstName
 
 from .ast_types import Annotation
 from .compat import HAS_CONSTANTS
+from .module import SourceModule
 from .name import (
     AnnotatedWrapper,
     AssignedName,
@@ -43,6 +44,9 @@ if t.TYPE_CHECKING:
     from .name import Name
     from .project import Project
     from .scope import Flow
+
+
+_TYPING_MODULES = 'typing', 'typing_extensions'
 
 
 @dataclasses.dataclass
@@ -248,7 +252,7 @@ class EvalAnnotationCtx(EvalCtx):
             self._flows.pop()
             return result
         elif node_type is ImportedName:
-            if node.module == 'typing':
+            if node.module in _TYPING_MODULES and node.mname:
                 return MarkerObject(node.mname)
             return self.evaluate(node.resolve(self))
         elif isinstance(node, Resolvable):
@@ -288,6 +292,8 @@ class EvalAnnotationCtx(EvalCtx):
         elif node_type is Attribute:
             value = self.evaluate(node.value)
             if value:
+                if isinstance(value, SourceModule) and value.name in _TYPING_MODULES:
+                    return MarkerObject(node.attr)
                 return self.evaluate(value.get_attr(self, node.attr))
         else:
             # if isinstance(node, AST):

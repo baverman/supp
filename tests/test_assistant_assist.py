@@ -504,6 +504,7 @@ def test_annotated_arg_union_alias():
 def test_annotated_arg_union_import_alias():
     source, p = sp("""\
         from typing import Union as U
+        import typing as t
 
         class A:
             def boo(self):
@@ -515,8 +516,15 @@ def test_annotated_arg_union_import_alias():
 
         def boo(arg: U[A, B]):
             arg.b|
+
+        def foo(arg: t.Union[A, B]):
+            arg.b|
     """)
+
     result = passist(source, p[0])
+    assert result == {'boo', 'bar'}
+
+    result = passist(source, p[1])
     assert result == {'boo', 'bar'}
 
 
