@@ -1,5 +1,7 @@
-# type: ignore
+from __future__ import annotations
+
 import logging
+from typing import TYPE_CHECKING
 
 from .compat import itervalues
 from .evaluator import EvalCtx
@@ -8,11 +10,16 @@ from .nast import extract_scope
 from .scope import ClassScope, SourceScope
 from .util import Source, get_name_usages, np
 
+if TYPE_CHECKING:
+    from .name import Name, UndefinedName
+    from .project import Project
+    from .scope import Flow
+
 IGNORED_SCOPES = SourceScope, ClassScope
 log = logging.getLogger('supp.linter')
 
 
-def use_name(name):
+def use_name(name: Name | MultiName | UndefinedName) -> None:
     if isinstance(name, MultiName):
         for n in name.alt_names:
             n.used = True
@@ -20,8 +27,10 @@ def use_name(name):
         name.used = True
 
 
-def lint(project, source, filename=None, debug=False):
-    source = Source(source, filename)
+def lint(
+    project: Project, source_text: str, filename: str | None = None, debug: bool = False
+) -> list[tuple[str, str, int | None, int | None, Flow | None]]:
+    source = Source(source_text, filename)
     try:
         source.tree
     except SyntaxError as e:
@@ -32,7 +41,7 @@ def lint(project, source, filename=None, debug=False):
 
         print_dump(source.tree)
 
-    result = []
+    result: list[tuple[str, str, int | None, int | None, Flow | None]] = []
     scope = extract_scope(source, project)
     name_usages = get_name_usages(source.tree)
     qualified_imports = set()
@@ -40,7 +49,7 @@ def lint(project, source, filename=None, debug=False):
     for name in name_usages:
         location = np(name)
         try:
-            flow = name.flow
+            flow: Flow = name.flow  # type: ignore[attr-defined] # TODO
         except AttributeError:
             result.append(
                 ('E42', 'UNKNOWN NAME: {}'.format(name.id), location[0], location[1], None)
@@ -61,7 +70,7 @@ def lint(project, source, filename=None, debug=False):
             #     use_name(sname)
             #     result.append(('E02', 'Undefined name: {}'.format(name.id),
             #                    location[0], location[1], flow))
-            if sname.name == 'locals' and sname.location == (0, 0):
+            if sname.name == 'locals' and sname.location == (0, 0):  # type: ignore[union-attr]
                 for n in itervalues(flow.names_at(location)):
                     if getattr(n, 'scope', None) is flow.scope:
                         use_name(n)
@@ -71,38 +80,38 @@ def lint(project, source, filename=None, debug=False):
 
                 use_name(sname)
 
-    for flow, name in scope.all_names:
+    for flow, fname in scope.all_names:
         w = 'W01'
         message = 'Unused name: {}'
-        if hasattr(name, 'used'):
+        if hasattr(fname, 'used'):
             continue
-        if name.name.startswith('_'):
+        if fname.name.startswith('_'):
             continue
-        if getattr(name, 'is_star', None):
+        if getattr(fname, 'is_star', None):
             continue
         if isinstance(flow.scope, IGNORED_SCOPES):
-            if isinstance(name, ImportedName):
-                if name.module == '__future__':
+            if isinstance(fname, ImportedName):
+                if fname.module == '__future__':
                     continue
-                if name.name in qualified_imports:
+                if fname.name in qualified_imports:
                     continue
                 w = 'W02'
                 message = 'Unused import: {}'
             else:
                 continue
-        if isinstance(name, ArgumentName) and isinstance(flow.scope.parent, ClassScope):
+        if isinstance(fname, ArgumentName) and isinstance(flow.scope.parent, ClassScope):
             continue
 
-        # print('###', name)
+        # print('###', fname)
         result.append(
-            (w, message.format(name.name), name.declared_at[0], name.declared_at[1], flow)
+            (w, message.format(fname.name), fname.declared_at[0], fname.declared_at[1], flow)
         )
 
     return result
 
 
-def check_names(project, source, filename=None):
-    source = Source(source, filename)
+def check_names(project: Project, source_text: str, filename: str | None = None) -> None:
+    source = Source(source_text, filename)
     extract_scope(source, project)
     ctx = EvalCtx(project)
 

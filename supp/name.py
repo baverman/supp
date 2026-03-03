@@ -48,6 +48,8 @@ class Resolvable(object):
 
 class Name(Location):
     scope: Scope
+    declared_at: loc_t
+    used: bool
 
     def __init__(self, name: str, location: loc_t) -> None:
         self.name = name
@@ -289,6 +291,7 @@ class RuntimeName(Name, Object, Callable):
 
 class UndefinedName(str):
     location = (0, 0)
+    used: bool
 
     def __lt__(self, other: t.Any) -> bool:
         return True

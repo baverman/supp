@@ -1,4 +1,3 @@
-# type: ignore
 from __future__ import annotations
 
 import logging
@@ -21,7 +20,7 @@ except ImportError:
 from supp import assistant, linter
 from supp.compat import nstr
 from supp.project import Project
-from supp.umsgpack import dumps, loads
+from supp.umsgpack import dumps, loads  # type: ignore[attr-defined]
 
 if t.TYPE_CHECKING:
     from multiprocessing.connection import _ConnectionBase
@@ -48,26 +47,34 @@ class Server(object):
         # logger.error('PROCESS %r %r %r: %r', name, args, kwargs, result)
         return result, is_ok
 
-    def assist(self, source: str, position: list[int], filename: str) -> t.TODO:
+    def assist(self, source: str, position: list[int], filename: str) -> tuple[str, list[str]]:
         with self.project.check_changes():
-            return assistant.assist(self.project, nstr(source), tuple(position), filename)
+            return assistant.assist(
+                self.project, nstr(source), (position[0], position[1]), filename
+            )
 
-    def location(self, source, position, filename):
+    def location(
+        self, source: str, position: list[int], filename: str
+    ) -> list[list[dict[str, object]]]:
         with self.project.check_changes():
-            return assistant.location(self.project, nstr(source), tuple(position), filename)
+            return assistant.location(
+                self.project, nstr(source), (position[0], position[1]), filename
+            )
 
-    def lint(self, source, filename, syntax_only=False):
+    def lint(
+        self, source: str, filename: str, syntax_only: bool = False
+    ) -> list[tuple[str, str, int | None, int | None]]:
         with self.project.check_changes():
             return [r[:4] for r in linter.lint(self.project, nstr(source), filename)]
 
-    def eval(self, source):
-        ctx = {}
+    def eval(self, source: str) -> object:
+        ctx: dict[str, object] = {}
         source = '\n'.join('    ' + r for r in nstr(source).splitlines())
         source = 'def boo():\n{}\nresult = boo()'.format(source)
         exec(source, ctx)
         return ctx['result']
 
-    def run(self):
+    def run(self) -> None:
         conn = self.conn
         while True:
             if conn.poll(1):

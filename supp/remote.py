@@ -1,16 +1,22 @@
-# type: ignore
+from __future__ import annotations
+
 import os.path
 import sys
 import time
 from threading import Lock, Thread
 
-from .umsgpack import dumps, loads
+from .umsgpack import dumps, loads  # type: ignore[attr-defined]
 
 
 class Environment(object):
     """Supplement server client"""
 
-    def __init__(self, executable=None, env=None, logfile=None):
+    def __init__(
+        self,
+        executable: str | None = None,
+        env: dict[str, str] | None = None,
+        logfile: str | None = None,
+    ) -> None:
         """Environment constructor
 
         :param executable: path to python executable. May be path to virtualenv interpreter
@@ -24,11 +30,14 @@ class Environment(object):
         self.env = env
         self.logfile = logfile
 
-        self.prepare_thread = None
+        self.prepare_thread: Thread | None = None
         self.prepare_lock = Lock()
 
-    def _run(self):
-        from multiprocessing.connection import Client, arbitrary_address
+    def _run(self) -> None:
+        from multiprocessing.connection import (  # type: ignore[attr-defined]
+            Client,
+            arbitrary_address,
+        )
         from subprocess import Popen
 
         if sys.platform == 'win32':
@@ -60,13 +69,13 @@ class Environment(object):
             else:
                 break
 
-    def _threaded_run(self):
+    def _threaded_run(self) -> None:
         try:
             self._run()
         finally:
             self.prepare_thread = None
 
-    def prepare(self):
+    def prepare(self) -> None:
         with self.prepare_lock:
             if self.prepare_thread:
                 return
@@ -77,7 +86,7 @@ class Environment(object):
             self.prepare_thread = Thread(target=self._threaded_run)
             self.prepare_thread.start()
 
-    def run(self):
+    def run(self) -> None:
         with self.prepare_lock:
             if self.prepare_thread:
                 self.prepare_thread.join()
@@ -85,7 +94,7 @@ class Environment(object):
             if not hasattr(self, 'conn'):
                 self._run()
 
-    def _call(self, name, *args, **kwargs):
+    def _call(self, name: str, *args: object, **kwargs: object) -> object:
         try:
             self.conn
         except AttributeError:
@@ -99,10 +108,10 @@ class Environment(object):
         else:
             raise Exception(result[1])
 
-    def lint(self, source, filename, syntax_only=False):
+    def lint(self, source: str, filename: str, syntax_only: bool = False) -> object:
         return self._call('lint', source, filename, syntax_only)
 
-    def assist(self, source, position, filename):
+    def assist(self, source: str, position: list[int], filename: str) -> object:
         """Return completion match and list of completion proposals
 
         :param source: code source
@@ -112,7 +121,7 @@ class Environment(object):
         """
         return self._call('assist', source, position, filename)
 
-    def location(self, source, position, filename):
+    def location(self, source: str, position: list[int], filename: str) -> object:
         """Return position and file path where name under cursor is defined
 
         If position is None location wasn't finded. If file path is None, defenition is located in
@@ -146,7 +155,7 @@ class Environment(object):
     #     """
     #     return self._call('get_docstring', project_path, source, position, filename)
 
-    def configure(self, config):
+    def configure(self, config: dict[str, str]) -> object:
         """Reconfigure project
 
         :param config: dict with config key/values
@@ -176,10 +185,10 @@ class Environment(object):
     #     """
     #     return self._call('get_scope', project_path, source, lineno, filename, continous=continous)
 
-    def eval(self, source):
+    def eval(self, source: str) -> object:
         return self._call('eval', source)
 
-    def close(self):
+    def close(self) -> None:
         """Shutdown server"""
 
         try:
