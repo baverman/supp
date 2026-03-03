@@ -71,9 +71,11 @@ class EvalCtx(object):
         self.nodes.remove(node)
         return result  # type: ignore[no-any-return]
 
+    def annotation_context(self, flow: Flow) -> EvalAnnotationCtx:
+        return EvalAnnotationCtx(self.project, flow)
+
     def evaluate_annotation(self, annotation: Annotation) -> AnnotationEvalResult:
-        actx = EvalAnnotationCtx(self.project, annotation.flow)
-        obj = actx.evaluate(annotation)
+        obj = self.annotation_context(annotation.flow).evaluate(annotation)
 
         result = AnnotationEvalResult(None, False)
         if obj is None:
@@ -234,7 +236,7 @@ class ClassVarWrapper(Object):
 class EvalAnnotationCtx(EvalCtx):
     def __init__(self, project: Project, flow: Flow) -> None:
         super().__init__(project)
-        self._flows = [flow]
+        self.flow = flow
 
     def _evaluate(self, node):  # type: ignore[no-untyped-def]
         node_type = type(node)
@@ -247,10 +249,7 @@ class EvalAnnotationCtx(EvalCtx):
             if name:
                 return self.evaluate(name)
         elif node_type is AssignedName:
-            self._flows.append(node.scope.flow)
-            result = self.evaluate(node.value_node)
-            self._flows.pop()
-            return result
+            return self.annotation_context(node.scope.flow).evaluate(node.value_node)
         elif node_type is ImportedName:
             if node.module in _TYPING_MODULES and node.mname:
                 return MarkerObject(node.mname)
@@ -286,9 +285,9 @@ class EvalAnnotationCtx(EvalCtx):
         elif node_type is BinOp:
             return self.make_composite([node.left, node.right])
         elif node_type is Str:
-            return self.evaluate(self._flows[-1].names.get(node.s))
+            return self.evaluate(self.flow.names.get(node.s))
         elif node_type is Constant:
-            return self.evaluate(self._flows[-1].names.get(node.value))
+            return self.evaluate(self.flow.names.get(node.value))
         elif node_type is Attribute:
             value = self.evaluate(node.value)
             if value:
